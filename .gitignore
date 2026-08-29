@@ -13,3 +13,6 @@ crash.*.log
 
 # Terraform variable example is safe to commit
 !terraform.tfvars.example
+
+# terraform generated files
+*.zip
