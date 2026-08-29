@@ -3,39 +3,39 @@ import MapView from '../features/homepage/components/MapView';
 import SkeletonMap from '../features/homepage/components/SkeletonMap';
 import SearchBarSection from '../features/homepage/components/SearchBarSection';
 import DirectorySheet from '../features/homepage/components/DirectorySheet';
-import { MOCK_ROOMS } from '../features/homepage/data/rooms.mock';
-import type { RoomCategory, RoomItem } from '../features/homepage/types/directory.types';
+import type { BuildingItem } from '../features/homepage/components/DirectorySheet';
+
+const MOCK_BUILDINGS: BuildingItem[] = [
+  { id: 'b1', code: 'LC.4', name: 'Lecture Center 4', openHours: '08:00 - 16:00 น.' },
+  { id: 'b2', code: 'LC.3', name: 'Lecture Center 3', openHours: '08:00 - 16:00 น.' },
+  { id: 'b3', code: 'SC', name: 'Science Center', openHours: '08:00 - 16:00 น.' },
+];
 
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<RoomCategory>('All');
-  const [rooms] = useState<RoomItem[]>(MOCK_ROOMS);
+  const [buildings] = useState<BuildingItem[]>(MOCK_BUILDINGS);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1200);
+    const timer = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  const filteredRooms = rooms.filter((room) => {
-    const matchesSearch =
-      room.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || room.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredBuildings = buildings.filter(
+    (b) =>
+      b.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="relative w-full h-full min-h-[calc(100vh-120px)] flex flex-col justify-between overflow-hidden">
-      {/* 1. Search Bar (วางชั้นบนสุด z-30) */}
+    <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden select-none">
       <SearchBarSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
+        selectedCategory="All"
+        setSelectedCategory={() => {}}
       />
 
-      {/* 2. Map View (อยู่ด้านหลัง z-0) */}
       <div className="absolute inset-0 w-full h-full z-0">
         {loading ? (
           <SkeletonMap />
@@ -44,10 +44,11 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 3. Directory Sheet (วางซ้อนเหนือแผนที่ z-20) */}
       <DirectorySheet
-        rooms={filteredRooms}
-        onSelectRoom={(room) => console.log('Selected room:', room)}
+        buildings={filteredBuildings}
+        onSelectBuilding={(building) => {
+          console.log('Selected Building:', building);
+        }}
       />
     </div>
   );
