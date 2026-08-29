@@ -1,0 +1,828 @@
+{
+  "id": "building-uuid",
+  "name": "LC3",
+  "latitude": 14.072603828706107,
+  "longitude": 100.60628435011894,
+  "floors": [
+    {
+      "id": "floor-uuid",
+      "floor_number": 1,
+      "rooms": [
+        {
+          "id": "room-uuid",
+          "room_number": "101",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.07269655520026,
+          "longitude": 100.60614553606739
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "101/1",
+          "name": "ห้องบรรยาย 4 (วิทยาศาสตร์สิ่งแวดล้อม) / Lecture Room 4 (Environmental Science)",
+          "type": "CLASSROOM",
+          "latitude": 14.072752246700887,
+          "longitude": 100.60604426302746
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "101/2",
+          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "type": "MEETING_ROOM",
+          "latitude": 14.07287523205006,
+          "longitude": 100.60614872576944
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "102/1",
+          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072862856168856,
+          "longitude": 100.6061814202154
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "102/2",
+          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072869044109547,
+          "longitude": 100.60614314379086
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "103",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072872138079823,
+          "longitude": 100.60607137549484
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "104",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.07287523205006,
+          "longitude": 100.60596611532735
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "104/1",
+          "name": "ห้องพักนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม) / Graduate Common Room (Environmental Science)",
+          "type": "COMMON_ROOM",
+          "latitude": 14.072871364587257,
+          "longitude": 100.60591667494565
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "105",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072745285264055,
+          "longitude": 100.60595096424262
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "106",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072860535691069,
+          "longitude": 100.60580503537406
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "107",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072756887658661,
+          "longitude": 100.60588796762723
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "108",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072864403154052,
+          "longitude": 100.60577792290665
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "108/1",
+          "name": "ห้องเจ้าหน้าที่ / Staff Room",
+          "type": "OFFICE",
+          "latitude": 14.072854347750148,
+          "longitude": 100.60570137005757
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "109",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072854347750148,
+          "longitude": 100.60570137005757
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "110",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072794015317458,
+          "longitude": 100.60569658550452
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "111",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072667162458332,
+          "longitude": 100.60570774946167
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "115",
+          "name": "ห้องสัมมนาทางคณิตศาสตร์และสถิติ / Seminar in Mathematics and Statistics Room",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072536442057615,
+          "longitude": 100.60570455975966
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "116",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072420417973106,
+          "longitude": 100.60568542154738
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "117",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072341521561997,
+          "longitude": 100.60570615461069
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "118",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072341521561997,
+          "longitude": 100.60580104824653
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "118/1",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072331840779537,
+          "longitude": 100.60585318319079
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072426584798542,
+          "longitude": 100.60585792471126
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119/1",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60589111535447
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119/2",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072440382467928,
+          "longitude": 100.6059110297404
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119/3",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119/4",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "119/5",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "120",
+          "name": "ห้องเก็บของ / Storage Room",
+          "type": "STORAGE",
+          "latitude": 14.07233765409016,
+          "longitude": 100.60599482264578
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.07235699144867,
+          "longitude": 100.60609370340919
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121/1",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121/2",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121/3",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121/4",
+          "name": "ห้องโครงการให้คำปรึกษาทางสถิติเพื่อการวิจัย / ห้องสมาคมศิษย์เก่าคณะวิทยาศาสตร์และเทคโนโลยี / Statistical Consulting for Research Service Room / Faculty of Science and Technology Alumni Association Room",
+          "type": "OFFICE",
+          "latitude": 14.072348397989956,
+          "longitude": 100.60644776985623
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "121/5",
+          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "type": "OFFICE",
+          "latitude": 14.072348397989956,
+          "longitude": 100.60644776985623
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122",
+          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "type": "CLASSROOM",
+          "latitude": 14.072444061846697,
+          "longitude": 100.60600301523719
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/1",
+          "name": "ห้องเจ้าหน้าที่ / Staff Room",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/2",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/3",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/4",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/5",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "122/6",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "123",
+          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "type": "OFFICE",
+          "latitude": 14.072427504643963,
+          "longitude": 100.6066118264641
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "124",
+          "name": "ห้องวิจัยพลาสมาและนิวเคลียร์ฟิวชัน / Plasma and Nuclear Fusion Lab",
+          "type": "LAB",
+          "latitude": 14.072427504643963,
+          "longitude": 100.6066118264641
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "125",
+          "name": "ห้องเก็บของ / Storage Room",
+          "type": "STORAGE",
+          "latitude": 14.072235498731404,
+          "longitude": 100.60672349485053
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "126",
+          "name": "ที่ทำการ กน. วท. คณะวิทยาศาสตร์และเทคโนโลยี / Faculty of Science and Technology Student Affairs Office",
+          "type": "OFFICE",
+          "latitude": 14.072248376566973,
+          "longitude": 100.60686763707248
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "127",
+          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "type": "OFFICE",
+          "latitude": 14.072357838139943,
+          "longitude": 100.60678703122467
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "128",
+          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "type": "LAB",
+          "latitude": 14.07236703658906,
+          "longitude": 100.60684677438246
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "129",
+          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "type": "LAB",
+          "latitude": 14.07236703658906,
+          "longitude": 100.60687806841749
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "130",
+          "name": "ห้องเก็บของ / Storage Room",
+          "type": "STORAGE",
+          "latitude": 14.072527089544543,
+          "longitude": 100.60687996502568
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "131",
+          "name": "ห้องเก็บของ / Storage Room",
+          "type": "STORAGE",
+          "latitude": 14.072527089544543,
+          "longitude": 100.60687996502568
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "132",
+          "name": "ห้องควบคุมไฟฟ้า / Electricity Control Room",
+          "type": "STORAGE",
+          "latitude": 14.072527089544543,
+          "longitude": 100.60687996502568
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "135",
+          "name": "ห้องประชุม 135 / Conference Room 135",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072744172684363,
+          "longitude": 100.60690082771569
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "136",
+          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "type": "OFFICE",
+          "latitude": 14.072882149151487,
+          "longitude": 100.60685246420702
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "137/1",
+          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "type": "LAB",
+          "latitude": 14.072861912608545,
+          "longitude": 100.60679082444106
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "137/2",
+          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "type": "LAB",
+          "latitude": 14.072873870565946,
+          "longitude": 100.60672918467509
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "137/3",
+          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "type": "LAB",
+          "latitude": 14.072856393551058,
+          "longitude": 100.60657081789176
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "138",
+          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "type": "OFFICE",
+          "latitude": 14.072873870565946,
+          "longitude": 100.60649021204397
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "139",
+          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "type": "LAB",
+          "latitude": 14.072877549937335,
+          "longitude": 100.60644753835984
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "140",
+          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "type": "LAB",
+          "latitude": 14.072834317319806,
+          "longitude": 100.60649021204397
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "141",
+          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "type": "LAB",
+          "latitude": 14.072855473708133,
+          "longitude": 100.6064409002312
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องน้ำ / Restroom",
+          "type": "RESTROOM",
+          "latitude": 14.0725685311312,
+          "longitude": 100.60687200520628
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องน้ำ / Restroom",
+          "type": "RESTROOM",
+          "latitude": 14.072547747312822,
+          "longitude": 100.60688779342591
+        }
+      ],
+      "facilities": [
+        {
+          "id": "facility-uuid",
+          "name": "West Stair",
+          "type": "STAIR",
+          "latitude": 14.07257290667166,
+          "longitude": 100.6056969105743
+        },
+        {
+          "id": "facility-uuid",
+          "name": "East Stair",
+          "type": "STAIR",
+          "latitude": 14.07258275163742,
+          "longitude": 100.60688328250602
+        }
+      ]
+    },
+    {
+      "id": "floor-lc3-2-uuid",
+      "floor_number": 2,
+      "rooms": [
+        {
+          "id": "room-uuid",
+          "room_number": "201",
+          "name": "ห้องสำนักงานภาควิชาคณิตศาสตร์และสถิติ / Department Office of Mathematics and Statistics",
+          "type": "OFFICE",
+          "latitude": 14.072870,
+          "longitude": 100.606140
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "203",
+          "name": "ห้องปฏิบัติการระบบบำบัดน้ำเสีย / Wastewater Treatment Lab",
+          "type": "LAB",
+          "latitude": 14.072860,
+          "longitude": 100.606100
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "204",
+          "name": "ห้องเตรียมปฏิบัติการระบบบำบัดน้ำเสีย / Wastewater Treatment Preparation Lab",
+          "type": "LAB",
+          "latitude": 14.072850,
+          "longitude": 100.606050
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "205",
+          "name": "ห้องปฏิบัติการนิเวศวิทยาและสิ่งแวดล้อมวัฒนธรรม / Ecology and Cultural Environment Lab",
+          "type": "LAB",
+          "latitude": 14.072840,
+          "longitude": 100.606000
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "206",
+          "name": "ห้องปฏิบัติการนิเวศวิทยาทางทะเล ชายฝั่ง และน้ำกร่อย / Marine, Coastal and Brackish Water Ecology Lab",
+          "type": "LAB",
+          "latitude": 14.072830,
+          "longitude": 100.605950
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "207",
+          "name": "ห้องเตรียมปฏิบัติการชีววิทยาทางทะเล / Marine Biology Preparation Lab",
+          "type": "LAB",
+          "latitude": 14.072820,
+          "longitude": 100.605900
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "208",
+          "name": "ห้องปฏิบัติการด้านชีววิทยาทางทะเล / Marine Biology Lab",
+          "type": "LAB",
+          "latitude": 14.072810,
+          "longitude": 100.605850
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "209",
+          "name": "ห้องปฏิบัติการวิทยาศาสตร์สิ่งแวดล้อมทางดิน / Environmental Soil Science Lab",
+          "type": "LAB",
+          "latitude": 14.072800,
+          "longitude": 100.605800
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "212",
+          "name": "ห้องเตรียมปฏิบัติการวิเคราะห์คุณภาพน้ำจืด / Freshwater Quality Analysis Preparation Lab",
+          "type": "LAB",
+          "latitude": 14.072750,
+          "longitude": 100.605750
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "213",
+          "name": "ห้องปฏิบัติการวิเคราะห์คุณภาพน้ำจืด / Freshwater Quality Analysis Lab",
+          "type": "LAB",
+          "latitude": 14.072700,
+          "longitude": 100.605700
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "217",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ และอื่นๆ) / Faculty Offices (Mathematics, Statistics and Others)",
+          "type": "OFFICE",
+          "latitude": 14.072650,
+          "longitude": 100.605700
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "220",
+          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "type": "OFFICE",
+          "latitude": 14.072550,
+          "longitude": 100.605700
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "221",
+          "name": "ห้องนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม) / Graduate Student Room (Environmental Science)",
+          "type": "COMMON_ROOM",
+          "latitude": 14.072450,
+          "longitude": 100.605700
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "222",
+          "name": "ห้องปฏิบัติการทางคณิตศาสตร์และสถิติ / Mathematics and Statistics Lab",
+          "type": "LAB",
+          "latitude": 14.072350,
+          "longitude": 100.605700
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "223",
+          "name": "ห้องพักอาจารย์ (วิทยาศาสตร์สิ่งแวดล้อม) / Faculty Offices (Environmental Science)",
+          "type": "OFFICE",
+          "latitude": 14.072340,
+          "longitude": 100.605800
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "224",
+          "name": "ห้องปฏิบัติการคอมพิวเตอร์ (วิทยาศาสตร์สิ่งแวดล้อม) / Computer Lab (Environmental Science)",
+          "type": "LAB",
+          "latitude": 14.072340,
+          "longitude": 100.605900
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "225",
+          "name": "ห้องประชุมภาควิชาคณิตศาสตร์และสถิติ / Mathematics and Statistics Meeting Room",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072340,
+          "longitude": 100.606000
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "226",
+          "name": "ห้องควบคุม / Control Room",
+          "type": "OFFICE",
+          "latitude": 14.072340,
+          "longitude": 100.606100
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "227",
+          "name": "ห้องสัมมนาภาควิชาคณิตศาสตร์และสถิติ / Mathematics and Statistics Seminar Room",
+          "type": "MEETING_ROOM",
+          "latitude": 14.072340,
+          "longitude": 100.606200
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "230",
+          "name": "ห้องประชุม/บรรยาย 1 / Conference Room / Lecture Room 1",
+          "type": "CLASSROOM",
+          "latitude": 14.072340,
+          "longitude": 100.606400
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "233",
+          "name": "ห้องบรรยาย 2 / Lecture Room 2",
+          "type": "CLASSROOM",
+          "latitude": 14.072350,
+          "longitude": 100.606600
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "234",
+          "name": "ห้องประชุม/บรรยาย 3 / Conference Room / Lecture Room 3",
+          "type": "CLASSROOM",
+          "latitude": 14.072360,
+          "longitude": 100.606800
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "235",
+          "name": "ห้องปฏิบัติการนิเวศวิทยาน้ำจืด / Freshwater Ecology Lab",
+          "type": "LAB",
+          "latitude": 14.072520,
+          "longitude": 100.606880
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "236",
+          "name": "ห้องสำนักงานภาควิชาวิทยาศาสตร์สิ่งแวดล้อม / Department Office of Environmental Science",
+          "type": "OFFICE",
+          "latitude": 14.072740,
+          "longitude": 100.606900
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "236/1",
+          "name": "ห้องปฏิบัติการชุมชน/เมือง / Community and Urban Lab",
+          "type": "LAB",
+          "latitude": 14.072800,
+          "longitude": 100.606880
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "237",
+          "name": "ห้องอาจารย์และเตรียมปฏิบัติการนิเวศวิทยาป่าไม้ / Faculty and Forest Ecology Lab Prep Room",
+          "type": "LAB",
+          "latitude": 14.072860,
+          "longitude": 100.606790
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "238",
+          "name": "ห้องปฏิบัติการนิเวศวิทยาป่าไม้ / Forest Ecology Lab",
+          "type": "LAB",
+          "latitude": 14.072870,
+          "longitude": 100.606720
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "239",
+          "name": "ห้องปฏิบัติการมลพิษทางอากาศและเสียง / Air and Noise Pollution Lab",
+          "type": "LAB",
+          "latitude": 14.072850,
+          "longitude": 100.606570
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "240",
+          "name": "ห้องปฏิบัติการเครื่องมือวิเคราะห์โลหะหนัก (AAS) / Heavy Metal Analytical Instrument Lab (AAS)",
+          "type": "LAB",
+          "latitude": 14.072870,
+          "longitude": 100.606490
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "241",
+          "name": "ห้องปฏิบัติการวิเคราะห์น้ำและน้ำเสีย / Water and Wastewater Quality Lab",
+          "type": "LAB",
+          "latitude": 14.072870,
+          "longitude": 100.606440
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "242",
+          "name": "ห้องปฏิบัติการเครื่องมือ GC/HPLC / GC/HPLC Instrument Lab",
+          "type": "LAB",
+          "latitude": 14.072830,
+          "longitude": 100.606490
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "243",
+          "name": "ห้องปฏิบัติการพิษวิทยาสิ่งแวดล้อม / Environmental Toxicity Lab",
+          "type": "LAB",
+          "latitude": 14.072850,
+          "longitude": 100.606440
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "243/1",
+          "name": "ห้องปฏิบัติการด้านจุลชีววิทยา / Microbiology Lab",
+          "type": "LAB",
+          "latitude": 14.072860,
+          "longitude": 100.606430
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องน้ำ / Restroom",
+          "type": "RESTROOM",
+          "latitude": 14.072568,
+          "longitude": 100.606872
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องน้ำ / Restroom",
+          "type": "RESTROOM",
+          "latitude": 14.072547,
+          "longitude": 100.606887
+        }
+      ],
+      "facilities": [
+        {
+          "id": "facility-uuid",
+          "name": "West Stair",
+          "type": "STAIR",
+          "latitude": 14.072572,
+          "longitude": 100.605696
+        },
+        {
+          "id": "facility-uuid",
+          "name": "East Stair",
+          "type": "STAIR",
+          "latitude": 14.072582,
+          "longitude": 100.606883
+        }
+      ]
+    }
+  ]
+}

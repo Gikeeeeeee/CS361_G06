@@ -1,0 +1,247 @@
+{
+  "id": "building-uuid",
+  "name": "LC4",
+  "latitude": 14.072606976041664,
+  "longitude": 100.60772614298118,
+  "floors": [
+    {
+      "id": "floor-uuid",
+      "floor_number": 1,
+      "rooms": [
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "LAB102",
+          "type": "LAB",
+          "latitude": 14.072882788956523,
+          "longitude": 100.6077629190076
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "Lab103",
+          "type": "LAB",
+          "latitude": 14.072874983831266,
+          "longitude": 100.60748396928727
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "LAB104",
+          "type": "LAB",
+          "latitude": 14.072877585539715,
+          "longitude": 100.60726134595276
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "LAB105",
+          "type": "LAB",
+          "latitude": 14.072747500080865,
+          "longitude": 100.60723720607314
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "LAB106",
+          "type": "LAB",
+          "latitude": 14.072393667258222,
+          "longitude": 100.60752688462885
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "LAB107",
+          "type": "LAB",
+          "latitude": 14.072385862116247,
+          "longitude": 100.60730962571206
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "CommonRoom1",
+          "type": "COMMONROOM",
+          "latitude": 14.072633024815827, 
+          "longitude": 100.60814915708188
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "CommonRoom2",
+          "type": "COMMONROOM",
+          "latitude": 14.072877585539715,
+          "longitude": 100.6080740552341
+        },        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "Common Room3",
+          "type": "COMMONROOM",
+          "latitude": 14.072846365036341, 
+          "longitude": 100.60824035218275
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "restroom",
+          "type": "RESTROOM",
+          "latitude": 14.072617414547981, 
+          "longitude": 100.60723720607314
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "Faculty Offices",
+          "type": "OFFICE",
+          "latitude": 14.072877585539715,
+          "longitude": 100.60782192760227
+        }
+      ],
+      "facilities": [
+        {
+          "id": "facility-uuid",
+          "name": "Stair 1",
+          "type": "STAIR",
+          "latitude":14.072411879255112, 
+          "longitude": 100.6077843766784
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Stair 2",
+          "type": "STAIR",
+          "latitude": 14.072700669297548,
+          "longitude": 100.60779242330494
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Stair 3",
+          "type": "STAIR",
+          "latitude": 14.072586194009062, 
+          "longitude": 100.60728012141473
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Elavator",
+          "type": "ELAVATOR",
+          "latitude": 14.072599202567453, 
+          "longitude": 100.60741959627066
+        }
+      ]
+    },
+    {
+        "id": "floor-uuid",
+      "floor_number": 3,
+      "rooms": [
+        {
+          "id": "room-uuid",
+          "room_number": "318",
+          "name": "ศูนย์บริการ",
+          "type": "OFFICE",
+          "latitude": 14.072824911653417,
+          "longitude": 100.60813117488465
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "302",
+          "name": "Lab Chem 302",
+          "type": "LAB",
+          "latitude": 14.072873960858967,
+          "longitude": 100.60778786130663
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "303",
+          "name": "Lab Chem 303",
+          "type": "LAB",
+          "latitude": 14.07287141626183,
+          "longitude": 100.60752290492124
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "304",
+          "name": "Lab Chem 304",
+          "type": "LAB",
+          "latitude": 14.072876505456078,
+          "longitude": 100.60741010170766
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "305",
+          "name": "Lab Chem 305",
+          "type": "LAB",
+          "latitude": 14.072871054538492,
+          "longitude": 100.60732922363943
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "306",
+          "name": "Lab Chem 306",
+          "type": "LAB",
+          "latitude": 14.072791702415127,
+          "longitude": 100.60730374265383
+        },
+        {
+          "id": "room-uuid",
+          "room_number": "308",
+          "name": "Lab 308",
+          "type": "LAB",
+          "latitude": 14.072414454238734,
+          "longitude": 100.60727155614573
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องพักอาจารย์",
+          "type": "OFFICE",
+          "latitude": 14.072315589096444,
+          "longitude": 100.60738152671509
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "ห้องเรียน 500 คน",
+          "type": "CLASSROOM",
+          "latitude": 14.07251462019457,
+          "longitude": 100.60808292437092
+        },
+        {
+          "id": "room-uuid",
+          "room_number": null,
+          "name": "Restroom",
+          "type": "RESTROOM",
+          "latitude": 14.072605675185919,
+          "longitude": 100.60725943862911
+        }
+      ],
+      "facilities": [
+                {
+          "id": "facility-uuid",
+          "name": "Stair 1",
+          "type": "STAIR",
+          "latitude":14.072411879255112, 
+          "longitude": 100.6077843766784
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Stair 2",
+          "type": "STAIR",
+          "latitude": 14.072700669297548,
+          "longitude": 100.60779242330494
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Stair 3",
+          "type": "STAIR",
+          "latitude": 14.072586194009062, 
+          "longitude": 100.60728012141473
+        },
+        {
+          "id": "facility-uuid",
+          "name": "Elavator",
+          "type": "ELAVATOR",
+          "latitude": 14.072599202567453, 
+          "longitude": 100.60741959627066
+        }
+      ]
+    }
+  ]
+}
