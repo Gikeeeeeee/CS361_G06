@@ -1,11 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frontend App - Skeleton & Map Demo</title>
+
+  <!-- นำเข้า Leaflet CSS สำหรับใช้งานแผนที่ในอนาคต -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- นำเข้า CSS ของเราเอง -->
+  <link rel="stylesheet" href="assets/styles/main.css">
+  <link rel="stylesheet" href="assets/styles/skeleton.css">
+  <link rel="stylesheet" href="assets/styles/map.css">
 </head>
 <body>
-    
+
+  <header class="navbar">
+    <h1>ระบบแสดงผลแผนที่ (CS361_G06)</h1>
+  </header>
+
+  <main class="container">
+    <!-- จุดสำหรับ Mount UI ทั้งหมดโดย script.js -->
+    <div id="app"></div>
+  </main>
+
+  <!-- นำเข้า Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- นำเข้า Script หลัก (ใช้ type="module" เพื่อให้ import ไฟล์อื่นได้) -->
+  <script type="module" src="script.js"></script>
 </body>
 </html>
