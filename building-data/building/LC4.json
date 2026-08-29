@@ -242,6 +242,155 @@
           "longitude": 100.60741959627066
         }
       ]
+    },
+        {
+      "id": "floor-2-uuid",
+      "floor_number": 2,
+      "rooms": [
+        {
+          "id": "",
+          "room_number": "201",
+          "name": "ห้องปฏิบัติการ",
+          "type": "LAB",
+          "latitude": 14.072884501523038,
+          "longitude": 100.6080683624228
+        },
+        {
+          "id": "",
+          "room_number": "202/1",
+          "name": "LAB 202/1",
+          "type": "LAB",
+          "latitude": 14.072889704940316,
+          "longitude": 100.60781087035821
+        },
+        {
+          "id": "",
+          "room_number": "202/2",
+          "name": "LAB 202/2",
+          "type": "LAB",
+          "latitude": 14.072897510065065,
+          "longitude": 100.60760970467241
+        },
+        {
+          "id": "",
+          "room_number": "202/3",
+          "name": "LAB 202/3",
+          "type": "LAB",
+          "latitude": 14.072881899815274,
+          "longitude": 100.60746486537866
+        },
+        {
+          "id": "",
+          "room_number": "204",
+          "name": "สำนักงาน",
+          "type": "OFFICE",
+          "latitude": 14.072746610939094,
+          "longitude": 100.6073280727123
+        },
+        {
+          "id": "",
+          "room_number": "209",
+          "name": "LAB",
+          "type": "LAB",
+          "latitude": null,
+          "longitude": null
+        },
+        {
+          "id": "",
+          "room_number": "210",
+          "name": "ห้องโปรเจค",
+          "type": "CLASSROOM",
+          "latitude": 14.072522863775816,
+          "longitude": 100.60731734387574
+        },
+        {
+          "id": "",
+          "room_number": "211",
+          "name": "211",
+          "type": "CLASSROOM",
+          "latitude": 14.072396680687568,
+          "longitude": 100.60730058006702
+        },
+        {
+          "id": "",
+          "room_number": "212",
+          "name": "212",
+          "type": "CLASSROOM",
+          "latitude": 14.072395379830613,
+          "longitude": 100.60738976352106
+        },
+        {
+          "id": "",
+          "room_number": "213",
+          "name": "213",
+          "type": "CLASSROOM",
+          "latitude": 14.072390826831182,
+          "longitude": 100.6074601715111
+        },
+        {
+          "id": "",
+          "room_number": "214",
+          "name": "214",
+          "type": "CLASSROOM",
+          "latitude": 14.072390176402696,
+          "longitude": 100.60753929668084
+        },
+        {
+          "id": "",
+          "room_number": "215",
+          "name": "215",
+          "type": "CLASSROOM",
+          "latitude": 14.072396030259082,
+          "longitude": 100.60762311571658
+        },
+        {
+          "id": "",
+          "room_number": null,
+          "name": "ห้องเรียน 500 คน",
+          "type": "CLASSROOM",
+          "latitude": 14.072565166760484,
+          "longitude": 100.60805125955436
+        },
+        {
+          "id": "",
+          "room_number": null,
+          "name": "ห้องน้ำชาย",
+          "type": "RESTROOM",
+          "latitude": 14.072522919223317,
+          "longitude": 100.60819406447837
+        },
+        {
+          "id": "",
+          "room_number": null,
+          "name": "ห้องน้ำหญิง",
+          "type": "RESTROOM",
+          "latitude": 14.072348604421109,
+          "longitude": 100.60796071228286
+        }
+      ],
+      "facilities": [
+        {
+          "id": "",
+          "name": "บันไดหลัก",
+          "type": "STAIR",
+          "latitude": 14.072679021918434,
+          "longitude": 100.60776088770163
+        },
+        {
+          "id": "",
+          "name": "บันไดหนีไฟ",
+          "type": "STAIR",
+          "latitude": 14.072411879255112,
+          "longitude": 100.6077843766784
+        },
+        {
+          "id": "",
+          "name": "ลิฟต์",
+          "type": "ELEVATOR",
+          "latitude": 14.072599202567453,
+          "longitude": 100.60741959627066
+        }
+      ]
     }
   ]
 }

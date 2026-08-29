@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" style="background-color: #f8fafc; font-family: sans-serif;">
+  <style>
+    .room-shape { fill: #cbd5e1; stroke: #ffffff; stroke-width: 2; transition: all 0.2s ease-in-out; cursor: pointer; }
+    .room-shape:hover { fill: #94a3b8; }
+    .room-shape.highlight { fill: #2563eb !important; stroke: #1e40af !important; stroke-width: 3; }
+    .facility-shape { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 4; cursor: pointer; }
+    .facility-shape.highlight { fill: #2563eb !important; stroke: #ffffff !important; }
+    .room-text { fill: #334155; font-size: 12px; font-weight: bold; text-anchor: middle; pointer-events: none; }
+    .room-shape.highlight + .room-text, .facility-shape.highlight + .room-text { fill: #ffffff !important; }
+    .corridor { fill: #f1f5f9; }
+  </style>
+
+  <path class="corridor" d="M 130 130 L 500 130 L 500 350 L 130 350 Z" />
+
+  <rect id="room-lab102" class="room-shape" x="350" y="50" width="100" height="80" />
+  <rect id="room-lab103" class="room-shape" x="250" y="50" width="100" height="80" />
+  <rect id="room-lab104" class="room-shape" x="130" y="50" width="120" height="80" />
+  <rect id="room-lab105" class="room-shape" x="50" y="50" width="80" height="150" />
+  
+  <rect id="room-lab106" class="room-shape" x="160" y="350" width="140" height="100" />
+  <rect id="room-lab107" class="room-shape" x="50" y="350" width="110" height="100" />
+
+  <rect id="room-commonroom1" class="room-shape" x="600" y="250" width="100" height="100" />
+  <rect id="room-commonroom2" class="room-shape" x="500" y="50" width="90" height="80" />
+  <rect id="room-commonroom3" class="room-shape" x="600" y="50" width="100" height="80" />
+  <rect id="room-faculty-offices" class="room-shape" x="450" y="50" width="50" height="80" />
+
+  <rect id="room-restroom" class="room-shape" x="50" y="220" width="40" height="50" />
+
+  <!-- Facilities (คงเหลือ Stair 1, Stair 3 และ Elavator) -->
+  <rect id="facility-stair1" class="facility-shape" x="450" y="350" width="40" height="40" />
+  <rect id="facility-stair3" class="facility-shape" x="50" y="300" width="40" height="40" />
+  <rect id="facility-elavator" class="facility-shape" x="100" y="220" width="40" height="40" />
+
+  <!-- Labels -->
+  <text x="400" y="95" class="room-text">LAB102</text>
+  <text x="300" y="95" class="room-text">Lab103</text>
+  <text x="190" y="95" class="room-text">LAB104</text>
+  <text x="90" y="130" class="room-text">LAB105</text>
+  <text x="230" y="405" class="room-text">LAB106</text>
+  <text x="105" y="405" class="room-text">LAB107</text>
+  <text x="650" y="305" class="room-text" font-size="11">CommonRoom1</text>
+  <text x="545" y="95" class="room-text" font-size="10">CommonRoom2</text>
+  <text x="650" y="95" class="room-text" font-size="10">Common Room3</text>
+  <text x="475" y="95" class="room-text" font-size="9">Offices</text>
+  <text x="70" y="250" class="room-text" font-size="9">Restroom</text>
+  <text x="470" y="373" class="room-text" font-size="9">Stair 1</text>
+  <text x="70" y="325" class="room-text" font-size="9">Stair 3</text>
+  <text x="120" y="243" class="room-text" font-size="8">Elavator</text>
+</svg>

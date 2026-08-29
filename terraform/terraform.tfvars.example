@@ -1,0 +1,4 @@
+aws_region  = "us-east-1"
+bucket_name = "cs361-g06-building-data"
+project_name = "CS361-G06"
+environment  = "dev"

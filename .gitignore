@@ -1,8 +1,15 @@
 # Terraform
-**/.terraform/
+.terraform/
 *.tfstate
 *.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
 
 # Python
 **/__pycache__/
 *.pyc
+
+# Terraform variable example is safe to commit
+!terraform.tfvars.example

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" style="background-color: #f8fafc; font-family: sans-serif;">
+  <style>
+    .room-shape { fill: #cbd5e1; stroke: #ffffff; stroke-width: 2; transition: all 0.2s ease-in-out; cursor: pointer; }
+    .room-shape:hover { fill: #94a3b8; }
+    .room-shape.highlight { fill: #2563eb !important; stroke: #1e40af !important; stroke-width: 3; }
+    .facility-shape { fill: #e2e8f0; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 4; cursor: pointer; }
+    .facility-shape.highlight { fill: #2563eb !important; stroke: #ffffff !important; }
+    .room-text { fill: #334155; font-size: 12px; font-weight: bold; text-anchor: middle; pointer-events: none; }
+    .room-shape.highlight + .room-text, .facility-shape.highlight + .room-text { fill: #ffffff !important; }
+    .corridor { fill: #f1f5f9; }
+  </style>
+
+  <!-- ทางเดินหลัก -->
+  <path class="corridor" d="M 130 130 L 500 130 L 500 350 L 130 350 Z" />
+
+  <!-- โซนด้านบน: LAB และสำนักงาน -->
+  <rect id="room-201" class="room-shape" x="50" y="50" width="80" height="150" />
+  <rect id="room-202-3" class="room-shape" x="130" y="50" width="100" height="80" />
+  <rect id="room-202-2" class="room-shape" x="230" y="50" width="100" height="80" />
+  <rect id="room-202-1" class="room-shape" x="330" y="50" width="100" height="80" />
+  <rect id="room-204" class="room-shape" x="430" y="50" width="90" height="80" />
+  <rect id="room-209" class="room-shape" x="520" y="50" width="80" height="80" />
+
+  <!-- Facility ด้านซ้าย (อยู่ระหว่าง LAB 201 และ ห้อง 210) -->
+  <rect id="room-restroom" class="room-shape" x="50" y="210" width="40" height="40" />
+  <rect id="facility-stair3" class="facility-shape" x="50" y="255" width="40" height="40" />
+  <rect id="facility-elavator" class="facility-shape" x="100" y="210" width="40" height="40" />
+
+  <!-- ห้อง 210 อยู่มุมซ้ายล่างสุด (ถัดลงมาจาก Stair 3) -->
+  <rect id="room-210" class="room-shape" x="50" y="305" width="80" height="60" />
+
+  <!-- โซนด้านล่าง: แถวห้องเรียน 211-215 (เรียงต่อจากแนวซ้ายไปขวา) -->
+  <rect id="room-211" class="room-shape" x="50" y="375" width="65" height="75" />
+  <rect id="room-212" class="room-shape" x="115" y="375" width="65" height="75" />
+  <rect id="room-213" class="room-shape" x="180" y="375" width="65" height="75" />
+  <rect id="room-214" class="room-shape" x="245" y="375" width="65" height="75" />
+  <rect id="room-215" class="room-shape" x="310" y="375" width="65" height="75" />
+
+  <!-- ห้องเรียน 500 คน -->
+  <polygon id="room-500" class="room-shape" points="500,180 650,180 720,250 720,450  500,450" />
+
+  <!-- Facility ด้านขวา: Stair 1 -->
+  <rect id="facility-stair1" class="facility-shape" x="450" y="350" width="40" height="40" />
+
+  <!-- Labels -->
+  <text x="90" y="130" class="room-text">201</text>
+  <text x="180" y="95" class="room-text">202/3</text>
+  <text x="280" y="95" class="room-text">202/2</text>
+  <text x="380" y="95" class="room-text">202/1</text>
+  <text x="475" y="95" class="room-text">204</text>
+  <text x="560" y="95" class="room-text">209</text>
+
+  <text x="70" y="235" class="room-text" font-size="8">Restroom</text>
+  <text x="70" y="280" class="room-text" font-size="8">Stair 3</text>
+  <text x="120" y="235" class="room-text" font-size="8">Elavator</text>
+
+  <text x="90" y="340" class="room-text">210</text>
+  <text x="82" y="420" class="room-text">211</text>
+  <text x="147" y="420" class="room-text">212</text>
+  <text x="212" y="420" class="room-text">213</text>
+  <text x="277" y="420" class="room-text">214</text>
+  <text x="342" y="420" class="room-text">215</text>
+
+  <text x="600" y="300" class="room-text" style="font-size: 16px;">ห้อง 500 คน</text>
+  <text x="470" y="373" class="room-text" font-size="9">Stair 1</text>
+</svg>
