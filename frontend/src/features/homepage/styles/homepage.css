@@ -1,0 +1,64 @@
+/* จัดวางตัวเครื่องมือถือไว้กึ่งกลางหน้าจอคอมพิวเตอร์ */
+#root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f1f5f9;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* กรอบตัวเครื่องมือถือ (Mobile Shell) */
+.mobile-shell {
+  width: 100%;
+  max-width: 390px;
+  height: 844px;
+  background-color: #ffffff;
+  border-radius: 40px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 8px solid #0f172a; /* ขอบเครื่องสีเข้ม */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Slot สำหรับ Header / Search Bar ของเพื่อน */
+.header-slot {
+  height: 120px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.875rem;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* พื้นที่แสดงผล Map ตรงกลาง */
+.map-slot {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* ป้องกันแผนที่แสดงผลเกินช่อง */
+}
+
+/* Slot สำหรับ Directory / Bottom Navigation ของเพื่อน */
+.bottom-nav-slot {
+  height: 220px;
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.875rem;
+  z-index: 10;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
