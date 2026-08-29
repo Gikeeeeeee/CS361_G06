@@ -120,4 +120,82 @@ resource "aws_s3_object" "floor_plans" {
   )
 
   content_type = "image/svg+xml"
-}   
+}
+
+# ---------------------------------------------------------
+# Lambda & API Gateway Setup (Added)
+# ---------------------------------------------------------
+
+data "aws_iam_role" "lab_role" {
+  name = "LabRole"
+}
+
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../backend"
+  output_path = "${path.module}/lambda_function.zip"
+  
+  excludes = [
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "test_local.py"
+  ]
+}
+
+resource "aws_lambda_function" "building_api" {
+  filename         = data.archive_file.lambda_zip.output_path
+  function_name    = "cs361-building-api"
+  role             = data.aws_iam_role.lab_role.arn
+  handler          = "handler.lambda_handler"
+  runtime          = "python3.11"
+  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+
+  environment {
+    variables = {
+      bucket_name    = aws_s3_bucket.building_data.id
+      BUILDINGS_FILE = "building-index.json"
+    }
+  }
+}
+
+resource "aws_apigatewayv2_api" "lambda_api" {
+  name          = "cs361-http-api"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.lambda_api.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_apigatewayv2_integration" "lambda_integration" {
+  api_id           = aws_apigatewayv2_api.lambda_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.building_api.invoke_arn
+}
+
+resource "aws_apigatewayv2_route" "get_buildings" {
+  api_id    = aws_apigatewayv2_api.lambda_api.id
+  route_key = "GET /buildings"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.building_api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.lambda_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_route" "get_building_api_v1" {
+  api_id    = aws_apigatewayv2_api.lambda_api.id
+  route_key = "GET /api/v1/buildings"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+output "api_url" {
+  value = aws_apigatewayv2_api.lambda_api.api_endpoint
+}

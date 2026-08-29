@@ -10,6 +10,8 @@ crash.*.log
 # Python
 **/__pycache__/
 *.pyc
-
+venv/
+.env
 # Terraform variable example is safe to commit
 !terraform.tfvars.example
+*.zip
