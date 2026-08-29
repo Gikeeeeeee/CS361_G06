@@ -71,6 +71,23 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "building_data" {
 }
 
 # ---------------------------------------------------------
+# S3 Bucket CORS Configuration
+# ---------------------------------------------------------
+
+resource "aws_s3_bucket_cors_configuration" "building_data" {
+  bucket = aws_s3_bucket.building_data.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+
+# ---------------------------------------------------------
 # Upload building-index.json
 # ---------------------------------------------------------
 
@@ -198,6 +215,12 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
 resource "aws_apigatewayv2_route" "get_building_by_id" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /buildings/{buildingId}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_floor_by_id" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "GET /buildings/{buildingId}/floors/{floorId}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
