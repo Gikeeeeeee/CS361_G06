@@ -1,22 +1,20 @@
-try:
-    from repository import BuildingRepository
-except ImportError:
-    from .repository import BuildingRepository
+from repository import BuildingRepository
 
 
 class BuildingService:
-    def __init__(self, repository: BuildingRepository = None):
+    def __init__(self, repository: BuildingRepository | None = None):
         self.repository = repository or BuildingRepository()
 
     def get_building_summary(self, building_id: str) -> dict | None:
         """
-        Retrieves building details and floor metadata, omitting rooms and facilities.
+        Retrieves building details and floor metadata,
+        omitting rooms and facilities.
         """
         raw_data = self.repository.get_building_raw(building_id)
+
         if not raw_data:
             return None
 
-        # Filter floor details to include only id and floor_number
         floors_summary = [
             {
                 "id": floor.get("id"),
@@ -32,3 +30,6 @@ class BuildingService:
             "longitude": raw_data.get("longitude"),
             "floors": floors_summary
         }
+
+    def get_all_buildings(self) -> list[dict]:
+        return self.repository.get_all()

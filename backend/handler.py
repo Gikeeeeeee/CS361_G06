@@ -1,11 +1,16 @@
 import json
+import logging
+from typing import Any
 
-try:
-    from service import BuildingService
-except ImportError:
-    from .service import BuildingService
+from service import BuildingService
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 
 service = BuildingService()
+
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
@@ -15,41 +20,123 @@ CORS_HEADERS = {
 }
 
 
+def response(status_code: int, body: Any) -> dict:
+    """
+    Build API Gateway response.
+    """
+    return {
+        "statusCode": status_code,
+        "headers": CORS_HEADERS,
+        "body": json.dumps(body, ensure_ascii=False)
+    }
+
+
 def lambda_handler(event, context):
     """
     AWS Lambda entry point for API Gateway HTTP API.
-    Handles GET /buildings/{buildingId}
     """
-    path_params = event.get("pathParameters") or {}
-    building_id = path_params.get("buildingId")
-
-    if not building_id:
-        return {
-            "statusCode": 400,
-            "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "Missing buildingId parameter"})
-        }
 
     try:
-        building = service.get_building_summary(building_id)
+        request_context = event.get("requestContext", {})
+        http_info = request_context.get("http", {})
 
-        if not building:
-            return {
-                "statusCode": 404,
-                "headers": CORS_HEADERS,
-                "body": json.dumps({"error": f"Building '{building_id}' not found"})
+        method = (
+            http_info.get("method")
+            or event.get("httpMethod")
+            or ""
+        ).upper()
+
+        path = (
+            event.get("rawPath")
+            or event.get("path")
+            or ""
+        )
+
+        logger.info(
+            f"Incoming Request -> Method: {method}, Path: {path}"
+        )
+
+        # ----------------------------------------
+        # GET /api/v1/buildings
+        # ----------------------------------------
+
+        if method == "GET" and path == "/api/v1/buildings":
+            buildings = service.get_all_buildings()
+
+            return response(
+                200,
+                {"buildings": buildings}
+            )
+
+        # ----------------------------------------
+        # GET /api/v1/buildings/{buildingId}
+        # ----------------------------------------
+
+        if (
+            method == "GET"
+            and path.startswith("/api/v1/buildings/")
+        ):
+            path_params = event.get("pathParameters") or {}
+            building_id = path_params.get("buildingId")
+
+            if not building_id:
+                return response(
+                    400,
+                    {
+                        "error": "Missing buildingId parameter"
+                    }
+                )
+
+            building = service.get_building_summary(building_id)
+
+            if not building:
+                return response(
+                    404,
+                    {
+                        "error": (
+                            f"Building '{building_id}' not found"
+                        )
+                    }
+                )
+
+            return response(200, building)
+
+        # ----------------------------------------
+        # Route not found
+        # ----------------------------------------
+
+        return response(
+            404,
+            {
+                "message": (
+                    f"Route not found for method "
+                    f"'{method}' and path '{path}'"
+                )
             }
+        )
 
-        return {
-            "statusCode": 200,
-            "headers": CORS_HEADERS,
-            "body": json.dumps(building, ensure_ascii=False)
-        }
+    except FileNotFoundError as e:
+        logger.warning(f"Resource not found: {str(e)}")
 
-    except Exception as e:
-        print(f"Error handling request: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "Internal server error"})
-        }
+        return response(
+            404,
+            {"message": str(e)}
+        )
+
+    except ValueError as e:
+        logger.warning(f"Bad request / Invalid data: {str(e)}")
+
+        return response(
+            400,
+            {"message": str(e)}
+        )
+
+    except Exception:
+        logger.exception(
+            "Internal server error encountered"
+        )
+
+        return response(
+            500,
+            {"message": "Internal server error"}
+        )
