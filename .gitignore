@@ -13,3 +13,5 @@ crash.*.log
 
 # Terraform variable example is safe to commit
 !terraform.tfvars.example
+
+frontend/node_modules/
