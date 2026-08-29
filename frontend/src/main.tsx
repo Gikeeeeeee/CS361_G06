@@ -1,15 +1,15 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
 
-// 📌 เพิ่ม 2 บรรทัดนี้เพื่อดึงไฟล์ CSS เข้ามาใช้งาน
-import './features/homepage/styles/homepage.css'
-import './features/homepage/styles/map.css'
+// นำเข้าเฉพาะ CSS ของตัวแผนที่
+import './features/homepage/styles/map.css';
 
-import Homepage from './features/homepage/Homepage'
+// เรียกใช้ App ของเพื่อนที่เป็นตัวคุม Routing ทั้งหมด
+import App from './App';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Homepage />
+    <App />
   </StrictMode>,
-)
+);
