@@ -9,15 +9,15 @@ interface MobileHeaderProps {
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONFIG }) => {
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/90 border-b border-slate-100 px-4 py-3 flex items-center justify-between shadow-sm">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/70 border-b border-slate-100/50 px-5 py-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
         {config.showLogo && (
-          <div className="p-1.5 bg-blue-50 rounded-lg">
-            <MapPin size={22} className="text-blue-600" />
+          <div className="w-9 h-9 bg-blue-500/10 text-blue-600 rounded-xl flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.08)] border border-blue-500/10">
+            <MapPin size={18} className="stroke-[2.5]" />
           </div>
         )}
         {config.title && (
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+          <h1 className="text-lg font-extrabold text-slate-800 tracking-tight leading-none">
             {config.title}
           </h1>
         )}
