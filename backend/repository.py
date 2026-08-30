@@ -101,5 +101,17 @@ class BuildingRepository:
                     return self.get_building_raw(building_id.upper())
 
                 return None
+            raise e
 
-            raise
+    def generate_presigned_url(self, s3_key: str, expires_in: int = 3600) -> str:
+        """
+        Generates a pre-signed GET URL for an S3 object.
+        """
+        if not self.s3_client:
+            raise RuntimeError("boto3 is not available")
+
+        return self.s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket_name, "Key": s3_key},
+            ExpiresIn=expires_in
+        )

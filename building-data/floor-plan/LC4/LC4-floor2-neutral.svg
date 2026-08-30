@@ -41,6 +41,7 @@
 
   <!-- Facility ด้านขวา: Stair 1 -->
   <rect id="facility-stair1" class="facility-shape" x="450" y="350" width="40" height="40" />
+  <rect id="facility-stair2" class="facility-shape" x="450" y="200" width="40" height="40" />
 
   <!-- Labels -->
   <text x="90" y="130" class="room-text">201</text>
@@ -63,4 +64,5 @@
 
   <text x="600" y="300" class="room-text" style="font-size: 16px;">ห้อง 500 คน</text>
   <text x="470" y="373" class="room-text" font-size="9">Stair 1</text>
+  <text x="470" y="225" class="room-text" font-size="9">Stair 2</text>
 </svg>
