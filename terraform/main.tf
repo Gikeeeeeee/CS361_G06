@@ -6,6 +6,7 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+
     archive = {
       source  = "hashicorp/archive"
       version = "~> 2.4"
@@ -96,7 +97,9 @@ resource "aws_s3_object" "building_index" {
   key    = "building-index.json"
   source = "${path.module}/../building-data/building-index.json"
 
-  etag = filemd5("${path.module}/../building-data/building-index.json")
+  etag = filemd5(
+    "${path.module}/../building-data/building-index.json"
+  )
 
   content_type = "application/json"
 }
@@ -144,7 +147,8 @@ resource "aws_s3_object" "floor_plans" {
 }
 
 # ---------------------------------------------------------
-# AWS Academy IAM LabRole (No custom IAM resources created)
+# Lambda & API Gateway Setup
+# AWS Academy IAM LabRole
 # ---------------------------------------------------------
 
 data "aws_iam_role" "lab_role" {
@@ -152,14 +156,25 @@ data "aws_iam_role" "lab_role" {
 }
 
 # ---------------------------------------------------------
-# Lambda Package & Function
+# Lambda Package
 # ---------------------------------------------------------
 
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../backend"
   output_path = "${path.module}/lambda.zip"
+
+  excludes = [
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "test_local.py"
+  ]
 }
+
+# ---------------------------------------------------------
+# Lambda Function
+# ---------------------------------------------------------
 
 resource "aws_lambda_function" "building_api" {
   function_name    = "${var.project_name}-building-api-${var.environment}"
@@ -168,12 +183,14 @@ resource "aws_lambda_function" "building_api" {
   runtime          = "python3.12"
   handler          = "handler.lambda_handler"
   role             = data.aws_iam_role.lab_role.arn
-  timeout          = 10
-  memory_size      = 256
+
+  timeout     = 10
+  memory_size = 256
 
   environment {
     variables = {
-      BUCKET_NAME = aws_s3_bucket.building_data.id
+      BUCKET_NAME    = aws_s3_bucket.building_data.id
+      BUILDINGS_FILE = "building-index.json"
     }
   }
 
@@ -184,7 +201,7 @@ resource "aws_lambda_function" "building_api" {
 }
 
 # ---------------------------------------------------------
-# API Gateway HTTP API (v2)
+# API Gateway HTTP API
 # ---------------------------------------------------------
 
 resource "aws_apigatewayv2_api" "http_api" {
@@ -199,11 +216,19 @@ resource "aws_apigatewayv2_api" "http_api" {
   }
 }
 
+# ---------------------------------------------------------
+# Default Stage
+# ---------------------------------------------------------
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http_api.id
   name        = "$default"
   auto_deploy = true
 }
+
+# ---------------------------------------------------------
+# Lambda Integration
+# ---------------------------------------------------------
 
 resource "aws_apigatewayv2_integration" "lambda_integration" {
   api_id                 = aws_apigatewayv2_api.http_api.id
@@ -212,10 +237,26 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   payload_format_version = "2.0"
 }
 
+# ---------------------------------------------------------
+# GET /api/v1/buildings
+# ---------------------------------------------------------
+
+resource "aws_apigatewayv2_route" "get_buildings" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "GET /api/v1/buildings"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+# ---------------------------------------------------------
+# GET /api/v1/buildings/{buildingId}
+# ---------------------------------------------------------
+
 resource "aws_apigatewayv2_route" "get_building_by_id" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /buildings/{buildingId}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+  route_key = "GET /api/v1/buildings/{buildingId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
 resource "aws_apigatewayv2_route" "get_floor_by_id" {
@@ -229,5 +270,14 @@ resource "aws_lambda_permission" "api_gateway" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.building_api.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+
+  source_arn = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}
+
+# ---------------------------------------------------------
+# API URL
+# ---------------------------------------------------------
+
+output "api_url" {
+  value = aws_apigatewayv2_api.http_api.api_endpoint
 }

@@ -1,87 +1,206 @@
 import json
+import logging
+from typing import Any
 
-try:
-    from service import BuildingService
-except ImportError:
-    from .service import BuildingService
+from service import BuildingService
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 service = BuildingService()
+
 
 CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
+
+
+def response(status_code: int, body: Any) -> dict:
+    """
+    Build API Gateway response.
+    """
+    return {
+        "statusCode": status_code,
+        "headers": CORS_HEADERS,
+        "body": json.dumps(body, ensure_ascii=False),
+    }
 
 
 def lambda_handler(event, context):
     """
     AWS Lambda entry point for API Gateway HTTP API.
+
     Handles:
-      - GET /buildings/{buildingId}
-      - GET /buildings/{buildingId}/floors/{floorId}
+      - GET /api/v1/buildings
+      - GET /api/v1/buildings/{buildingId}
+      - GET /api/v1/buildings/{buildingId}/floors/{floorId}
     """
-    # Handle preflight OPTIONS request
-    http_method = (
-        event.get("requestContext", {}).get("http", {}).get("method")
+
+    # ----------------------------------------
+    # Request information
+    # ----------------------------------------
+
+    request_context = event.get("requestContext", {})
+    http_info = request_context.get("http", {})
+
+    method = (
+        http_info.get("method")
         or event.get("httpMethod")
+        or ""
+    ).upper()
+
+    path = (
+        event.get("rawPath")
+        or event.get("path")
+        or ""
     )
-    if http_method == "OPTIONS":
+
+    logger.info(
+        f"Incoming Request -> Method: {method}, Path: {path}"
+    )
+
+    # ----------------------------------------
+    # Handle CORS preflight
+    # ----------------------------------------
+
+    if method == "OPTIONS":
         return {
             "statusCode": 204,
             "headers": CORS_HEADERS,
-            "body": ""
-        }
-
-    path_params = event.get("pathParameters") or {}
-    building_id = path_params.get("buildingId")
-    floor_id = path_params.get("floorId")
-
-    if not building_id:
-        return {
-            "statusCode": 400,
-            "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "Missing buildingId parameter"})
+            "body": "",
         }
 
     try:
-        if floor_id:
-            floor_data = service.get_floor_details(building_id, floor_id)
+        # ----------------------------------------
+        # GET /api/v1/buildings
+        # ----------------------------------------
 
-            if not floor_data:
-                return {
-                    "statusCode": 404,
-                    "headers": CORS_HEADERS,
-                    "body": json.dumps({"error": f"Floor '{floor_id}' in building '{building_id}' not found"})
-                }
+        if method == "GET" and path == "/api/v1/buildings":
+            buildings = service.get_all_buildings()
 
-            return {
-                "statusCode": 200,
-                "headers": CORS_HEADERS,
-                "body": json.dumps(floor_data, ensure_ascii=False)
-            }
-        else:
-            building = service.get_building_summary(building_id)
+            return response(
+                200,
+                {"buildings": buildings},
+            )
+
+        # ----------------------------------------
+        # GET /api/v1/buildings/{buildingId}
+        # ----------------------------------------
+
+        if (
+            method == "GET"
+            and path.startswith("/api/v1/buildings/")
+        ):
+            path_params = event.get("pathParameters") or {}
+
+            building_id = path_params.get("buildingId")
+            floor_id = path_params.get("floorId")
+
+            if not building_id:
+                return response(
+                    400,
+                    {
+                        "error": "Missing buildingId parameter",
+                    },
+                )
+
+            # ----------------------------------------
+            # GET /api/v1/buildings/{buildingId}/floors/{floorId}
+            # ----------------------------------------
+
+            if floor_id:
+                floor_data = service.get_floor_details(
+                    building_id,
+                    floor_id,
+                )
+
+                if not floor_data:
+                    return response(
+                        404,
+                        {
+                            "error": (
+                                f"Floor '{floor_id}' in "
+                                f"building '{building_id}' not found"
+                            ),
+                        },
+                    )
+
+                return response(
+                    200,
+                    floor_data,
+                )
+
+            # ----------------------------------------
+            # GET /api/v1/buildings/{buildingId}
+            # ----------------------------------------
+
+            building = service.get_building_summary(
+                building_id
+            )
 
             if not building:
-                return {
-                    "statusCode": 404,
-                    "headers": CORS_HEADERS,
-                    "body": json.dumps({"error": f"Building '{building_id}' not found"})
-                }
+                return response(
+                    404,
+                    {
+                        "error": (
+                            f"Building '{building_id}' not found"
+                        ),
+                    },
+                )
 
-            return {
-                "statusCode": 200,
-                "headers": CORS_HEADERS,
-                "body": json.dumps(building, ensure_ascii=False)
-            }
+            return response(
+                200,
+                building,
+            )
 
-    except Exception as e:
-        print(f"Error handling request: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": CORS_HEADERS,
-            "body": json.dumps({"error": "Internal server error"})
-        }
+        # ----------------------------------------
+        # Route not found
+        # ----------------------------------------
 
+        return response(
+            404,
+            {
+                "message": (
+                    f"Route not found for method "
+                    f"'{method}' and path '{path}'"
+                ),
+            },
+        )
+
+    # ----------------------------------------
+    # Error handling
+    # ----------------------------------------
+
+    except FileNotFoundError as e:
+        logger.warning(
+            f"Resource not found: {str(e)}"
+        )
+
+        return response(
+            404,
+            {"message": str(e)},
+        )
+
+    except ValueError as e:
+        logger.warning(
+            f"Bad request / Invalid data: {str(e)}"
+        )
+
+        return response(
+            400,
+            {"message": str(e)},
+        )
+
+    except Exception:
+        logger.exception(
+            "Internal server error encountered"
+        )
+
+        return response(
+            500,
+            {"message": "Internal server error"},
+        )
