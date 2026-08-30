@@ -71,12 +71,13 @@ aws sts get-caller-identity
 
 After deployment finishes, Terraform will output your API endpoints:
 
+### Query Building Summary:
 ```bash
 # Example query for building LC4
 curl https://<api_endpoint>/buildings/LC4
 ```
 
-### Expected Response:
+#### Expected Response:
 ```json
 {
   "id": "building-uuid",
@@ -90,7 +91,46 @@ curl https://<api_endpoint>/buildings/LC4
     },
     {
       "id": "floor-uuid",
-      "floor_number": 2
+      "floor_number": 3
+    }
+  ]
+}
+```
+
+### Query Floor Details & SVG Map:
+```bash
+# Example query for floor details (by floorId or floorNumber)
+curl https://<api_endpoint>/buildings/LC4/floors/1
+# or
+curl https://<api_endpoint>/buildings/LC4/floors/floor-uuid
+```
+
+#### Expected Response:
+```json
+{
+  "id": "floor-uuid",
+  "floor_number": 1,
+  "map": {
+    "type": "svg",
+    "url": "https://<bucket_name>.s3.amazonaws.com/floor-plan/LC4/LC4-floor1-neutral.svg?AWSAccessKeyId=..."
+  },
+  "rooms": [
+    {
+      "id": "room-uuid",
+      "room_number": null,
+      "name": "LAB102",
+      "type": "LAB",
+      "latitude": 14.072882788956523,
+      "longitude": 100.6077629190076
+    }
+  ],
+  "facilities": [
+    {
+      "id": "facility-uuid",
+      "name": "Stair 1",
+      "type": "STAIR",
+      "latitude": 14.072411879255112,
+      "longitude": 100.6077843766784
     }
   ]
 }
