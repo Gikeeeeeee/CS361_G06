@@ -237,10 +237,7 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
   payload_format_version = "2.0"
 }
 
-# ---------------------------------------------------------
 # GET /api/v1/buildings
-# ---------------------------------------------------------
-
 resource "aws_apigatewayv2_route" "get_buildings" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /api/v1/buildings"
@@ -248,10 +245,7 @@ resource "aws_apigatewayv2_route" "get_buildings" {
   target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
-# ---------------------------------------------------------
 # GET /api/v1/buildings/{buildingId}
-# ---------------------------------------------------------
-
 resource "aws_apigatewayv2_route" "get_building_by_id" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /api/v1/buildings/{buildingId}"
@@ -261,7 +255,7 @@ resource "aws_apigatewayv2_route" "get_building_by_id" {
 
 resource "aws_apigatewayv2_route" "get_floor_by_id" {
   api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /buildings/{buildingId}/floors/{floorId}"
+  route_key = "GET /api/v1/buildings/{buildingId}/floors/{floorId}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
 }
 
