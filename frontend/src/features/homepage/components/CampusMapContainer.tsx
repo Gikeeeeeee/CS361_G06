@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { CampusBuilding } from '../types/mapDirectory.types';
+import type { BuildingItem } from '../../../shared/types/api.contracts';
 import '../styles/map.css';
 
 declare const L: any;
 
 interface CampusMapContainerProps {
-  buildings: CampusBuilding[];
+  buildings: BuildingItem[];
 }
 
 export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
@@ -32,6 +32,9 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
     const markerGroup = L.featureGroup().addTo(map);
 
     buildings.forEach((building) => {
+      const displayName = building.name;
+      const status = 'OPEN'; // Mocked since API doesn't provide status yet
+
       // 📌 Modern Bubble Pin (Matching requested design)
       const bubbleIcon = L.divIcon({
         className: 'custom-bubble-pin',
@@ -41,7 +44,7 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 80px;
+            min-width: 100px;
             height: 55px;
           ">
             <!-- White Bubble -->
@@ -60,7 +63,8 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
               justify-content: center;
               border: 1px solid rgba(0,0,0,0.03);
               z-index: 10;
-              min-width: 46px;
+              min-width: 60px;
+              max-width: 150px;
             ">
               <span style="
                 color: #0f172a;
@@ -68,15 +72,19 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
                 font-size: 11px;
                 line-height: 1.2;
                 white-space: nowrap;
-              ">${building.code}</span>
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 130px;
+                display: block;
+              " title="${displayName}">${displayName}</span>
               <span style="
-                color: ${building.status === 'OPEN' ? '#10b981' : '#f43f5e'};
+                color: ${status === 'OPEN' ? '#10b981' : '#f43f5e'};
                 font-weight: 700;
                 font-size: 9px;
                 line-height: 1.2;
                 margin-top: 1px;
                 white-space: nowrap;
-              ">${building.status}</span>
+              ">${status}</span>
               
               <!-- Triangle pointing down (child of bubble to scale correctly) -->
               <div style="
@@ -109,11 +117,11 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
             "></div>
           </div>
         `,
-        iconSize: [80, 55],
-        iconAnchor: [40, 51],
+        iconSize: [120, 55],
+        iconAnchor: [60, 51],
       });
 
-      const marker = L.marker([building.lat, building.lng], { icon: bubbleIcon });
+      const marker = L.marker([building.latitude, building.longitude], { icon: bubbleIcon });
       
       // Navigate to building details on click
       marker.on('click', () => {

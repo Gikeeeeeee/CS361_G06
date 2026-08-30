@@ -15,7 +15,7 @@ export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
         <div className="absolute bottom-4 left-4">
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-md ${statusColor}`}>
             <span className="text-xs font-bold tracking-wide capitalize">
-              {room.status.replace('_', ' ').toLowerCase()}
+              {room.status?.replace('_', ' ').toLowerCase() || 'available'}
             </span>
           </div>
         </div>

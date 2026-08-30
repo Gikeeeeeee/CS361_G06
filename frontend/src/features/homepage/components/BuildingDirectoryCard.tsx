@@ -1,13 +1,17 @@
 import { Building, ChevronRight, Clock } from 'lucide-react';
-import type { CampusBuilding } from '../types/mapDirectory.types';
+import type { BuildingItem } from '../../../shared/types/api.contracts';
 import { Badge } from '../../../shared/components/Badge';
 
 interface BuildingDirectoryCardProps {
-  building: CampusBuilding;
+  building: BuildingItem;
   onClick: () => void;
 }
 
 export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCardProps) {
+  const code = building.id.toUpperCase();
+  const status = 'OPEN'; // Mocked
+  const operatingHours = '08:00 - 18:00'; // Mocked
+
   return (
     <div 
       onClick={onClick}
@@ -22,22 +26,22 @@ export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCa
         {/* Middle content */}
         <div className="flex flex-col">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-slate-900 font-bold text-base">{building.code}</span>
+            <span className="text-slate-900 font-bold text-base">{code}</span>
             <Badge 
               variant="default"
               className={`text-[10px] py-0 h-4 px-2 border-none ${
-                building.status === 'OPEN'
+                status === 'OPEN'
                   ? 'bg-emerald-500/10 text-emerald-600'
                   : 'bg-rose-500/10 text-rose-600'
               }`}
             >
-              {building.status}
+              {status}
             </Badge>
           </div>
           <span className="text-slate-500 text-xs font-semibold mb-1 line-clamp-1">{building.name}</span>
           <div className="flex items-center text-[11px] text-slate-400 font-medium">
             <Clock className="w-3.5 h-3.5 mr-1" />
-            <span>เปิดทำการ {building.operatingHours} น.</span>
+            <span>เปิดทำการ {operatingHours} น.</span>
           </div>
         </div>
       </div>

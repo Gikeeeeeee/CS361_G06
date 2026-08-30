@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Building, Floor } from '../../../shared/types/domain.types';
-import { mockBuildings } from '../../../data/buildingData';
+import { buildingService } from '../../../services/buildingService';
 
 interface UseBuildingDetailsReturn {
   building: Building | null;
@@ -30,17 +30,14 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
       setError(null);
 
       try {
-        // Mock data delay to simulate fetch
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const data = mockBuildings[buildingId.toLowerCase()];
-        
+        const data = await buildingService.getBuildingById(buildingId);
         if (isMounted) {
           if (data) {
-            setBuilding(data);
-            if (data.floors.length > 0) {
+            setBuilding(data as any); // Type assertion until domain types match perfectly
+            if (data.floors && data.floors.length > 0) {
               const sortedFloors = [...data.floors].sort((a, b) => a.floor_number - b.floor_number);
-              setSelectedFloor(sortedFloors[0]);
+              // Set the first floor as selected by default
+              setSelectedFloor(sortedFloors[0] as any);
             }
           } else {
             setError(`Building with id ${buildingId} not found`);

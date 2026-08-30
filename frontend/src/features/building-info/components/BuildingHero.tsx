@@ -52,14 +52,14 @@ export function BuildingHero({ building }: BuildingHeroProps) {
             <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
               <Layers className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats.totalFloors}</span>
+            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats?.totalFloors || building.floors?.length || 0}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Floors</span>
           </div>
           <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-none">
             <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
               <Grid2X2 className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats.totalRooms}</span>
+            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats?.totalRooms || 0}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Rooms</span>
           </div>
         </div>

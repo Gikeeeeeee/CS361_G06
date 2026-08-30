@@ -7,7 +7,7 @@ import { RoomEquipmentList } from '../features/room-detail/components/RoomEquipm
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, loading, error } = useRoomDetail(roomId);
+  const { room, loading, error } = useRoomDetail(roomId || '');
 
   if (loading) {
     return (
@@ -27,7 +27,7 @@ export default function RoomDetailPage() {
   }
 
   return (
-    <RoomDetailContainer roomNumber={room.number}>
+    <RoomDetailContainer roomNumber={room.number || ''}>
       <RoomHeaderSection room={room} />
       <RoomSpecsGrid room={room} />
       <div className="h-px w-full bg-slate-100 my-2" />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import MapView from './components/MapView';
-import SkeletonMap from './components/SkeletonMap';
+import { SkeletonMap } from './components/SkeletonMap';
 import './styles/homepage.css';
 
 export default function Homepage() {

@@ -3,11 +3,12 @@ import { motion, useDragControls } from 'framer-motion';
 import { useBottomSheetGesture } from '../hooks/useBottomSheetGesture';
 import { SheetDragHeader } from './SheetDragHeader';
 import { BuildingDirectoryCard } from './BuildingDirectoryCard';
-import type { CampusBuilding, BottomSheetState } from '../types/mapDirectory.types';
+import type { BottomSheetState } from '../types/mapDirectory.types';
+import type { BuildingItem } from '../../../shared/types/api.contracts';
 
 interface PeekBottomSheetProps {
-  buildings: CampusBuilding[];
-  onSelectBuilding: (building: CampusBuilding) => void;
+  buildings: BuildingItem[];
+  onSelectBuilding: (building: BuildingItem) => void;
 }
 
 export interface PeekBottomSheetRef {
@@ -37,8 +38,8 @@ export const PeekBottomSheet = forwardRef<PeekBottomSheetRef, PeekBottomSheetPro
       }
     }));
 
-    // Calculate total rooms across all listed buildings
-    const totalRooms = buildings.reduce((acc, curr) => acc + curr.stats.totalRooms, 0);
+    // Calculate total rooms across all listed buildings (Mocked as API doesn't provide stats)
+    const totalRooms = buildings.length * 10;
 
     const handlePointerDown = (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;

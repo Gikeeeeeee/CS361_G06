@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import type { MapLocation } from '../types/map';
+export interface MapLocation {
+  lat: number;
+  lng: number;
+  zoom?: number;
+  label?: string;
+}
 import '../styles/map.css';
 
 declare const L: any;
