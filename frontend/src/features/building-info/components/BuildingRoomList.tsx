@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { Floor } from '../types/buildingInfo.types';
 import { Card, CardContent } from '../../../shared/components/Card';
 import { Badge } from '../../../shared/components/Badge';
@@ -10,6 +11,8 @@ interface BuildingRoomListProps {
 
 export function BuildingRoomList({ floor }: BuildingRoomListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { buildingId } = useParams<{ buildingId: string }>();
 
   const getIconForType = (type: string) => {
     switch (type) {
@@ -49,9 +52,16 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
     );
   }, [allItems, searchQuery]);
 
-  const handleItemClick = (svgId?: string) => {
-    if (!svgId) return;
-    console.log('Clicked item to highlight svgId:', svgId);
+  const handleItemClick = (item: any) => {
+    if (item.isFacility) {
+      if (item.svgId) {
+        console.log('Clicked facility to highlight svgId:', item.svgId);
+      }
+      return;
+    }
+    if (buildingId) {
+      navigate(`/rooms/${buildingId}-${item.number.toLowerCase()}`);
+    }
   };
 
   return (
@@ -64,7 +74,7 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
           placeholder="Search rooms or facilities..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
         />
       </div>
 
@@ -82,11 +92,11 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
             <Card 
               key={item.id} 
               className="overflow-hidden cursor-pointer group active:scale-[0.98] transition-all duration-300 mb-3 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]"
-              onClick={() => handleItemClick(item.svgId)}
+              onClick={() => handleItemClick(item)}
             >
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-600 group-hover:bg-primary-50 group-hover:text-primary transition-colors">
                     {getIconForType(item.type)}
                   </div>
                   <div>
@@ -102,8 +112,8 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
                     </div>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-primary-50 transition-colors">
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
                 </div>
               </CardContent>
             </Card>

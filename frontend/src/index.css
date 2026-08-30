@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@theme {
+  /* Semantic Colors */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-500: #3b82f6;
+  
+  /* Layout Spacing */
+  --spacing-nav-height: 64px;
+  --spacing-nav-offset: 72px;
+}

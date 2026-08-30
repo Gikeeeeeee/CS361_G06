@@ -13,7 +13,7 @@ export const BottomNavbar: React.FC = () => {
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center w-full h-full transition-all duration-300 relative ${
                   isActive
-                    ? 'text-blue-600 font-bold'
+                    ? 'text-primary font-bold'
                     : 'text-slate-400 hover:text-slate-600'
                 }`
               }
@@ -25,7 +25,7 @@ export const BottomNavbar: React.FC = () => {
                     {item.label}
                   </span>
                   {isActive && (
-                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-blue-600" />
+                    <span className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
                 </>
               )}

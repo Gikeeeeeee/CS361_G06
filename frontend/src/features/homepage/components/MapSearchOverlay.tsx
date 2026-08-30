@@ -52,7 +52,7 @@ export function MapSearchOverlay({
               }}
               className={`snap-start flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all duration-300 shadow-sm cursor-pointer ${
                 isActive
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-blue-100'
+                  ? 'bg-primary border-primary text-white shadow-primary-100'
                   : 'bg-white/80 backdrop-blur-md border-slate-100 text-slate-500 hover:bg-white'
               }`}
             >

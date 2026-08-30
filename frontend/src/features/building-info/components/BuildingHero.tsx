@@ -10,7 +10,7 @@ export function BuildingHero({ building }: BuildingHeroProps) {
   return (
     <div className="flex flex-col">
       {/* Hero Header Section */}
-      <div className="relative w-full pt-20 pb-8 px-5 bg-gradient-to-br from-blue-600 to-indigo-800">
+      <div className="relative w-full pt-20 pb-8 px-5 bg-gradient-to-br from-primary to-indigo-800">
         
         <div className="relative z-10 flex flex-col gap-3">
           <div className="flex items-center gap-2">
@@ -33,7 +33,7 @@ export function BuildingHero({ building }: BuildingHeroProps) {
           <h1 className="text-3xl font-extrabold text-white leading-tight tracking-tight mt-1">
             {building.name}
           </h1>
-          <div className="flex items-center text-blue-100 font-medium text-sm mt-1 bg-black/10 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
+          <div className="flex items-center text-primary-100 font-medium text-sm mt-1 bg-black/10 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
             <Clock className="w-4 h-4 mr-1.5 opacity-80" />
             <span>{building.operatingHours}</span>
           </div>
@@ -48,15 +48,15 @@ export function BuildingHero({ building }: BuildingHeroProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-none">
-            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mb-2">
-              <Layers className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
+              <Layers className="w-5 h-5 text-primary" />
             </div>
             <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats.totalFloors}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Floors</span>
           </div>
           <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-none">
-            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center mb-2">
-              <Grid2X2 className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
+              <Grid2X2 className="w-5 h-5 text-primary" />
             </div>
             <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats.totalRooms}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Rooms</span>

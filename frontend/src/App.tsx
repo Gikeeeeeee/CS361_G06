@@ -4,6 +4,7 @@ import HomePage from './app/page';
 import SavedPage from './app/saved/page';
 import ProfilePage from './app/profile/page';
 import BuildingInfoPage from './app/buildings/[buildingId]/page';
+import RoomDetailPage from './app/rooms/[roomId]/page';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
+        <Route path="rooms/:roomId" element={<RoomDetailPage />} />
       </Routes>
     </BrowserRouter>
   );

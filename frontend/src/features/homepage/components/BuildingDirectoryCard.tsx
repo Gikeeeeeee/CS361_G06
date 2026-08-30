@@ -43,7 +43,7 @@ export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCa
       </div>
       
       {/* Right Action */}
-      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors">
+      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-primary group-hover:bg-primary-50 transition-colors">
         <ChevronRight className="w-4 h-4" />
       </div>
     </div>

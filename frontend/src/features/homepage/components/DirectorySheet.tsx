@@ -83,7 +83,7 @@ export default function DirectorySheet({
             <div
               key={building.id}
               onClick={() => onSelectBuilding?.(building)}
-              className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-blue-500 hover:shadow-sm transition-all cursor-pointer"
+              className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:border-primary-500 hover:shadow-sm transition-all cursor-pointer"
             >
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-900 flex items-center justify-center text-white flex-shrink-0">
