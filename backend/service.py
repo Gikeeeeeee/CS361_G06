@@ -62,3 +62,8 @@ class BuildingService:
                 return room
 
         return None
+    def get_facility_info(self, building_id: str, floor_id: str, facility_id: str) -> dict | None:
+        """
+        Retrieves specific facility details matching floor and facility identifiers.
+        """
+        return self.repository.get_facility_info(building_id, floor_id, facility_id)
