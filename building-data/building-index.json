@@ -1,13 +1,13 @@
 {
   "buildings": [
     {
-      "id": "building-uuid",
+      "id": "lc3",
       "name": "LC3",
       "latitude": 14.072603828706107,
       "longitude": 100.60628435011894
     },
     {
-      "id": "building-uuid",
+      "id": "lc4",
       "name": "LC4",
       "latitude": 14.072606976041664,
       "longitude": 100.60772614298118

@@ -152,7 +152,7 @@ resource "aws_s3_object" "floor_plans" {
 # ---------------------------------------------------------
 
 data "aws_iam_role" "lab_role" {
-  name = "LabRole"
+  name = var.iam_role_name
 }
 
 # ---------------------------------------------------------

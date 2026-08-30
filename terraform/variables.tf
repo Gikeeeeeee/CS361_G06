@@ -20,3 +20,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "iam_role_name" {
+  description = "The name of the IAM role to use for the Lambda execution"
+  type        = string
+  default     = "LabRole"
+}
