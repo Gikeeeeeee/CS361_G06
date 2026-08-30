@@ -73,8 +73,6 @@ class BuildingService:
 
     def get_all_buildings(self) -> list[dict]:
         return self.repository.get_all()
-<<<<<<< HEAD
-    
     def get_room_info(self, building_id: str, floor_id: str, room_id: str) -> dict | None:
         """
         Retrieves specific room details matching floor and room identifiers.
@@ -108,5 +106,3 @@ class BuildingService:
         Retrieves specific facility details matching floor and facility identifiers.
         """
         return self.repository.get_facility_info(building_id, floor_id, facility_id)
-=======
->>>>>>> main

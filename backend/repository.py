@@ -108,8 +108,7 @@ class BuildingRepository:
         self, building_id: str, floor_id: str, facility_id: str
     ) -> dict | None:
         """
-        Fetch specific facility details from a building's JSON data in S3,
-        supporting id or name matching.
+        Fetch specific facility details matching building, floor (id or number), and facility id.
         """
         building_data = self.get_building_raw(building_id)
         if not building_data:
@@ -118,7 +117,7 @@ class BuildingRepository:
         target_floor = None
         for floor in building_data.get("floors", []):
             if (
-                str(floor.get("id")) == str(floor_id)
+                str(floor.get("id")) == str(floor_id) 
                 or str(floor.get("floor_number")) == str(floor_id)
             ):
                 target_floor = floor
@@ -127,15 +126,8 @@ class BuildingRepository:
         if not target_floor:
             return None
 
-        target_lower = str(facility_id).strip().lower()
         for facility in target_floor.get("facilities", []):
-            f_id = str(facility.get("id", "")).strip().lower()
-            f_name = str(facility.get("name", "")).strip().lower()
-
-            if (
-                (f_id and f_id == target_lower)
-                or (f_name and target_lower in f_name)
-            ):
+            if str(facility.get("id")) == str(facility_id):
                 return facility
 
         return None
