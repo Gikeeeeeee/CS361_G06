@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { Building, Floor } from '../../../shared/types/domain.types';
 import { buildingService } from '../../../services/buildingService';
+import { floorService } from '../../../services/floorService';
 
 interface UseBuildingDetailsReturn {
   building: Building | null;
@@ -36,8 +37,24 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
             setBuilding(data as any); // Type assertion until domain types match perfectly
             if (data.floors && data.floors.length > 0) {
               const sortedFloors = [...data.floors].sort((a, b) => a.floor_number - b.floor_number);
-              // Set the first floor as selected by default
-              setSelectedFloor(sortedFloors[0] as any);
+              const defaultFloor = sortedFloors[0];
+              
+              // Fetch detailed floor info for the default floor
+              try {
+                const floorDetails = await floorService.getFloorDetails(buildingId, defaultFloor.id);
+                if (isMounted) {
+                  setSelectedFloor(floorDetails as any);
+                }
+              } catch (floorErr) {
+                console.error("Failed to load default floor details:", floorErr);
+                if (isMounted) {
+                  setSelectedFloor({
+                    ...defaultFloor,
+                    rooms: [],
+                    facilities: []
+                  } as any);
+                }
+              }
             }
           } else {
             setError(`Building with id ${buildingId} not found`);
@@ -62,12 +79,13 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
     };
   }, [buildingId]);
 
-  const selectFloor = (floorId: string) => {
-    if (building) {
-      const floor = building.floors.find((f) => f.id === floorId);
-      if (floor) {
-        setSelectedFloor(floor);
-      }
+  const selectFloor = async (floorId: string) => {
+    if (!buildingId) return;
+    try {
+      const floorDetails = await floorService.getFloorDetails(buildingId, floorId);
+      setSelectedFloor(floorDetails as any);
+    } catch (err) {
+      console.error("Failed to load selected floor details:", err);
     }
   };
 
