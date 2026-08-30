@@ -119,6 +119,7 @@ def lambda_handler(event, context):
 
             return response(200, room_info)
         
+
     # ----------------------------------------
     # Handle CORS preflight
     # ----------------------------------------
@@ -189,6 +190,31 @@ def lambda_handler(event, context):
                 200,
                 floor_data,
             )
+            # ----------------------------------------
+            # GET /api/v1/buildings/{buildingId}/floors/{floorId}
+            # ----------------------------------------
+
+            if floor_id:
+                floor_data = service.get_floor_details(
+                    building_id,
+                    floor_id,
+                )
+
+                if not floor_data:
+                    return response(
+                        404,
+                        {
+                            "error": (
+                                f"Floor '{floor_id}' in "
+                                f"building '{building_id}' not found"
+                            ),
+                        },
+                    )
+
+                return response(
+                    200,
+                    floor_data,
+                )
 
             # ----------------------------------------
             # GET /api/v1/buildings/{buildingId}

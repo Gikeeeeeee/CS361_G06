@@ -22,3 +22,8 @@ output "building_api_example_url" {
   description = "Example URL to query building details"
   value       = "${aws_apigatewayv2_api.http_api.api_endpoint}/buildings/LC4"
 }
+
+output "floor_api_example_url" {
+  description = "Example URL to query floor details with SVG map"
+  value       = "${aws_apigatewayv2_api.http_api.api_endpoint}/buildings/LC4/floors/floor-uuid"
+}
