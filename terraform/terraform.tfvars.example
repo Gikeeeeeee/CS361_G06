@@ -1,4 +1,28 @@
-aws_region  = "us-east-1"
-bucket_name = "cs361-g06-building-data"
-project_name = "CS361-G06"
-environment  = "dev"
+# ==============================================================================
+# AWS Environments Configurations (terraform.tfvars)
+# ==============================================================================
+# IMPORTANT: Do not commit the actual `terraform.tfvars` file to source control.
+# Keep `terraform.tfvars` and `*.tfstate` in your `.gitignore`.
+# Copy this file to `terraform.tfvars` and configure the variables based on your
+# target AWS environment.
+
+# ------------------------------------------------------------------------------
+# Option 1: AWS Academy / Learner Lab Deployment
+# ------------------------------------------------------------------------------
+# Use this configuration if you are deploying to the AWS Learner Lab where IAM
+# role creation is restricted.
+
+# is_learner_lab = true
+# lab_role_name  = "LabRole"
+# aws_region     = "us-east-1"
+# bucket_name    = "cs361-g06-building-data-yourname-dev"
+
+# ------------------------------------------------------------------------------
+# Option 2: Real AWS Account Deployment
+# ------------------------------------------------------------------------------
+# Use this configuration if you are deploying to a standard AWS account with full
+# admin permissions. Terraform will automatically create the necessary IAM roles.
+
+# is_learner_lab = false
+# aws_region     = "ap-southeast-1"
+# bucket_name    = "cs361-g06-building-data-yourname-prod"

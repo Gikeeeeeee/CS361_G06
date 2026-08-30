@@ -21,8 +21,14 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "iam_role_name" {
-  description = "The name of the IAM role to use for the Lambda execution"
+variable "is_learner_lab" {
+  description = "Set to true if deploying in AWS Academy / Learner Lab to bypass IAM creation"
+  type        = bool
+  default     = false
+}
+
+variable "lab_role_name" {
+  description = "The name of the pre-existing LabRole (only used if is_learner_lab is true)"
   type        = string
   default     = "LabRole"
 }
