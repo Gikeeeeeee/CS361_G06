@@ -1,4 +1,4 @@
-import type { Building } from '../features/building-info/types/buildingInfo.types';
+import type { Building } from '../shared/types/domain.types';
 
 export const mockBuildings: Record<string, Building> = {
   lc4: {

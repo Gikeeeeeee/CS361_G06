@@ -1,5 +1,5 @@
 import { Users, ThermometerSnowflake, Plug, LayoutDashboard } from 'lucide-react';
-import type { RoomDetail } from '../types/roomDetail.types';
+import type { RoomDetail } from '../../../shared/types/domain.types';
 
 interface RoomSpecsGridProps {
   room: RoomDetail;

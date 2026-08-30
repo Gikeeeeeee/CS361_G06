@@ -1,9 +1,9 @@
 import { useParams } from 'react-router-dom';
-import { useRoomDetail } from '../../../features/room-detail/hooks/useRoomDetail';
-import { RoomDetailContainer } from '../../../features/room-detail/components/RoomDetailContainer';
-import { RoomHeaderSection } from '../../../features/room-detail/components/RoomHeaderSection';
-import { RoomSpecsGrid } from '../../../features/room-detail/components/RoomSpecsGrid';
-import { RoomEquipmentList } from '../../../features/room-detail/components/RoomEquipmentList';
+import { useRoomDetail } from '../features/room-detail/hooks/useRoomDetail';
+import { RoomDetailContainer } from '../features/room-detail/components/RoomDetailContainer';
+import { RoomHeaderSection } from '../features/room-detail/components/RoomHeaderSection';
+import { RoomSpecsGrid } from '../features/room-detail/components/RoomSpecsGrid';
+import { RoomEquipmentList } from '../features/room-detail/components/RoomEquipmentList';
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();

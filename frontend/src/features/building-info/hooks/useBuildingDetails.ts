@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Building, Floor } from '../types/buildingInfo.types';
+import type { Building, Floor } from '../../../shared/types/domain.types';
 import { buildingService } from '../services/buildingService';
 
 interface UseBuildingDetailsReturn {
@@ -40,9 +40,9 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
             setSelectedFloor(sortedFloors[0]);
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isMounted) {
-          setError(err.message || 'Failed to fetch building details');
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
           setBuilding(null);
         }
       } finally {

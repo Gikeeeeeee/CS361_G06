@@ -1,5 +1,5 @@
 import { mockBuildings } from '../../../data';
-import type { RoomDetail, RoomStatus } from '../types/roomDetail.types';
+import type { RoomDetail, RoomStatus } from '../../../shared/types/domain.types';
 
 export const roomDetailService = {
   getRoomById: async (roomId: string): Promise<RoomDetail | null> => {

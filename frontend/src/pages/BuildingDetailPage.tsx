@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useBuildingDetails } from '../../../features/building-info/hooks/useBuildingDetails';
-import { BuildingHero } from '../../../features/building-info/components/BuildingHero';
-import { FloorTabBar } from '../../../features/building-info/components/FloorTabBar';
-import { BuildingRoomList } from '../../../features/building-info/components/BuildingRoomList';
-import { BackButton } from '../../../shared/components/BackButton';
+import { useBuildingDetails } from '../features/building-info/hooks/useBuildingDetails';
+import { BuildingHero } from '../features/building-info/components/BuildingHero';
+import { FloorTabBar } from '../features/building-info/components/FloorTabBar';
+import { BuildingRoomList } from '../features/building-info/components/BuildingRoomList';
+import { BackButton } from '../shared/components/BackButton';
 import { Bookmark, AlertTriangle } from 'lucide-react';
-import { Button } from '../../../shared/components/Button';
+import { Button } from '../shared/components/Button';
 
 export default function BuildingInfoPage() {
   const { buildingId } = useParams<{ buildingId: string }>();

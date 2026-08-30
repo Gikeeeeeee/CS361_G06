@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import RootLayout from './app/layout';
-import HomePage from './app/page';
-import SavedPage from './app/saved/page';
-import ProfilePage from './app/profile/page';
-import BuildingInfoPage from './app/buildings/[buildingId]/page';
-import RoomDetailPage from './app/rooms/[roomId]/page';
+import RootLayout from './pages/RootLayout';
+import HomePage from './pages/HomePage';
+import SavedPage from './pages/SavedPage';
+import ProfilePage from './pages/ProfilePage';
+import BuildingInfoPage from './pages/BuildingDetailPage';
+import RoomDetailPage from './pages/RoomDetailPage';
 
 function App() {
   return (

@@ -1,4 +1,4 @@
-import type { Building } from '../types/buildingInfo.types';
+import type { Building } from '../../../shared/types/domain.types';
 import { mockBuildings } from '../../../data/buildingData';
 
 class BuildingService {

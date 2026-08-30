@@ -1,13 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Floor } from '../types/buildingInfo.types';
+import type { Floor, Room, Facility } from '../../../shared/types/domain.types';
 import { Card, CardContent } from '../../../shared/components/Card';
-import { Badge } from '../../../shared/components/Badge';
+import { Badge, type badgeVariants } from '../../../shared/components/Badge';
 import { Search, MapPin, ChevronRight, Beaker, GraduationCap, Briefcase, UserRound, ArrowUpDown } from 'lucide-react';
+import type { VariantProps } from 'class-variance-authority';
 
 interface BuildingRoomListProps {
   floor: Floor;
 }
+
+type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
+
+type BuildingListItem = 
+  | (Room & { isFacility: false })
+  | (Facility & { isFacility: true; number: string });
 
 export function BuildingRoomList({ floor }: BuildingRoomListProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,7 +32,7 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
     }
   };
 
-  const getBadgeVariant = (type: string) => {
+  const getBadgeVariant = (type: string): BadgeVariant => {
     switch (type) {
       case 'LAB': return 'destructive';
       case 'CLASSROOM': return 'default';
@@ -34,10 +41,10 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
     }
   };
 
-  const allItems = useMemo(() => {
+  const allItems: BuildingListItem[] = useMemo(() => {
     return [
-      ...floor.rooms.map(r => ({ ...r, isFacility: false })),
-      ...floor.facilities.map(f => ({ ...f, isFacility: true, number: 'FAC' }))
+      ...floor.rooms.map(r => ({ ...r, isFacility: false as const })),
+      ...floor.facilities.map(f => ({ ...f, isFacility: true as const, number: 'FAC' }))
     ];
   }, [floor]);
 
@@ -52,7 +59,7 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
     );
   }, [allItems, searchQuery]);
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: BuildingListItem) => {
     if (item.isFacility) {
       if (item.svgId) {
         console.log('Clicked facility to highlight svgId:', item.svgId);
@@ -106,7 +113,7 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
                         {!item.isFacility ? `Room ${item.number}` : 'Facility'}
                       </span>
                       <span className="w-1 h-1 rounded-full bg-slate-200"></span>
-                      <Badge variant={getBadgeVariant(item.type) as any} className="text-[10px] py-0 h-4 px-2 font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border-none">
+                      <Badge variant={getBadgeVariant(item.type)} className="text-[10px] py-0 h-4 px-2 font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border-none">
                         {item.type}
                       </Badge>
                     </div>

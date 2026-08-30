@@ -1,5 +1,5 @@
 import { mockBuildings } from './buildingData';
-import type { CampusBuilding } from '../features/campus-map/types/mapDirectory.types';
+import type { CampusBuilding } from '../features/homepage/types/mapDirectory.types';
 
 // Augment the core building data with coordinate pins for map view mapping
 export const campusBuildingsMock: CampusBuilding[] = [

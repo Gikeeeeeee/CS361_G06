@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { RoomDetail } from '../types/roomDetail.types';
+import type { RoomDetail } from '../../../shared/types/domain.types';
 import { roomDetailService } from '../services/roomDetailService';
 
 export function useRoomDetail(roomId: string | undefined) {

@@ -1,4 +1,4 @@
-import type { Floor } from '../types/buildingInfo.types';
+import type { Floor } from '../../../shared/types/domain.types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

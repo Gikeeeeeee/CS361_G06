@@ -1,5 +1,5 @@
 import * as LucideIcons from 'lucide-react';
-import type { RoomDetail } from '../types/roomDetail.types';
+import type { RoomDetail } from '../../../shared/types/domain.types';
 
 interface RoomEquipmentListProps {
   room: RoomDetail;
@@ -14,7 +14,8 @@ export function RoomEquipmentList({ room }: RoomEquipmentListProps) {
       <div className="flex flex-col gap-3">
         {room.amenities.map((amenity) => {
           // Dynamically resolve icon from lucide-react, fallback to a standard icon if not found
-          const IconComponent = (LucideIcons as any)[amenity.icon] || LucideIcons.CheckCircle;
+          const iconName = amenity.icon as keyof typeof LucideIcons;
+          const IconComponent = (LucideIcons[iconName] as React.ElementType) || LucideIcons.CheckCircle;
           
           return (
             <div key={amenity.id} className="flex items-center gap-4 py-2 border-b border-slate-50 last:border-0">

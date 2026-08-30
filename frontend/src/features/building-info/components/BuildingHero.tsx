@@ -1,4 +1,4 @@
-import type { Building } from '../types/buildingInfo.types';
+import type { Building } from '../../../shared/types/domain.types';
 import { Badge } from '../../../shared/components/Badge';
 import { Clock, Layers, Grid2X2 } from 'lucide-react';
 
