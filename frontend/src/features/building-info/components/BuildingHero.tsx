@@ -1,6 +1,7 @@
 import type { Building } from '../../../shared/types/domain.types';
 import { Badge } from '../../../shared/components/Badge';
 import { Clock, Layers, Grid2X2 } from 'lucide-react';
+import { getTodayOpeningHours } from '../../../shared/utils/date';
 
 interface BuildingHeroProps {
   building: Building;
@@ -35,7 +36,7 @@ export function BuildingHero({ building }: BuildingHeroProps) {
           </h1>
           <div className="flex items-center text-primary-100 font-medium text-sm mt-1 bg-black/10 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
             <Clock className="w-4 h-4 mr-1.5 opacity-80" />
-            <span>{building.operatingHours}</span>
+            <span>{getTodayOpeningHours(building.opening_hours)}</span>
           </div>
         </div>
       </div>

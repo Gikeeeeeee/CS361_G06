@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Building, Floor } from '../../../shared/types/domain.types';
-import { buildingService } from '../services/buildingService';
+import { mockBuildings } from '../../../data/buildingData';
 
 interface UseBuildingDetailsReturn {
   building: Building | null;
@@ -30,14 +30,20 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
       setError(null);
 
       try {
-        const data = await buildingService.getBuildingById(buildingId);
+        // Mock data delay to simulate fetch
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const data = mockBuildings[buildingId.toLowerCase()];
+        
         if (isMounted) {
-          setBuilding(data);
-          // Default to the first floor if available
-          if (data.floors.length > 0) {
-            // Sort by level ascending and pick the first one
-            const sortedFloors = [...data.floors].sort((a, b) => a.level - b.level);
-            setSelectedFloor(sortedFloors[0]);
+          if (data) {
+            setBuilding(data);
+            if (data.floors.length > 0) {
+              const sortedFloors = [...data.floors].sort((a, b) => a.floor_number - b.floor_number);
+              setSelectedFloor(sortedFloors[0]);
+            }
+          } else {
+            setError(`Building with id ${buildingId} not found`);
           }
         }
       } catch (err: unknown) {

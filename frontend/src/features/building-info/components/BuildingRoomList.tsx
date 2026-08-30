@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Floor, Room, Facility } from '../../../shared/types/domain.types';
+import type { Floor, RoomDetail, Facility } from '../../../shared/types/domain.types';
 import { Card, CardContent } from '../../../shared/components/Card';
 import { Badge, type badgeVariants } from '../../../shared/components/Badge';
 import { Search, MapPin, ChevronRight, Beaker, GraduationCap, Briefcase, UserRound, ArrowUpDown } from 'lucide-react';
@@ -13,7 +13,7 @@ interface BuildingRoomListProps {
 type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 
 type BuildingListItem = 
-  | (Room & { isFacility: false })
+  | (RoomDetail & { isFacility: false })
   | (Facility & { isFacility: true; number: string });
 
 export function BuildingRoomList({ floor }: BuildingRoomListProps) {

@@ -14,7 +14,7 @@ interface FloorTabBarProps {
 
 export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTabBarProps) {
   // Sort floors ascending by level just to be sure
-  const sortedFloors = [...floors].sort((a, b) => a.level - b.level);
+  const sortedFloors = [...floors].sort((a, b) => a.floor_number - b.floor_number);
 
   return (
     <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-slate-100 pt-2 pb-2">
