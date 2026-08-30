@@ -33,3 +33,31 @@ class BuildingService:
 
     def get_all_buildings(self) -> list[dict]:
         return self.repository.get_all()
+    def get_room_info(self, building_id: str, floor_id: str, room_id: str) -> dict | None:
+        """
+        Retrieves specific room details matching floor and room identifiers.
+        """
+        raw_data = self.repository.get_building_raw(building_id)
+
+        if not raw_data:
+            return None
+        target_floor = None
+        for floor in raw_data.get("floors", []):
+            if (
+                str(floor.get("id")) == str(floor_id) 
+                or str(floor.get("floor_number")) == str(floor_id)
+            ):
+                target_floor = floor
+                break
+
+        if not target_floor:
+            return None
+
+        for room in target_floor.get("rooms", []):
+            if (
+                str(room.get("id")) == str(room_id) 
+                or str(room.get("room_number")) == str(room_id)
+            ):
+                return room
+
+        return None

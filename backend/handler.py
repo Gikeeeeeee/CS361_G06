@@ -55,7 +55,35 @@ def lambda_handler(event, context):
         logger.info(
             f"Incoming Request -> Method: {method}, Path: {path}"
         )
+        # ----------------------------------------
+        # GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
+        # ----------------------------------------
+        if method == "GET" and "/floors/" in path and "/rooms/" in path:
+            path_params = event.get("pathParameters") or {}
+            building_id = path_params.get("buildingId")
+            floor_id = path_params.get("floorId")
+            room_id = path_params.get("roomId")
 
+            if not building_id or not floor_id or not room_id:
+                return response(
+                    400,
+                    {
+                        "error": "Missing buildingId, floorId, or roomId parameter"
+                    }
+                )
+
+            room_info = service.get_room_info(building_id, floor_id, room_id)
+
+            if not room_info:
+                return response(
+                    404,
+                    {
+                        "error": f"Room '{room_id}' not found on floor '{floor_id}' in building '{building_id}'"
+                    }
+                )
+
+            return response(200, room_info)
+        
         # ----------------------------------------
         # GET /api/v1/buildings
         # ----------------------------------------

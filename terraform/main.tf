@@ -221,6 +221,18 @@ resource "aws_apigatewayv2_integration" "lambda_integration" {
 }
 
 # ---------------------------------------------------------
+# GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
+# ---------------------------------------------------------
+
+resource "aws_apigatewayv2_route" "get_room_info" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+
+# ---------------------------------------------------------
 # GET /api/v1/buildings
 # ---------------------------------------------------------
 
