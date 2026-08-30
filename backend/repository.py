@@ -35,11 +35,14 @@ class BuildingRepository:
             )
 
             data = response["Body"].read().decode("utf-8")
-            buildings = json.loads(data)
+            buildings_data = json.loads(data)
+
+            buildings = buildings_data.get("buildings")
 
             if not isinstance(buildings, list):
                 raise ValueError(
-                    f"The building file '{file_key}' must contain a JSON array."
+                    f"The building file '{file_key}' must contain "
+                    f"a 'buildings' array."
                 )
 
             return buildings
