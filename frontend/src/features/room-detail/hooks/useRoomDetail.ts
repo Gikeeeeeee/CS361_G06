@@ -38,8 +38,10 @@ export function useRoomDetail(roomId: string | undefined) {
       
       for (const floor of building.floors) {
         const r = floor.rooms.find(r => 
+          r.number?.toLowerCase() === roomNumber ||
           r.name.toLowerCase().includes(roomNumber) || 
-          r.id.toLowerCase() === roomId.toLowerCase()
+          r.id.toLowerCase() === roomId.toLowerCase() ||
+          r.id.toLowerCase() === `room-${roomNumber}`
         );
         
         if (r) {
@@ -54,6 +56,7 @@ export function useRoomDetail(roomId: string | undefined) {
             
             setRoom({
               ...r,
+              number: r.number || roomNumber.toUpperCase(),
               department: isLab ? 'Faculty of Science and Technology' : isOffice ? 'Faculty Administration' : 'General Education Department',
               status,
               buildingCode: building.code,

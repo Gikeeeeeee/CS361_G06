@@ -31,8 +31,8 @@ export const mockBuildings: Record<string, Building> = {
         name: 'Floor 1',
         map: { type: 'svg', url: '/maps/lc4/lc4-f1.svg' },
         rooms: [
-          { id: 'room-4101', name: 'Large Lecture Hall', type: 'CLASSROOM', latitude: 0, longitude: 0 },
-          { id: 'room-4102', name: 'Physics Lab', type: 'LAB', latitude: 0, longitude: 0 },
+          { id: 'room-4101', number: '4101', name: 'Large Lecture Hall', type: 'CLASSROOM', latitude: 0, longitude: 0 },
+          { id: 'room-4102', number: '4102', name: 'Physics Lab', type: 'LAB', latitude: 0, longitude: 0 },
         ],
         facilities: [
           { id: 'fac-rr1', name: 'Restrooms', type: 'RESTROOM', latitude: 0, longitude: 0 },
@@ -45,9 +45,9 @@ export const mockBuildings: Record<string, Building> = {
         name: 'Floor 2',
         map: { type: 'svg', url: '/maps/lc4/lc4-f2.svg' },
         rooms: [
-          { id: 'room-4201', name: 'Computer Lab A', type: 'LAB', latitude: 0, longitude: 0 },
-          { id: 'room-4202', name: 'Seminar Room', type: 'CLASSROOM', latitude: 0, longitude: 0 },
-          { id: 'room-4203', name: 'Faculty Office', type: 'OFFICE', latitude: 0, longitude: 0 },
+          { id: 'room-4201', number: '4201', name: 'Computer Lab A', type: 'LAB', latitude: 0, longitude: 0 },
+          { id: 'room-4202', number: '4202', name: 'Seminar Room', type: 'CLASSROOM', latitude: 0, longitude: 0 },
+          { id: 'room-4203', number: '4203', name: 'Faculty Office', type: 'OFFICE', latitude: 0, longitude: 0 },
         ],
         facilities: [
           { id: 'fac-rr2', name: 'Restrooms', type: 'RESTROOM', latitude: 0, longitude: 0 },
@@ -59,8 +59,8 @@ export const mockBuildings: Record<string, Building> = {
         name: 'Floor 3',
         map: { type: 'svg', url: '/maps/lc4/lc4-f3.svg' },
         rooms: [
-          { id: 'room-4301', name: 'Chemistry Lab', type: 'LAB', latitude: 0, longitude: 0 },
-          { id: 'room-4302', name: 'Chemistry Lab', type: 'LAB', latitude: 0, longitude: 0 },
+          { id: 'room-4301', number: '4301', name: 'Chemistry Lab', type: 'LAB', latitude: 0, longitude: 0 },
+          { id: 'room-4302', number: '4302', name: 'Chemistry Lab', type: 'LAB', latitude: 0, longitude: 0 },
         ],
         facilities: [
           { id: 'fac-rr3', name: 'Restrooms', type: 'RESTROOM', latitude: 0, longitude: 0 },
@@ -98,8 +98,8 @@ export const mockBuildings: Record<string, Building> = {
         name: 'Floor 1',
         map: { type: 'svg', url: '/maps/lc3/lc3-f1.svg' },
         rooms: [
-          { id: 'room-3101', name: 'Classroom A', type: 'CLASSROOM', latitude: 0, longitude: 0 },
-          { id: 'room-3102', name: 'Classroom B', type: 'CLASSROOM', latitude: 0, longitude: 0 },
+          { id: 'room-3101', number: '3101', name: 'Classroom A', type: 'CLASSROOM', latitude: 0, longitude: 0 },
+          { id: 'room-3102', number: '3102', name: 'Classroom B', type: 'CLASSROOM', latitude: 0, longitude: 0 },
         ],
         facilities: [
           { id: 'fac-rr1', name: 'Restrooms', type: 'RESTROOM', latitude: 0, longitude: 0 },
@@ -111,8 +111,8 @@ export const mockBuildings: Record<string, Building> = {
         name: 'Floor 2',
         map: { type: 'svg', url: '/maps/lc3/lc3-f2.svg' },
         rooms: [
-          { id: 'room-3201', name: 'Admin Office', type: 'OFFICE', latitude: 0, longitude: 0 },
-          { id: 'room-3202', name: 'Meeting Room', type: 'OFFICE', latitude: 0, longitude: 0 },
+          { id: 'room-3201', number: '3201', name: 'Admin Office', type: 'OFFICE', latitude: 0, longitude: 0 },
+          { id: 'room-3202', number: '3202', name: 'Meeting Room', type: 'OFFICE', latitude: 0, longitude: 0 },
         ],
         facilities: [
           { id: 'fac-rr2', name: 'Restrooms', type: 'RESTROOM', latitude: 0, longitude: 0 },

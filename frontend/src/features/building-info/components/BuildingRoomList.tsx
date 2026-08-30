@@ -67,7 +67,8 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
       return;
     }
     if (buildingId) {
-      navigate(`/rooms/${buildingId}-${item.number.toLowerCase()}`);
+      const roomIdentifier = item.number || item.id.replace('room-', '');
+      navigate(`/rooms/${buildingId}-${roomIdentifier.toLowerCase()}`);
     }
   };
 
@@ -110,7 +111,7 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
                     <h3 className="font-bold text-slate-800 text-base">{item.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        {!item.isFacility ? `Room ${item.number}` : 'Facility'}
+                        {!item.isFacility ? `Room ${item.number || item.id.replace('room-', '')}` : 'Facility'}
                       </span>
                       <span className="w-1 h-1 rounded-full bg-slate-200"></span>
                       <Badge variant={getBadgeVariant(item.type)} className="text-[10px] py-0 h-4 px-2 font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border-none">
