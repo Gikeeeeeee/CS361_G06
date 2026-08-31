@@ -190,54 +190,29 @@ def lambda_handler(event, context):
                 200,
                 floor_data,
             )
-            # ----------------------------------------
-            # GET /api/v1/buildings/{buildingId}/floors/{floorId}
-            # ----------------------------------------
 
-            if floor_id:
-                floor_data = service.get_floor_details(
-                    building_id,
-                    floor_id,
-                )
+        # ----------------------------------------
+        # GET /api/v1/buildings/{buildingId}
+        # ----------------------------------------
 
-                if not floor_data:
-                    return response(
-                        404,
-                        {
-                            "error": (
-                                f"Floor '{floor_id}' in "
-                                f"building '{building_id}' not found"
-                            ),
-                        },
-                    )
+        building = service.get_building_summary(
+            building_id
+        )
 
-                return response(
-                    200,
-                    floor_data,
-                )
-
-            # ----------------------------------------
-            # GET /api/v1/buildings/{buildingId}
-            # ----------------------------------------
-
-            building = service.get_building_summary(
-                building_id
-            )
-
-            if not building:
-                return response(
-                    404,
-                    {
-                        "error": (
-                            f"Building '{building_id}' not found"
-                        ),
-                    },
-                )
-
+        if not building:
             return response(
-                200,
-                building,
+                404,
+                {
+                    "error": (
+                        f"Building '{building_id}' not found"
+                    ),
+                },
             )
+
+        return response(
+            200,
+            building,
+        )
 
         # ----------------------------------------
         # Route not found

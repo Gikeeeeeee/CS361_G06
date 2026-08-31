@@ -80,7 +80,7 @@ curl https://<api_endpoint>/buildings/LC4
 #### Expected Response:
 ```json
 {
-  "id": "building-uuid",
+  "id": "lc4",
   "name": "LC4",
   "latitude": 14.072606976041664,
   "longitude": 100.60772614298118,

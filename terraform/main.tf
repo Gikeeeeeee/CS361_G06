@@ -147,12 +147,67 @@ resource "aws_s3_object" "floor_plans" {
 }
 
 # ---------------------------------------------------------
-# Lambda & API Gateway Setup
-# AWS Academy IAM LabRole
+# IAM Role Configuration
 # ---------------------------------------------------------
 
+# Learner Lab Role (Data Source)
 data "aws_iam_role" "lab_role" {
-  name = "LabRole"
+  count = var.is_learner_lab ? 1 : 0
+  name  = var.lab_role_name
+}
+
+# Custom Role (Real AWS Account)
+resource "aws_iam_role" "lambda_exec_role" {
+  count = var.is_learner_lab ? 0 : 1
+  name  = "${var.project_name}-lambda-exec-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_basic" {
+  count      = var.is_learner_lab ? 0 : 1
+  role       = aws_iam_role.lambda_exec_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_policy" "s3_read" {
+  count       = var.is_learner_lab ? 0 : 1
+  name        = "${var.project_name}-s3-read-${var.environment}"
+  description = "Allow Lambda to read from building data S3 bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Effect = "Allow"
+        Resource = [
+          aws_s3_bucket.building_data.arn,
+          "${aws_s3_bucket.building_data.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "s3_read_attach" {
+  count      = var.is_learner_lab ? 0 : 1
+  role       = aws_iam_role.lambda_exec_role[0].name
+  policy_arn = aws_iam_policy.s3_read[0].arn
 }
 
 # ---------------------------------------------------------
@@ -182,7 +237,7 @@ resource "aws_lambda_function" "building_api" {
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   runtime          = "python3.12"
   handler          = "handler.lambda_handler"
-  role             = data.aws_iam_role.lab_role.arn
+  role             = var.is_learner_lab ? data.aws_iam_role.lab_role[0].arn : aws_iam_role.lambda_exec_role[0].arn
 
   timeout     = 10
   memory_size = 256
