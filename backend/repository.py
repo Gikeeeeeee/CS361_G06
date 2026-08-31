@@ -103,6 +103,34 @@ class BuildingRepository:
                 return None
             raise e
 
+            raise
+    def get_facility_info(
+        self, building_id: str, floor_id: str, facility_id: str
+    ) -> dict | None:
+        """
+        Fetch specific facility details matching building, floor (id or number), and facility id.
+        """
+        building_data = self.get_building_raw(building_id)
+        if not building_data:
+            return None
+
+        target_floor = None
+        for floor in building_data.get("floors", []):
+            if (
+                str(floor.get("id")) == str(floor_id) 
+                or str(floor.get("floor_number")) == str(floor_id)
+            ):
+                target_floor = floor
+                break
+
+        if not target_floor:
+            return None
+
+        for facility in target_floor.get("facilities", []):
+            if str(facility.get("id")) == str(facility_id):
+                return facility
+
+        return None
     def generate_presigned_url(self, s3_key: str, expires_in: int = 3600) -> str:
         """
         Generates a pre-signed GET URL for an S3 object.

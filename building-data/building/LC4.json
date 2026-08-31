@@ -120,9 +120,9 @@
           "longitude": 100.60728012141473
         },
         {
-          "id": "facility-elavator",
-          "name": "Elavator",
-          "type": "ELAVATOR",
+          "id": "facility-elevator",
+          "name": "Elevator",
+          "type": "ELEVATOR",
           "latitude": 14.072599202567453,
           "longitude": 100.60741959627066
         }
@@ -378,8 +378,8 @@
         },
         {
           "id": "facility-elevator",
-          "name": "Elavator",
-          "type": "ELAVATOR",
+          "name": "Elevator",
+          "type": "ELEVATOR",
           "latitude": 14.072599202567453,
           "longitude": 100.60741959627066
         }

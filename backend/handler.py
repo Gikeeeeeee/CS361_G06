@@ -62,6 +62,63 @@ def lambda_handler(event, context):
     logger.info(
         f"Incoming Request -> Method: {method}, Path: {path}"
     )
+# ----------------------------------------
+# GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}
+# ----------------------------------------
+    if method == "GET" and "/floors/" in path and "/facilities/" in path:
+        path_params = event.get("pathParameters") or {}
+        building_id = path_params.get("buildingId")
+        floor_id = path_params.get("floorId")
+        facility_id = path_params.get("facilityId")
+
+        if not building_id or not floor_id or not facility_id:
+            return response(
+                400,
+                {
+                    "error": "Missing buildingId, floorId, or facilityId parameter"
+                }
+            )
+
+        facility_info = service.get_facility_info(building_id, floor_id, facility_id)
+
+        if not facility_info:
+            return response(
+                404,
+                {
+                    "error": f"Facility '{facility_id}' not found on floor '{floor_id}' in building '{building_id}'"
+                }
+            )
+
+        return response(200, facility_info)
+# ----------------------------------------
+# GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
+# ----------------------------------------
+    if method == "GET" and "/floors/" in path and "/rooms/" in path:
+            path_params = event.get("pathParameters") or {}
+            building_id = path_params.get("buildingId")
+            floor_id = path_params.get("floorId")
+            room_id = path_params.get("roomId")
+
+            if not building_id or not floor_id or not room_id:
+                return response(
+                    400,
+                    {
+                        "error": "Missing buildingId, floorId, or roomId parameter"
+                    }
+                )
+
+            room_info = service.get_room_info(building_id, floor_id, room_id)
+
+            if not room_info:
+                return response(
+                    404,
+                    {
+                        "error": f"Room '{room_id}' not found on floor '{floor_id}' in building '{building_id}'"
+                    }
+                )
+
+            return response(200, room_info)
+        
 
     # ----------------------------------------
     # Handle CORS preflight
@@ -108,6 +165,31 @@ def lambda_handler(event, context):
                     },
                 )
 
+        # ----------------------------------------
+        # GET /api/v1/buildings/{buildingId}/floors/{floorId}
+        # ----------------------------------------
+
+        if floor_id:
+            floor_data = service.get_floor_details(
+                building_id,
+                floor_id,
+            )
+
+            if not floor_data:
+                return response(
+                    404,
+                    {
+                        "error": (
+                            f"Floor '{floor_id}' in "
+                            f"building '{building_id}' not found"
+                        ),
+                    },
+                )
+
+            return response(
+                200,
+                floor_data,
+            )
             # ----------------------------------------
             # GET /api/v1/buildings/{buildingId}/floors/{floorId}
             # ----------------------------------------
