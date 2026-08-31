@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://your-api-gateway-url.amazonaws.com/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://p92jble6h0.execute-api.us-east-1.amazonaws.com/api/v1';
 
 export class ApiError extends Error {
   status: number;

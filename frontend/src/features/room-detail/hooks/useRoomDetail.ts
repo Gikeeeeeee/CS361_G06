@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { RoomDetail } from '../../../shared/types/domain.types';
 import { buildingService } from '../../../services/buildingService';
-import { apiClient } from '../../../services/api/apiClient';
+import { roomService } from '../../../services/roomService';
 
 export function useRoomDetail(roomId: string | undefined) {
   const [room, setRoom] = useState<RoomDetail | null>(null);
@@ -27,28 +27,37 @@ export function useRoomDetail(roomId: string | undefined) {
       }
       
       const bid = parts[0];
-      const roomNumber = parts[1];
+      const targetRoomQuery = parts.slice(1).join('-'); // เช่น "101" หรือ "room-101"
       
       try {
         const building = await buildingService.getBuildingById(bid);
-        if (!building) {
+        if (!building || !building.floors) {
           if (isMounted) { setError('Building not found'); setLoading(false); }
           return;
         }
+
+        // รูปแบบ ID ที่อาจจะเป็นไปได้ในการยิง API เส้น 4
+        const possibleRoomIds = [
+          targetRoomQuery,
+          `room-${targetRoomQuery}`,
+          targetRoomQuery.startsWith('room-') ? targetRoomQuery : `room-${targetRoomQuery}`
+        ];
+        const uniqueRoomIds = Array.from(new Set(possibleRoomIds));
         
-        for (const floor of building.floors) {
-          try {
-            const r: any = await apiClient.get(`/buildings/${bid}/floors/${floor.id}/rooms/${roomId.toLowerCase()}`);
-            
-            if (r) {
-              if (isMounted) {
+        // วนลูปเช็คทุกชั้นในตึก และลองยิงหาห้องด้วยรูปแบบ ID ต่างๆ
+        for (const floor of building.floors as any[]) {
+          for (const rId of uniqueRoomIds) {
+            try {
+              const r = await roomService.getRoomDetails(bid, floor.id, rId);
+              
+              if (r && isMounted) {
                 const isLab = r.type === 'LAB';
                 const isClassroom = r.type === 'CLASSROOM';
                 const isOffice = r.type === 'OFFICE';
                 
                 setRoom({
                   ...r,
-                  number: roomNumber.toUpperCase(),
+                  number: r.name || rId.replace('room-', '').toUpperCase(),
                   department: isLab ? 'Faculty of Science and Technology' : isOffice ? 'Faculty Administration' : 'General Education Department',
                   status: 'AVAILABLE',
                   buildingCode: building.name,
@@ -70,14 +79,14 @@ export function useRoomDetail(roomId: string | undefined) {
                     { id: 'am-2', name: 'Meeting Table', icon: 'Grid' }
                   ],
                   buildingId: building.id,
-                } as any);
+                } as RoomDetail);
                 setLoading(false);
+                return;
               }
-              return;
+            } catch (apiErr) {
+              // ถ้าชั้นนี้หรือรหัสนี้ไม่ใช่ ให้ลองเช็คตัวเลือกถัดไปเรื่อยๆ
+              continue;
             }
-          } catch (e) {
-            // Room not on this floor, continue
-            continue;
           }
         }
         
