@@ -10,8 +10,17 @@ export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
 
   return (
     <section className="flex flex-col">
-      {/* Hero Background - Solid Color as requested */}
-      <div className="w-full h-56 bg-slate-200 relative">
+      {/* Hero Background - Image or Gradient fallback */}
+      <div className="w-full h-56 relative overflow-hidden bg-slate-900">
+        {room.imageUrl ? (
+          <img 
+            src={room.imageUrl} 
+            alt={room.number || 'Room Preview'} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-800 via-indigo-900 to-slate-900 opacity-90" />
+        )}
         <div className="absolute bottom-4 left-4">
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-md ${statusColor}`}>
             <span className="text-xs font-bold tracking-wide capitalize">

@@ -4,6 +4,7 @@ import { RoomDetailContainer } from '../features/room-detail/components/RoomDeta
 import { RoomHeaderSection } from '../features/room-detail/components/RoomHeaderSection';
 import { RoomSpecsGrid } from '../features/room-detail/components/RoomSpecsGrid';
 import { RoomEquipmentList } from '../features/room-detail/components/RoomEquipmentList';
+import { FloorPlanContainer } from '../features/floor-viewer/components/FloorPlanContainer';
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -30,6 +31,11 @@ export default function RoomDetailPage() {
     <RoomDetailContainer roomNumber={room.number || ''}>
       <RoomHeaderSection room={room} />
       <RoomSpecsGrid room={room} />
+      
+      {room.buildingId && room.floorId && (
+        <FloorPlanContainer buildingId={room.buildingId} floorId={room.floorId} />
+      )}
+
       <div className="h-px w-full bg-slate-100 my-2" />
       <RoomEquipmentList room={room} />
     </RoomDetailContainer>

@@ -13,7 +13,9 @@ export interface RoomDetail extends RoomDetailResponse {
   hasPowerOutlets?: boolean;
   amenities?: { id: string; name: string; icon: string }[];
   buildingId?: string;
+  floorId?: string;
   number?: string;
+  imageUrl?: string;
 }
 
 export interface Facility extends FacilityDetailResponse {
