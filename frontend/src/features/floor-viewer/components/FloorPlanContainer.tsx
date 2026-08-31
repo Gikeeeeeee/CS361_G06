@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Maximize2 } from "lucide-react";
 import { useFloorMetadata } from "../hooks/useFloorMetadata";
 import { RoomQuickPeekModal } from "./RoomQuickPeekModal";
@@ -106,7 +106,6 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
         onClose={closeFullscreen}
         svgContent={svgContent || ''}
         floorMetadata={floorMetadata}
-        buildingId={buildingId}
       />
     </section>
   );

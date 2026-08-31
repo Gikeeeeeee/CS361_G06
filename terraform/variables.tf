@@ -9,6 +9,11 @@ variable "bucket_name" {
   type        = string
 }
 
+variable "frontend_bucket_name" {
+  description = "Globally unique S3 bucket name for the static frontend website"
+  type        = string
+}
+
 variable "project_name" {
   description = "Project name used for resource tags"
   type        = string
@@ -31,4 +36,10 @@ variable "lab_role_name" {
   description = "The name of the pre-existing LabRole (only used if is_learner_lab is true)"
   type        = string
   default     = "LabRole"
+}
+
+variable "frontend_build_dir" {
+  description = "Path to the built frontend assets that will be uploaded to the static website bucket"
+  type        = string
+  default     = "../frontend/dist"
 }

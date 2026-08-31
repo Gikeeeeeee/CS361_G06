@@ -1,6 +1,5 @@
 import { useControls } from "react-zoom-pan-pinch";
 import { ZoomIn, ZoomOut, Maximize, Minimize } from "lucide-react";
-import React from "react";
 
 interface FloorZoomControlsProps {
   onCloseFullscreen?: () => void;

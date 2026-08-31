@@ -16,6 +16,7 @@
 # lab_role_name  = "LabRole"
 # aws_region     = "us-east-1"
 # bucket_name    = "cs361-g06-building-data-yourname-dev"
+# frontend_bucket_name = "cs361-g06-frontend-yourname-dev"
 
 # ------------------------------------------------------------------------------
 # Option 2: Real AWS Account Deployment
@@ -26,3 +27,4 @@
 # is_learner_lab = false
 # aws_region     = "ap-southeast-1"
 # bucket_name    = "cs361-g06-building-data-yourname-prod"
+# frontend_bucket_name = "cs361-g06-frontend-yourname-prod"
