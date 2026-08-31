@@ -1,4 +1,3 @@
-import React from 'react';
 import { X } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { InteractiveSvgMap } from './InteractiveSvgMap';
@@ -9,10 +8,9 @@ interface FullscreenFloorModalProps {
   onClose: () => void;
   svgContent: string;
   floorMetadata?: FloorMetadata | null;
-  buildingId: string;
 }
 
-export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadata, buildingId }: FullscreenFloorModalProps) {
+export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadata }: FullscreenFloorModalProps) {
   if (!isOpen || !svgContent) return null;
 
   return (
@@ -41,7 +39,7 @@ export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadat
           centerOnInit
           wheel={{ step: 0.1 }}
         >
-          <React.Fragment>
+          <>
             <TransformComponent 
               wrapperClass="w-full h-full flex items-center justify-center" 
               contentClass="flex items-center justify-center"
@@ -50,7 +48,7 @@ export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadat
                 <InteractiveSvgMap svgContent={svgContent} />
               </div>
             </TransformComponent>
-          </React.Fragment>
+          </>
         </TransformWrapper>
       </div>
     </div>
