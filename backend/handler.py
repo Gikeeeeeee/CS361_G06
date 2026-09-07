@@ -1,263 +1,204 @@
-import json
+"""
+AWS Lambda entry point -- the inbound (driving) adapter.
+
+Its whole job is: API Gateway event -> use case -> HTTP response. It contains
+no business rules, and no endpoint has its own copy of the request lifecycle.
+
+Adding an endpoint means adding ONE entry to ROUTES (plus its Terraform route
+and its service method). See backend/README.md.
+
+Layer: driving adapter (inbound) + composition root.
+"""
+
 import logging
-from typing import Any
+import re
+from collections import namedtuple
 
-from service import BuildingService
-
+import response
+from errors import AppError, MissingParameters, RouteNotFound
+from repositories.building_repository import BuildingRepository
+from services.building_service import BuildingService
+from services.facility_service import FacilityService
+from services.floor_service import FloorService
+from services.room_service import RoomService
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-service = BuildingService()
+
+# ---------------------------------------------------------------------------
+# Composition root -- the one place adapters are wired into services.
+# ---------------------------------------------------------------------------
 
 
-CORS_HEADERS = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+class Dependencies:
+    """Every use case the routes can call, built over one data source."""
+
+    def __init__(self, source=None):
+        source = source if source is not None else BuildingRepository()
+
+        self.buildings = BuildingService(source)
+        self.floors = FloorService(source)
+        self.rooms = RoomService(source)
+        self.facilities = FacilityService(source)
+
+
+# Built once per Lambda container (kept warm across invocations).
+DEPS = Dependencies()
+
+
+# ---------------------------------------------------------------------------
+# Route table
+#
+# Keys are API Gateway route keys -- byte-for-byte the `route_key` values
+# declared in terraform/main.tf.
+# ---------------------------------------------------------------------------
+
+Route = namedtuple("Route", "required_params action")
+
+BUILDINGS = "/api/v1/buildings"
+BUILDING = f"{BUILDINGS}/{{buildingId}}"
+FLOOR = f"{BUILDING}/floors/{{floorId}}"
+
+ROUTES = {
+    f"GET {BUILDINGS}": Route(
+        (),
+        lambda deps, p: {"buildings": deps.buildings.list_buildings()},
+    ),
+    f"GET {BUILDING}": Route(
+        ("buildingId",),
+        lambda deps, p: deps.buildings.get_summary(p["buildingId"]),
+    ),
+    f"GET {FLOOR}": Route(
+        ("buildingId", "floorId"),
+        lambda deps, p: deps.floors.get_details(p["buildingId"], p["floorId"]),
+    ),
+    f"GET {FLOOR}/rooms/{{roomId}}": Route(
+        ("buildingId", "floorId", "roomId"),
+        lambda deps, p: deps.rooms.get_room(
+            p["buildingId"], p["floorId"], p["roomId"]
+        ),
+    ),
+    f"GET {FLOOR}/facilities/{{facilityId}}": Route(
+        ("buildingId", "floorId", "facilityId"),
+        lambda deps, p: deps.facilities.get_facility(
+            p["buildingId"], p["floorId"], p["facilityId"]
+        ),
+    ),
 }
 
 
-def response(status_code: int, body: Any) -> dict:
-    """
-    Build API Gateway response.
-    """
-    return {
-        "statusCode": status_code,
-        "headers": CORS_HEADERS,
-        "body": json.dumps(body, ensure_ascii=False),
-    }
+def _compile(route_key: str) -> tuple[str, re.Pattern]:
+    """`"GET /a/{b}"` -> `("GET", re.compile("/a/(?P<b>[^/]+)/?$"))`."""
+    method, template = route_key.split(" ", 1)
+    pattern = re.sub(r"\{(\w+)\}", r"(?P<\1>[^/]+)", template)
+
+    return method, re.compile(pattern + "/?$")
 
 
-def lambda_handler(event, context):
-    """
-    AWS Lambda entry point for API Gateway HTTP API.
+# Fallback matchers, used only when the event carries no usable `routeKey`
+# (REST/v1 payloads, or a direct Lambda invoke from the smoke script).
+_PATTERNS = [(*_compile(key), key) for key in ROUTES]
 
-    Handles:
-      - GET /api/v1/buildings
-      - GET /api/v1/buildings/{buildingId}
-      - GET /api/v1/buildings/{buildingId}/floors/{floorId}
-    """
 
-    # ----------------------------------------
-    # Request information
-    # ----------------------------------------
+# ---------------------------------------------------------------------------
+# Request parsing
+# ---------------------------------------------------------------------------
 
-    request_context = event.get("requestContext", {})
-    http_info = request_context.get("http", {})
 
-    method = (
+def _method(event: dict) -> str:
+    http_info = (event.get("requestContext") or {}).get("http") or {}
+
+    return (
         http_info.get("method")
         or event.get("httpMethod")
         or ""
     ).upper()
 
-    path = (
-        event.get("rawPath")
-        or event.get("path")
-        or ""
-    )
 
-    logger.info(
-        f"Incoming Request -> Method: {method}, Path: {path}"
-    )
-# ----------------------------------------
-# GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}
-# ----------------------------------------
-    if method == "GET" and "/floors/" in path and "/facilities/" in path:
-        path_params = event.get("pathParameters") or {}
-        building_id = path_params.get("buildingId")
-        floor_id = path_params.get("floorId")
-        facility_id = path_params.get("facilityId")
+def _path(event: dict) -> str:
+    return event.get("rawPath") or event.get("path") or ""
 
-        if not building_id or not floor_id or not facility_id:
-            return response(
-                400,
-                {
-                    "error": "Missing buildingId, floorId, or facilityId parameter"
-                }
-            )
 
-        facility_info = service.get_facility_info(building_id, floor_id, facility_id)
+def _resolve(event: dict, method: str, path: str) -> tuple[str | None, dict]:
+    """
+    Identify the route and collect its path parameters.
 
-        if not facility_info:
-            return response(
-                404,
-                {
-                    "error": f"Facility '{facility_id}' not found on floor '{floor_id}' in building '{building_id}'"
-                }
-            )
+    Prefers the `routeKey` API Gateway already resolved (exact, and impossible
+    to confuse with a similar path); falls back to matching the path itself.
+    """
+    params = {
+        key: value
+        for key, value in (event.get("pathParameters") or {}).items()
+        if value
+    }
 
-        return response(200, facility_info)
-# ----------------------------------------
-# GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
-# ----------------------------------------
-    if method == "GET" and "/floors/" in path and "/rooms/" in path:
-            path_params = event.get("pathParameters") or {}
-            building_id = path_params.get("buildingId")
-            floor_id = path_params.get("floorId")
-            room_id = path_params.get("roomId")
+    route_key = event.get("routeKey")
 
-            if not building_id or not floor_id or not room_id:
-                return response(
-                    400,
-                    {
-                        "error": "Missing buildingId, floorId, or roomId parameter"
-                    }
-                )
+    if route_key in ROUTES:
+        return route_key, params
 
-            room_info = service.get_room_info(building_id, floor_id, room_id)
+    for pattern_method, pattern, key in _PATTERNS:
+        if pattern_method != method:
+            continue
 
-            if not room_info:
-                return response(
-                    404,
-                    {
-                        "error": f"Room '{room_id}' not found on floor '{floor_id}' in building '{building_id}'"
-                    }
-                )
+        match = pattern.search(path)
 
-            return response(200, room_info)
-        
+        if match:
+            for name, value in match.groupdict().items():
+                params.setdefault(name, value)
 
-    # ----------------------------------------
-    # Handle CORS preflight
-    # ----------------------------------------
+            return key, params
+
+    return None, params
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def lambda_handler(event, context):
+    """
+    Handles every route in ROUTES:
+
+      - GET /api/v1/buildings
+      - GET /api/v1/buildings/{buildingId}
+      - GET /api/v1/buildings/{buildingId}/floors/{floorId}
+      - GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
+      - GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}
+    """
+    method = _method(event)
+    path = _path(event)
+
+    logger.info("Incoming Request -> Method: %s, Path: %s", method, path)
 
     if method == "OPTIONS":
-        return {
-            "statusCode": 204,
-            "headers": CORS_HEADERS,
-            "body": "",
-        }
+        return response.preflight()
 
     try:
-        # ----------------------------------------
-        # GET /api/v1/buildings
-        # ----------------------------------------
+        route_key, params = _resolve(event, method, path)
 
-        if method == "GET" and path == "/api/v1/buildings":
-            buildings = service.get_all_buildings()
+        if route_key is None:
+            raise RouteNotFound(f"{method} {path}")
 
-            return response(
-                200,
-                {"buildings": buildings},
-            )
+        route = ROUTES[route_key]
 
-        # ----------------------------------------
-        # GET /api/v1/buildings/{buildingId}
-        # ----------------------------------------
+        missing = [
+            name for name in route.required_params if not params.get(name)
+        ]
 
-        if (
-            method == "GET"
-            and path.startswith("/api/v1/buildings/")
-        ):
-            path_params = event.get("pathParameters") or {}
+        if missing:
+            raise MissingParameters(missing)
 
-            building_id = path_params.get("buildingId")
-            floor_id = path_params.get("floorId")
+        return response.ok(route.action(DEPS, params))
 
-            if not building_id:
-                return response(
-                    400,
-                    {
-                        "error": "Missing buildingId parameter",
-                    },
-                )
+    except AppError as exc:
+        logger.warning("%s: %s", exc.code, exc.message)
 
-        # ----------------------------------------
-        # GET /api/v1/buildings/{buildingId}/floors/{floorId}
-        # ----------------------------------------
-
-        if floor_id:
-            floor_data = service.get_floor_details(
-                building_id,
-                floor_id,
-            )
-
-            if not floor_data:
-                return response(
-                    404,
-                    {
-                        "error": (
-                            f"Floor '{floor_id}' in "
-                            f"building '{building_id}' not found"
-                        ),
-                    },
-                )
-
-            return response(
-                200,
-                floor_data,
-            )
-
-        # ----------------------------------------
-        # GET /api/v1/buildings/{buildingId}
-        # ----------------------------------------
-
-        building = service.get_building_summary(
-            building_id
-        )
-
-        if not building:
-            return response(
-                404,
-                {
-                    "error": (
-                        f"Building '{building_id}' not found"
-                    ),
-                },
-            )
-
-        return response(
-            200,
-            building,
-        )
-
-        # ----------------------------------------
-        # Route not found
-        # ----------------------------------------
-
-        return response(
-            404,
-            {
-                "message": (
-                    f"Route not found for method "
-                    f"'{method}' and path '{path}'"
-                ),
-            },
-        )
-
-    # ----------------------------------------
-    # Error handling
-    # ----------------------------------------
-
-    except FileNotFoundError as e:
-        logger.warning(
-            f"Resource not found: {str(e)}"
-        )
-
-        return response(
-            404,
-            {"message": str(e)},
-        )
-
-    except ValueError as e:
-        logger.warning(
-            f"Bad request / Invalid data: {str(e)}"
-        )
-
-        return response(
-            400,
-            {"message": str(e)},
-        )
+        return response.error(exc)
 
     except Exception:
-        logger.exception(
-            "Internal server error encountered"
-        )
+        logger.exception("Unhandled error while processing %s %s", method, path)
 
-        return response(
-            500,
-            {"message": "Internal server error"},
-        )
+        return response.error(AppError())

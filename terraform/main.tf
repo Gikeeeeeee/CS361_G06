@@ -41,226 +41,225 @@ locals {
   }
 }
 
-resource "terraform_data" "frontend_build_check" {
-  input = local.frontend_build_dir
-
-  lifecycle {
-    precondition {
-      condition     = length(local.frontend_files) > 0
-      error_message = "No frontend build files found in ${local.frontend_build_dir}. Build the Vite app first so frontend/dist contains index.html and asset files."
-    }
-  }
-}
-
+# resource "terraform_data" "frontend_build_check" {
+#   input = local.frontend_build_dir
+# 
+#   lifecycle {
+#     precondition {
+#       condition     = length(local.frontend_files) > 0
+#       error_message = "No frontend build files found in ${local.frontend_build_dir}. Build the Vite app first so frontend/dist contains index.html and asset files."
+#     }
+#   }
+# }
+# 
 # ---------------------------------------------------------
 # S3 Bucket
 # ---------------------------------------------------------
-
-resource "aws_s3_bucket" "building_data" {
-  bucket = var.bucket_name
-
-  tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }
-}
-
-resource "aws_s3_bucket" "frontend_website" {
-  bucket = var.frontend_bucket_name
-
-  tags = {
-    Project     = var.project_name
-    Environment = var.environment
-    ManagedBy   = "Terraform"
-  }
-}
-
+# 
+# resource "aws_s3_bucket" "building_data" {
+#   bucket = var.bucket_name
+# 
+#   tags = {
+#     Project     = var.project_name
+#     Environment = var.environment
+#     ManagedBy   = "Terraform"
+#   }
+# }
+# 
+# resource "aws_s3_bucket" "frontend_website" {
+#   bucket = var.frontend_bucket_name
+# 
+#   tags = {
+#     Project     = var.project_name
+#     Environment = var.environment
+#     ManagedBy   = "Terraform"
+#   }
+# }
+# 
 # ---------------------------------------------------------
 # Block all public access
 # ---------------------------------------------------------
-
-resource "aws_s3_bucket_public_access_block" "building_data" {
-  bucket = aws_s3_bucket.building_data.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_public_access_block" "frontend_website" {
-  bucket = aws_s3_bucket.frontend_website.id
-
-  block_public_acls       = false
-  block_public_policy     = false
-  ignore_public_acls      = false
-  restrict_public_buckets = false
-}
-
+# 
+# resource "aws_s3_bucket_public_access_block" "building_data" {
+#   bucket = aws_s3_bucket.building_data.id
+# 
+#   block_public_acls       = true
+#   block_public_policy     = true
+#   ignore_public_acls      = true
+#   restrict_public_buckets = true
+# }
+# 
+# resource "aws_s3_bucket_public_access_block" "frontend_website" {
+#   bucket = aws_s3_bucket.frontend_website.id
+# 
+#   block_public_acls       = false
+#   block_public_policy     = false
+#   ignore_public_acls      = false
+#   restrict_public_buckets = false
+# }
+# 
 # ---------------------------------------------------------
 # Enable versioning
 # ---------------------------------------------------------
-
-resource "aws_s3_bucket_versioning" "building_data" {
-  bucket = aws_s3_bucket.building_data.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
+# 
+# resource "aws_s3_bucket_versioning" "building_data" {
+#   bucket = aws_s3_bucket.building_data.id
+# 
+#   versioning_configuration {
+#     status = "Enabled"
+#   }
+# }
+# 
 # ---------------------------------------------------------
 # Server-side encryption
 # ---------------------------------------------------------
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "building_data" {
-  bucket = aws_s3_bucket.building_data.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "frontend_website" {
-  bucket = aws_s3_bucket.frontend_website.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_website_configuration" "frontend_website" {
-  bucket = aws_s3_bucket.frontend_website.id
-
-  index_document {
-    suffix = "index.html"
-  }
-
-  error_document {
-    key = "index.html"
-  }
-}
-
-resource "aws_s3_bucket_policy" "frontend_website_public_read" {
-  bucket = aws_s3_bucket.frontend_website.id
-
-  depends_on = [
-    aws_s3_bucket_public_access_block.frontend_website
-  ]
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "PublicReadWebsiteAssets"
-        Effect    = "Allow"
-        Principal = "*"
-        Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.frontend_website.arn}/*"
-      }
-    ]
-  })
-}
-
+# 
+# resource "aws_s3_bucket_server_side_encryption_configuration" "building_data" {
+#   bucket = aws_s3_bucket.building_data.id
+# 
+#   rule {
+#     apply_server_side_encryption_by_default {
+#       sse_algorithm = "AES256"
+#     }
+#   }
+# }
+# 
+# resource "aws_s3_bucket_server_side_encryption_configuration" "frontend_website" {
+#   bucket = aws_s3_bucket.frontend_website.id
+# 
+#   rule {
+#     apply_server_side_encryption_by_default {
+#       sse_algorithm = "AES256"
+#     }
+#   }
+# }
+# 
+# resource "aws_s3_bucket_website_configuration" "frontend_website" {
+#   bucket = aws_s3_bucket.frontend_website.id
+# 
+#   index_document {
+#     suffix = "index.html"
+#   }
+# 
+#   error_document {
+#     key = "index.html"
+#   }
+# }
+# 
+# resource "aws_s3_bucket_policy" "frontend_website_public_read" {
+#   bucket = aws_s3_bucket.frontend_website.id
+# 
+#   depends_on = [
+#     aws_s3_bucket_public_access_block.frontend_website
+#   ]
+# 
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Sid       = "PublicReadWebsiteAssets"
+#         Effect    = "Allow"
+#         Principal = "*"
+#         Action    = "s3:GetObject"
+#         Resource  = "${aws_s3_bucket.frontend_website.arn}/*"
+#       }
+#     ]
+#   })
+# }
+# 
 # ---------------------------------------------------------
 # S3 Bucket CORS Configuration
 # ---------------------------------------------------------
-
-resource "aws_s3_bucket_cors_configuration" "building_data" {
-  bucket = aws_s3_bucket.building_data.id
-
-  cors_rule {
-    allowed_headers = ["*"]
-    allowed_methods = ["GET", "HEAD"]
-    allowed_origins = ["*"]
-    expose_headers  = ["ETag"]
-    max_age_seconds = 3000
-  }
-}
-
-
+# 
+# resource "aws_s3_bucket_cors_configuration" "building_data" {
+#   bucket = aws_s3_bucket.building_data.id
+# 
+#   cors_rule {
+#     allowed_headers = ["*"]
+#     allowed_methods = ["GET", "HEAD"]
+#     allowed_origins = ["*"]
+#     expose_headers  = ["ETag"]
+#     max_age_seconds = 3000
+#   }
+# }
+# 
 # ---------------------------------------------------------
 # Upload building-index.json
 # ---------------------------------------------------------
-
-resource "aws_s3_object" "building_index" {
-  bucket = aws_s3_bucket.building_data.id
-  key    = "building-index.json"
-  source = "${path.module}/../building-data/building-index.json"
-
-  etag = filemd5(
-    "${path.module}/../building-data/building-index.json"
-  )
-
-  content_type = "application/json"
-}
-
+# 
+# resource "aws_s3_object" "building_index" {
+#   bucket = aws_s3_bucket.building_data.id
+#   key    = "building-index.json"
+#   source = "${path.module}/../building-data/building-index.json"
+# 
+#   etag = filemd5(
+#     "${path.module}/../building-data/building-index.json"
+#   )
+# 
+#   content_type = "application/json"
+# }
+# 
 # ---------------------------------------------------------
 # Upload building JSON files
 # ---------------------------------------------------------
-
-resource "aws_s3_object" "building_files" {
-  for_each = fileset(
-    "${path.module}/../building-data/building",
-    "*.json"
-  )
-
-  bucket = aws_s3_bucket.building_data.id
-  key    = "building/${each.value}"
-  source = "${path.module}/../building-data/building/${each.value}"
-
-  etag = filemd5(
-    "${path.module}/../building-data/building/${each.value}"
-  )
-
-  content_type = "application/json"
-}
-
+# 
+# resource "aws_s3_object" "building_files" {
+#   for_each = fileset(
+#     "${path.module}/../building-data/building",
+#     "*.json"
+#   )
+# 
+#   bucket = aws_s3_bucket.building_data.id
+#   key    = "building/${each.value}"
+#   source = "${path.module}/../building-data/building/${each.value}"
+# 
+#   etag = filemd5(
+#     "${path.module}/../building-data/building/${each.value}"
+#   )
+# 
+#   content_type = "application/json"
+# }
+# 
 # ---------------------------------------------------------
 # Upload floor plan SVG files
 # ---------------------------------------------------------
-
-resource "aws_s3_object" "floor_plans" {
-  for_each = fileset(
-    "${path.module}/../building-data/floor-plan",
-    "**/*.svg"
-  )
-
-  bucket = aws_s3_bucket.building_data.id
-  key    = "floor-plan/${each.value}"
-  source = "${path.module}/../building-data/floor-plan/${each.value}"
-
-  etag = filemd5(
-    "${path.module}/../building-data/floor-plan/${each.value}"
-  )
-
-  content_type = "image/svg+xml"
-}
-
-resource "aws_s3_object" "frontend_assets" {
-  for_each = {
-    for file in local.frontend_files : file => file
-    if !endswith(file, "/")
-  }
-
-  depends_on = [terraform_data.frontend_build_check]
-
-  bucket = aws_s3_bucket.frontend_website.id
-  key    = each.value
-  source = "${local.frontend_build_dir}/${each.value}"
-  etag   = filemd5("${local.frontend_build_dir}/${each.value}")
-
-  content_type = lookup(
-    local.frontend_content_types,
-    lower(element(reverse(split(".", each.value)), 0)),
-    "application/octet-stream"
-  )
-}
+# 
+# resource "aws_s3_object" "floor_plans" {
+#   for_each = fileset(
+#     "${path.module}/../building-data/floor-plan",
+#     "**/*.svg"
+#   )
+# 
+#   bucket = aws_s3_bucket.building_data.id
+#   key    = "floor-plan/${each.value}"
+#   source = "${path.module}/../building-data/floor-plan/${each.value}"
+# 
+#   etag = filemd5(
+#     "${path.module}/../building-data/floor-plan/${each.value}"
+#   )
+# 
+#   content_type = "image/svg+xml"
+# }
+# 
+# resource "aws_s3_object" "frontend_assets" {
+#   for_each = {
+#     for file in local.frontend_files : file => file
+#     if !endswith(file, "/")
+#   }
+# 
+#   depends_on = [terraform_data.frontend_build_check]
+# 
+#   bucket = aws_s3_bucket.frontend_website.id
+#   key    = each.value
+#   source = "${local.frontend_build_dir}/${each.value}"
+#   etag   = filemd5("${local.frontend_build_dir}/${each.value}")
+# 
+#   content_type = lookup(
+#     local.frontend_content_types,
+#     lower(element(reverse(split(".", each.value)), 0)),
+#     "application/octet-stream"
+#   )
+# }
 
 # ---------------------------------------------------------
 # IAM Role Configuration
@@ -297,34 +296,34 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_policy" "s3_read" {
-  count       = var.is_learner_lab ? 0 : 1
-  name        = "${var.project_name}-s3-read-${var.environment}"
-  description = "Allow Lambda to read from building data S3 bucket"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Effect = "Allow"
-        Resource = [
-          aws_s3_bucket.building_data.arn,
-          "${aws_s3_bucket.building_data.arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "s3_read_attach" {
-  count      = var.is_learner_lab ? 0 : 1
-  role       = aws_iam_role.lambda_exec_role[0].name
-  policy_arn = aws_iam_policy.s3_read[0].arn
-}
+# resource "aws_iam_policy" "s3_read" {
+#   count       = var.is_learner_lab ? 0 : 1
+#   name        = "${var.project_name}-s3-read-${var.environment}"
+#   description = "Allow Lambda to read from building data S3 bucket"
+# 
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Action = [
+#           "s3:GetObject",
+#           "s3:ListBucket"
+#         ]
+#         Effect = "Allow"
+#         Resource = [
+#           "arn:aws:s3:::${var.bucket_name}",
+#           "arn:aws:s3:::${var.bucket_name}/*"
+#         ]
+#       }
+#     ]
+#   })
+# }
+# 
+# resource "aws_iam_role_policy_attachment" "s3_read_attach" {
+#   count      = var.is_learner_lab ? 0 : 1
+#   role       = aws_iam_role.lambda_exec_role[0].name
+#   policy_arn = aws_iam_policy.s3_read[0].arn
+# }
 
 # ---------------------------------------------------------
 # Lambda Package
@@ -338,8 +337,14 @@ data "archive_file" "lambda_zip" {
   excludes = [
     "venv",
     "__pycache__",
+    "models/__pycache__",
+    "ports/__pycache__",
+    "services/__pycache__",
+    "repositories/__pycache__",
     ".pytest_cache",
-    "test_local.py"
+    "test_local.py",
+    "smoke_local.py",
+    "README.md"
   ]
 }
 
@@ -360,7 +365,7 @@ resource "aws_lambda_function" "building_api" {
 
   environment {
     variables = {
-      BUCKET_NAME    = aws_s3_bucket.building_data.id
+      BUCKET_NAME    = var.bucket_name
       BUILDINGS_FILE = "building-index.json"
     }
   }
