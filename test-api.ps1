@@ -57,9 +57,14 @@
 param(
     [string] $BaseUrl,
     [string] $BuildingId,
-    [string] $TerraformDir = (Join-Path $PSScriptRoot 'terraform'),
+    [string] $TerraformDir,
     [string] $JsonOut
 )
+
+if (-not $TerraformDir) {
+    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+    $TerraformDir = Join-Path $scriptDir 'terraform'
+}
 
 $ErrorActionPreference = 'Stop'
 $IsPS7 = $PSVersionTable.PSVersion.Major -ge 6
@@ -269,7 +274,7 @@ Write-Host ''
 
 Write-Host 'Buildings' -ForegroundColor Cyan
 
-$listing = Invoke-Api "$root/buildings"
+$listing = Invoke-Api "$root/buildings" 'GET' @{ 'Origin' = 'http://localhost:5173' }
 
 if ($listing.Error) {
     Add-Result 'GET /buildings' 'FAIL' "request failed: $($listing.Error)" $null
