@@ -338,8 +338,14 @@ data "archive_file" "lambda_zip" {
   excludes = [
     "venv",
     "__pycache__",
+    "models/__pycache__",
+    "ports/__pycache__",
+    "services/__pycache__",
+    "repositories/__pycache__",
     ".pytest_cache",
-    "test_local.py"
+    "test_local.py",
+    "smoke_local.py",
+    "README.md"
   ]
 }
 
