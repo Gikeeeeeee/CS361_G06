@@ -26,4 +26,8 @@ class BuildingService:
         if not raw:
             raise BuildingNotFound(building_id)
 
-        return Building.from_raw(raw).summary()
+        image_url = raw.get("image_url")
+        if not image_url and raw.get("image_key"):
+            image_url = self.source.presigned_url(raw["image_key"])
+
+        return Building.from_raw(raw, image_url=image_url).summary()
