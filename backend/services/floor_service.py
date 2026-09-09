@@ -7,7 +7,9 @@ Layer: application. Depends on the BuildingSource port, never on boto3.
 from typing import Any
 
 from errors import BuildingNotFound, FloorNotFound
-from models.floor import find_floor, map_key
+from models.facility import facility_pin
+from models.floor import find_floor
+from models.room import room_pin
 from ports.building_source import BuildingSource
 
 
@@ -17,8 +19,9 @@ def load_floor(
     """
     Load `(building_raw, floor_raw)` or raise.
 
-    Shared by the floor, room and facility use cases so that "fetch the
-    building, then locate the floor" exists in exactly one place.
+    Shared by the room and facility use cases -- both still address a floor
+    through its building -- so that "fetch the building, then locate the floor"
+    exists in exactly one place.
     """
     raw = source.get_building(building_id)
 
@@ -28,7 +31,7 @@ def load_floor(
     floor = find_floor(raw.get("floors", []), floor_id)
 
     if floor is None:
-        raise FloorNotFound(building_id, floor_id)
+        raise FloorNotFound(floor_id, building_id)
 
     return raw, floor
 
@@ -37,24 +40,33 @@ class FloorService:
     def __init__(self, source: BuildingSource):
         self.source = source
 
-    def get_details(self, building_id: str, floor_id: str) -> dict[str, Any]:
+    def get_details(self, floor_id: str) -> dict[str, Any]:
         """
-        Full floor detail: the SVG plan URL plus its rooms and facilities.
+        Full floor detail: the SVG plan URL plus the room and facility pins to
+        render on it.
 
-        Rooms and facilities are passed through unchanged -- the floor endpoint
-        is a listing, and the per-room / per-facility endpoints are what serve
-        detail.
+        The floor is addressed by uuid alone; asking the port for it keeps the
+        "which building holds this floor?" search on the storage side.
+
+        Rooms and facilities are projected down to pin data. The stored records
+        carry more than that (amenities, image keys, descriptions), and those
+        fields belong to the per-room and per-facility endpoints.
         """
-        raw, floor = load_floor(self.source, building_id, floor_id)
-        building_name = raw.get("name", building_id)
+        floor = self.source.get_floor(floor_id)
+
+        if floor is None:
+            raise FloorNotFound(floor_id)
 
         return {
             "id": floor.get("id"),
             "floor_number": floor.get("floor_number"),
-            "map": {
+            "floor_plan": {
                 "type": "svg",
-                "url": self.source.presigned_url(map_key(building_name, floor)),
+                "url": self.source.presigned_url(floor.get("floor_plan_key")),
             },
-            "rooms": floor.get("rooms", []),
-            "facilities": floor.get("facilities", []),
+            "rooms": [room_pin(room) for room in floor.get("rooms") or []],
+            "facilities": [
+                facility_pin(facility)
+                for facility in floor.get("facilities") or []
+            ],
         }

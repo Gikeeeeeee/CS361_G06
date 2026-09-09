@@ -21,3 +21,18 @@ def find_facility(
             return facility
 
     return None
+
+
+def facility_pin(facility: dict[str, Any]) -> dict[str, Any]:
+    """
+    The facility projection used by the floor endpoint -- pin data only.
+
+    `description` is dropped: it belongs to `GET .../facilities/{facilityId}`.
+    """
+    return {
+        "id": facility.get("id"),
+        "name": facility.get("name"),
+        "type": facility.get("type"),
+        "latitude": facility.get("latitude"),
+        "longitude": facility.get("longitude"),
+    }

@@ -35,20 +35,3 @@ def floor_summary(floor: dict[str, Any]) -> dict[str, Any]:
         "id": floor.get("id"),
         "floor_number": floor.get("floor_number"),
     }
-
-
-def map_key(building_name: str, floor: dict[str, Any]) -> str:
-    """
-    Storage key of this floor's SVG plan.
-
-    Prefers an explicit key on the record; otherwise falls back to the naming
-    convention used in `building-data/floor-plan/`.
-    """
-    return (
-        floor.get("map_key")
-        or floor.get("map_file")
-        or (
-            f"floor-plan/{building_name}/"
-            f"{building_name}-floor{floor.get('floor_number')}-neutral.svg"
-        )
-    )

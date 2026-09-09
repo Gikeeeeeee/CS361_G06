@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "floor.json",
+  "title": "GET /api/v1/floors/{floorId} — 200 response",
+  "description": "Floor detail for the map view: the floor plan SVG plus the room and facility pins to render on it. Replaces GET /api/v1/buildings/{buildingId}/floors/{floorId}.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "floor_number", "floor_plan", "rooms", "facilities"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Floor UUID. Globally unique — this is what {floorId} resolves against."
+    },
+    "floor_number": {
+      "type": "integer"
+    },
+    "floor_plan": {
+      "type": "object",
+      "description": "Renamed from `map` in the previous contract.",
+      "additionalProperties": false,
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "const": "svg" },
+        "url": {
+          "type": "string",
+          "description": "Presigned S3 GET URL, 3600s expiry."
+        }
+      }
+    },
+    "rooms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/room" }
+    },
+    "facilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/facility" }
+    }
+  },
+  "$defs": {
+    "localized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["th", "en"],
+      "properties": {
+        "th": { "type": ["string", "null"] },
+        "en": { "type": ["string", "null"] }
+      }
+    },
+    "room": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pin-level data only. Amenities, image_key and description are NOT part of this response — they belong to GET .../rooms/{roomId}.",
+      "required": ["id", "room_number", "name", "type", "latitude", "longitude"],
+      "properties": {
+        "id": { "type": "string" },
+        "room_number": { "type": ["string", "null"] },
+        "name": { "$ref": "#/$defs/localized" },
+        "type": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
+      }
+    },
+    "facility": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pin-level data only. `description` is NOT part of this response.",
+      "required": ["id", "name", "type", "latitude", "longitude"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "$ref": "#/$defs/localized" },
+        "type": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
+      }
+    }
+  }
+}

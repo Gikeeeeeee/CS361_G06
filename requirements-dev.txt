@@ -1,0 +1,5 @@
+# Test-time only. Deliberately NOT inside backend/: terraform zips that
+# directory as-is (terraform/terraform-backend/modules/lambda/main.tf), and
+# nothing here belongs in the Lambda.
+pytest>=8.0
+jsonschema>=4.21

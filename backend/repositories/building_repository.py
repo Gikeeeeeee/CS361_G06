@@ -4,9 +4,11 @@ Driven adapter: reads building data from Amazon S3.
 This is the ONLY module in the backend that imports boto3 or knows a bucket
 exists. It implements `ports.building_source.BuildingSource`.
 
-It performs no filtering and no business rules -- finding a floor, a room or a
-facility inside a building record is domain work and lives in `models/` and
-`services/`.
+It applies no domain rules -- selecting, shaping or validating records is the
+core's work and lives in `models/` and `services/`. Addressing a stored record
+by its identifier is I/O, and therefore does live here: `get_floor` locates a
+floor by uuid without a building, which today means scanning. See the note on
+that method.
 
 Layer: driven adapter (outbound).
 """
@@ -86,6 +88,37 @@ class BuildingRepository:
 
             if data is not None:
                 return data
+
+        return None
+
+    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
+        """
+        One floor's raw record, addressed by uuid alone, or None.
+
+        S3-JSON has no index from floor uuid to building, so this walks the
+        building index and fetches each building until the floor turns up.
+        That is deliberate, and it is deliberately HERE: the scan is how this
+        adapter implements "fetch the floor with this id", the same way a
+        DynamoDB adapter would implement it as a query on a floor-id index.
+        Were the loop in `services/`, the core would encode the fact that
+        floors are stored chunked inside per-building objects behind an index
+        file -- storage layout -- and the DynamoDB migration would have to
+        change the core as well as the adapter.
+        """
+        for summary in self.list_buildings():
+            building_id = summary.get("code") or summary.get("id")
+
+            if not building_id:
+                continue
+
+            building = self.get_building(str(building_id))
+
+            if not building:
+                continue
+
+            for floor in building.get("floors") or []:
+                if str(floor.get("id")) == str(floor_id):
+                    return floor
 
         return None
 

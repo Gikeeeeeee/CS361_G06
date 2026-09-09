@@ -15,9 +15,9 @@ Resolves **#49** (directory structure) under **#43** (repeated checks in the han
 | `response.py` | driving adapter | The only place that builds API Gateway responses: status codes, CORS headers, JSON encoding. | `errors` |
 | `errors.py` | domain | Error hierarchy. Each error carries the HTTP status the adapter should use. | nothing |
 | `ports/building_source.py` | port (owned by the core) | The `BuildingSource` interface the services depend on. | nothing |
-| `models/` | domain | Data models and pure rules: `find_floor`, `find_room`, `find_facility`, `map_key`, `Building.summary()`. | `models` |
+| `models/` | domain | Data models and pure rules: `find_floor`, `find_room`, `find_facility`, `room_pin`, `facility_pin`, `Building.summary()`. | `models` |
 | `services/` | application | One module per aggregate. Orchestrates the domain, raises typed errors. | `models`, `ports`, `errors` |
-| `repositories/building_repository.py` | driven adapter | The **only** module that imports `boto3` or knows a bucket exists. Pure I/O — no filtering, no business rules. | `errors` |
+| `repositories/building_repository.py` | driven adapter | The **only** module that imports `boto3` or knows a bucket exists. I/O only — no domain filtering, no business rules. Addressing a record by its identifier *is* I/O: `get_floor` finds a floor by uuid, which on S3-JSON means a scan. | `errors` |
 | `smoke_local.py` | dev tool | Manual pre-deploy check with fake data, no AWS. Not part of the Lambda package. | everything |
 
 Dependency direction: `handler.py → services/ → ports/ ← repositories/`.
@@ -41,12 +41,18 @@ Does it know about AWS? → `repositories/`. Neither? → `services/` or `models
 |---|---|---|
 | `GET /api/v1/buildings` | `BuildingService.list_buildings` | `{"buildings": [...]}` |
 | `GET /api/v1/buildings/{buildingId}` | `BuildingService.get_summary` | building + floor metadata |
-| `GET /api/v1/buildings/{buildingId}/floors/{floorId}` | `FloorService.get_details` | floor + presigned SVG URL + rooms + facilities |
+| `GET /api/v1/floors/{floorId}` | `FloorService.get_details` | floor + presigned SVG URL + room and facility pins — `docs/contract/floor.json` |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}` | `RoomService.get_room` | one room record |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}` | `FacilityService.get_facility` | one facility record |
 
 `{buildingId}` is case-insensitive (`lc4` and `LC4` both work).
-`{floorId}` accepts either the floor's `id` or its `floor_number`; `{roomId}` accepts `id` or `room_number`.
+
+`{floorId}` on `GET /api/v1/floors/{floorId}` is the floor's `id` (a uuid) and
+nothing else — `floor_number` is ambiguous once the building is out of the
+path. On the still-nested room and facility routes the building *is* in the
+path, so `{floorId}` there still accepts `id` or `floor_number`; that dual
+matching lives in `models.floor.find_floor` and goes away when those routes are
+flattened too. `{roomId}` accepts `id` or `room_number`.
 
 ### Error responses
 
@@ -68,10 +74,10 @@ Every failure has the same shape:
 
 ## Development flow — adding a new endpoint
 
-1. **Terraform** — add an `aws_apigatewayv2_route` with the new `route_key` in `terraform/main.tf`.
+1. **Terraform** — add an `aws_apigatewayv2_route` with the new `route_key` in `terraform/terraform-backend/modules/api_gateway/main.tf`.
 2. **Model** — add a dataclass or a lookup rule in `models/` if a new domain concept appears.
 3. **Port** — only if a genuinely new kind of data access is needed; otherwise reuse `BuildingSource`.
-4. **Repository** — implement the new port method. S3 I/O only, no filtering.
+4. **Repository** — implement the new port method. S3 I/O and record addressing only; no domain filtering.
 5. **Service** — add a method to the right `*_service.py`. Raise `NotFoundError` / `ValidationError`; never return `None`.
 6. **Handler** — add **one entry** to `ROUTES` with its `required_params`. Nothing else changes.
 7. **Verify** — add a row to `CHECKS` in `smoke_local.py`, run it, then `curl` the deployed route.
