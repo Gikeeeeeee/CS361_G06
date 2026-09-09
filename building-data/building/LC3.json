@@ -1,513 +1,1538 @@
 {
   "id": "lc3",
-  "name": "LC3",
+  "code": "LC3",
+  "name": {
+    "th": "อาคาร LC3",
+    "en": "LC3 Building"
+  },
+  "description": {
+    "th": "อาคารเรียนรวม LC3",
+    "en": "LC3 lecture building"
+  },
+  "image_key": "image/building/LC3.webp",
+  "opening_hours": "08:00-18:00",
   "latitude": 14.072603828706107,
   "longitude": 100.60628435011894,
   "floors": [
     {
-      "id": "lc3-floor-1",
+      "id": "deaef033-ba6c-5c0e-bb50-956202b57947",
       "floor_number": 1,
+      "floor_plan_key": "floor-plan/LC3/LC3-floor1-neutral.svg",
       "rooms": [
         {
-          "id": "room-101",
+          "id": "f2539be0-e371-5ae5-9db1-8c7b8c2e9885",
           "room_number": "101",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07269655520026,
           "longitude": 100.60614553606739
         },
         {
-          "id": "room-101-1",
+          "id": "1f9930e2-0088-5621-bc6f-35a881a1d6ca",
           "room_number": "101/1",
-          "name": "ห้องบรรยาย 4 (วิทยาศาสตร์สิ่งแวดล้อม) / Lecture Room 4 (Environmental Science)",
+          "name": {
+            "th": "ห้องบรรยาย 4 (วิทยาศาสตร์สิ่งแวดล้อม)",
+            "en": "Lecture Room 4 (Environmental Science)"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072752246700887,
           "longitude": 100.60604426302746
         },
         {
-          "id": "room-101-2",
+          "id": "8bee3d4a-1a71-5318-a8a6-8f57d940dcb9",
           "room_number": "101/2",
-          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "name": {
+            "th": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ)",
+            "en": "Graduate Seminar Room (Mathematics and Statistics)"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.07287523205006,
           "longitude": 100.60614872576944
         },
         {
-          "id": "room-102-1",
+          "id": "1615603d-f2a2-5afc-a807-f24dfc07eb5d",
           "room_number": "102/1",
-          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "name": {
+            "th": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ)",
+            "en": "Graduate Seminar Room (Mathematics and Statistics)"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.072862856168856,
           "longitude": 100.6061814202154
         },
         {
-          "id": "room-102-2",
+          "id": "c850ca0b-a6fc-5a7b-8045-2746d3e57dee",
           "room_number": "102/2",
-          "name": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ) / Graduate Seminar Room (Mathematics and Statistics)",
+          "name": {
+            "th": "ห้องสัมมนาบัณฑิตศึกษา (คณิตศาสตร์และสถิติ)",
+            "en": "Graduate Seminar Room (Mathematics and Statistics)"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.072869044109547,
           "longitude": 100.60614314379086
         },
         {
-          "id": "room-103",
+          "id": "e7b239c8-d820-50c2-8268-123b0d03e94d",
           "room_number": "103",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072872138079823,
           "longitude": 100.60607137549484
         },
         {
-          "id": "room-104",
+          "id": "b3583b1a-ef36-5c4e-82f0-e84e56176e92",
           "room_number": "104",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07287523205006,
           "longitude": 100.60596611532735
         },
         {
-          "id": "room-104-1",
-          "room_number": "104/1",
-          "name": "ห้องพักนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม) / Graduate Common Room (Environmental Science)",
-          "type": "COMMON_ROOM",
-          "latitude": 14.072871364587257,
-          "longitude": 100.60591667494565
-        },
-        {
-          "id": "room-105",
+          "id": "177127cd-e61a-5b34-b0fc-e5d0469a9d5e",
           "room_number": "105",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072745285264055,
           "longitude": 100.60595096424262
         },
         {
-          "id": "room-106",
+          "id": "bfcd22e2-b4be-5327-a37c-f861c9fa5b05",
           "room_number": "106",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072860535691069,
           "longitude": 100.60580503537406
         },
         {
-          "id": "room-107",
+          "id": "63d9712b-2f08-5ef5-85c1-22324eb9a54e",
           "room_number": "107",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072756887658661,
           "longitude": 100.60588796762723
         },
         {
-          "id": "room-108",
+          "id": "484425a5-777b-5f84-9bb4-0368658e51be",
           "room_number": "108",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072864403154052,
           "longitude": 100.60577792290665
         },
         {
-          "id": "room-109",
+          "id": "d8015bc3-d4b5-5c32-9ddd-4da5389c2203",
           "room_number": "109",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072854347750148,
           "longitude": 100.60570137005757
         },
         {
-          "id": "room-110",
+          "id": "1faccd3b-febd-58c8-979e-89f69cb37a70",
           "room_number": "110",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072794015317458,
           "longitude": 100.60569658550452
         },
         {
-          "id": "room-111",
+          "id": "961b27e4-e47e-5337-a123-5da39123b32a",
           "room_number": "111",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072667162458332,
           "longitude": 100.60570774946167
         },
         {
-          "id": "room-115",
-          "room_number": "115",
-          "name": "ห้องสัมมนาทางคณิตศาสตร์และสถิติ / Seminar in Mathematics and Statistics Room",
-          "type": "MEETING_ROOM",
-          "latitude": 14.072536442057615,
-          "longitude": 100.60570455975966
-        },
-        {
-          "id": "room-116",
+          "id": "d5c1c130-64a4-55c6-a8f8-010cc156b949",
           "room_number": "116",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072420417973106,
           "longitude": 100.60568542154738
         },
         {
-          "id": "room-117",
+          "id": "7eb580b7-98bf-5808-a06b-a64f50ba2bd8",
           "room_number": "117",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072341521561997,
           "longitude": 100.60570615461069
         },
         {
-          "id": "room-118",
+          "id": "353768f7-972c-51fb-9d3b-9132de3a8383",
           "room_number": "118",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072341521561997,
           "longitude": 100.60580104824653
         },
         {
-          "id": "room-118-1",
-          "room_number": "118/1",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "id": "5313464d-afaf-5078-a537-e831a5fee5fe",
+          "room_number": "118-1",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072331840779537,
           "longitude": 100.60585318319079
         },
         {
-          "id": "room-119",
-          "room_number": "119",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072426584798542,
-          "longitude": 100.60585792471126
-        },
-        {
-          "id": "room-119-1",
-          "room_number": "119/1",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072434863400277,
-          "longitude": 100.60589111535447
-        },
-        {
-          "id": "room-119-2",
-          "room_number": "119/2",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072440382467928,
-          "longitude": 100.6059110297404
-        },
-        {
-          "id": "room-119-3",
-          "room_number": "119/3",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072434863400277,
-          "longitude": 100.60592999582224
-        },
-        {
-          "id": "room-119-4",
-          "room_number": "119/4",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072434863400277,
-          "longitude": 100.60592999582224
-        },
-        {
-          "id": "room-119-5",
-          "room_number": "119/5",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072434863400277,
-          "longitude": 100.60592999582224
-        },
-        {
-          "id": "room-120",
-          "room_number": "120",
-          "name": "ห้องเก็บของ / Storage Room",
-          "type": "STORAGE",
-          "latitude": 14.07233765409016,
-          "longitude": 100.60599482264578
-        },
-        {
-          "id": "room-121",
+          "id": "7b2bb72d-3845-54c0-bbf5-b7191a841547",
           "room_number": "121",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07235699144867,
           "longitude": 100.60609370340919
         },
         {
-          "id": "room-121-1",
-          "room_number": "121/1",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072345,
-          "longitude": 100.606157
-        },
-        {
-          "id": "room-121-2",
-          "room_number": "121/2",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072345,
-          "longitude": 100.606157
-        },
-        {
-          "id": "room-121-3",
-          "room_number": "121/3",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
-          "type": "OFFICE",
-          "latitude": 14.072345,
-          "longitude": 100.606157
-        },
-        {
-          "id": "room-121-4",
-          "room_number": "121/4",
-          "name": "ห้องโครงการให้คำปรึกษาทางสถิติเพื่อการวิจัย / ห้องสมาคมศิษย์เก่าคณะวิทยาศาสตร์และเทคโนโลยี / Statistical Consulting for Research Service Room / Faculty of Science and Technology Alumni Association Room",
-          "type": "OFFICE",
-          "latitude": 14.072348397989956,
-          "longitude": 100.60644776985623
-        },
-        {
-          "id": "room-121-5",
-          "room_number": "121/5",
-          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
-          "type": "OFFICE",
-          "latitude": 14.072348397989956,
-          "longitude": 100.60644776985623
-        },
-        {
-          "id": "room-122",
+          "id": "ec95ee83-eb85-51bb-9d13-5f99e5f0f535",
           "room_number": "122",
-          "name": "ห้องบรรยายเรียนรวม / Lecture Room",
+          "name": {
+            "th": "ห้องบรรยายเรียนรวม",
+            "en": "Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072444061846697,
           "longitude": 100.60600301523719
         },
         {
-          "id": "room-122-1",
-          "room_number": "122/1",
-          "name": "ห้องเจ้าหน้าที่ / Staff Room",
+          "id": "78fbab35-ebf4-55ae-891b-84e1a9821e88",
+          "room_number": "104/1",
+          "name": {
+            "th": "ห้องพักนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม)",
+            "en": "Graduate Common Room (Environmental Science)"
+          },
+          "type": "COMMON_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/COMMONROOM.webp",
+          "latitude": 14.072871364587257,
+          "longitude": 100.60591667494565
+        },
+        {
+          "id": "49d0a399-2536-5070-b217-5e7a7d52c0ca",
+          "room_number": "115",
+          "name": {
+            "th": "ห้องสัมมนาทางคณิตศาสตร์และสถิติ",
+            "en": "Seminar in Mathematics and Statistics Room"
+          },
+          "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
+          "latitude": 14.072536442057615,
+          "longitude": 100.60570455975966
+        },
+        {
+          "id": "19ec9d18-7317-54b3-bc1b-3c15a4f14057",
+          "room_number": "119",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072426584798542,
+          "longitude": 100.60585792471126
         },
         {
-          "id": "room-122-2",
-          "room_number": "122/2",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "id": "e1ce0c16-ac3d-5921-a6f2-80155641b676",
+          "room_number": "119-1",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60589111535447
         },
         {
-          "id": "room-122-3",
-          "room_number": "122/3",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "id": "314a68ef-ed89-5ff0-874d-4e710ee0534b",
+          "room_number": "119-2",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072440382467928,
+          "longitude": 100.6059110297404
         },
         {
-          "id": "room-122-4",
-          "room_number": "122/4",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "id": "b9a1c20c-f0ff-5176-8052-bcdc7e584059",
+          "room_number": "119-3",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
         },
         {
-          "id": "room-122-5",
-          "room_number": "122/5",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "id": "19f83593-be6e-5f72-91c5-90512ea04b6d",
+          "room_number": "119-4",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
         },
         {
-          "id": "room-122-6",
-          "room_number": "122/6",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "id": "89a69de1-1648-5dcb-b794-3c2ed1776282",
+          "room_number": "119-5",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
-          "latitude": 14.072446821380808,
-          "longitude": 100.60614715745913
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072434863400277,
+          "longitude": 100.60592999582224
         },
         {
-          "id": "room-123",
-          "room_number": "123",
-          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
-          "type": "OFFICE",
-          "latitude": 14.072427504643963,
-          "longitude": 100.6066118264641
-        },
-        {
-          "id": "room-124",
-          "room_number": "124",
-          "name": "ห้องวิจัยพลาสมาและนิวเคลียร์ฟิวชัน / Plasma and Nuclear Fusion Lab",
-          "type": "LAB",
-          "latitude": 14.072427504643963,
-          "longitude": 100.6066118264641
-        },
-        {
-          "id": "room-125",
-          "room_number": "125",
-          "name": "ห้องเก็บของ / Storage Room",
+          "id": "44ac62af-6094-5d01-9c69-70723a624076",
+          "room_number": "120",
+          "name": {
+            "th": "ห้องเก็บของ",
+            "en": "Storage Room"
+          },
           "type": "STORAGE",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/STORAGE.webp",
+          "latitude": 14.07233765409016,
+          "longitude": 100.60599482264578
+        },
+        {
+          "id": "5fb59f7d-ff80-5475-a49a-dab5d2879a79",
+          "room_number": "121-1",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "24ceced6-f575-52db-a37b-d1dd5df8b91f",
+          "room_number": "121-2",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "bb04c5c4-c5ab-5213-ac44-9a8ff7526684",
+          "room_number": "121-3",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072345,
+          "longitude": 100.606157
+        },
+        {
+          "id": "d8e7c7d0-be5e-5fdb-81a0-5b68a09985c5",
+          "room_number": "121/4",
+          "name": {
+            "th": "ห้องโครงการให้คำปรึกษาทางสถิติเพื่อการวิจัย / ห้องสมาคมศิษย์เก่าคณะวิทยาศาสตร์และเทคโนโลยี",
+            "en": "Statistical Consulting for Research Service Room / Faculty of Science and Technology Alumni Association Room"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072348397989956,
+          "longitude": 100.60644776985623
+        },
+        {
+          "id": "12008895-322e-5c1e-a502-a508fea12e0f",
+          "room_number": "121/5",
+          "name": {
+            "th": "ห้องพักอาจารย์ (ฟิสิกส์)",
+            "en": "Faculty Offices (Physics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072348397989956,
+          "longitude": 100.60644776985623
+        },
+        {
+          "id": "c4e79449-8c13-5a61-ba8d-0f7b603ede03",
+          "room_number": "122-1",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "47b82a3c-5bd0-5c48-9dbf-f7cf83922f59",
+          "room_number": "122-2",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "9ca39e92-cebb-5e00-b7d3-ab6b32250842",
+          "room_number": "122-3",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "f9d77269-baf2-5ae1-920d-8c8884752461",
+          "room_number": "122-4",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "5aec27a6-e7e2-53e4-9346-1d9d2bab2f1f",
+          "room_number": "122-5",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "386e9aed-db0b-545e-81c2-4ccc8469c41c",
+          "room_number": "122-6",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072446821380808,
+          "longitude": 100.60614715745913
+        },
+        {
+          "id": "a1dff4b7-1aa9-5b65-8c90-de6858c2bb31",
+          "room_number": "123",
+          "name": {
+            "th": "ห้องพักอาจารย์ (ฟิสิกส์)",
+            "en": "Faculty Offices (Physics)"
+          },
+          "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
+          "latitude": 14.072427504643963,
+          "longitude": 100.6066118264641
+        },
+        {
+          "id": "ef20a41f-c64e-5c3d-9efd-9283e706a978",
+          "room_number": "124",
+          "name": {
+            "th": "ห้องวิจัยพลาสมาและนิวเคลียร์ฟิวชัน",
+            "en": "Plasma and Nuclear Fusion Lab"
+          },
+          "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
+          "latitude": 14.072427504643963,
+          "longitude": 100.6066118264641
+        },
+        {
+          "id": "a1a89893-73ad-5973-b00d-9352b4b2f477",
+          "room_number": "125",
+          "name": {
+            "th": "ห้องเก็บของ",
+            "en": "Storage Room"
+          },
+          "type": "STORAGE",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/STORAGE.webp",
           "latitude": 14.072235498731404,
           "longitude": 100.60672349485053
         },
         {
-          "id": "room-126",
+          "id": "e93244bd-8cc6-5950-bb76-20961ff5ff8d",
           "room_number": "126",
-          "name": "ที่ทำการ กน. วท. คณะวิทยาศาสตร์และเทคโนโลยี / Faculty of Science and Technology Student Affairs Office",
+          "name": {
+            "th": "ที่ทำการ กน. วท. คณะวิทยาศาสตร์และเทคโนโลยี",
+            "en": "Faculty of Science and Technology Student Affairs Office"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072248376566973,
           "longitude": 100.60686763707248
         },
         {
-          "id": "room-127",
+          "id": "7db46218-9769-5f18-a4a4-a5dc30ea97aa",
           "room_number": "127",
-          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (ฟิสิกส์)",
+            "en": "Faculty Offices (Physics)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072357838139943,
           "longitude": 100.60678703122467
         },
         {
-          "id": "room-128",
+          "id": "93ec1c5b-9435-5ec2-b4f7-940155d2ff67",
           "room_number": "128",
-          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการอิเล็กทรอนิกส์",
+            "en": "Electronic Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07236703658906,
           "longitude": 100.60684677438246
         },
         {
-          "id": "room-129",
+          "id": "26a62c68-599f-5ca6-a6b3-d91c26f15fea",
           "room_number": "129",
-          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการอิเล็กทรอนิกส์",
+            "en": "Electronic Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07236703658906,
           "longitude": 100.60687806841749
         },
         {
-          "id": "room-130",
+          "id": "2431ad87-498e-5407-bc58-81dfa3e56cc6",
           "room_number": "130",
-          "name": "ห้องเก็บของ / Storage Room",
+          "name": {
+            "th": "ห้องเก็บของ",
+            "en": "Storage Room"
+          },
           "type": "STORAGE",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/STORAGE.webp",
           "latitude": 14.072527089544543,
           "longitude": 100.60687996502568
         },
         {
-          "id": "room-131",
+          "id": "98f38dec-da2f-5fd4-9a46-b1dd8623b5dc",
           "room_number": "131",
-          "name": "ห้องเก็บของ / Storage Room",
+          "name": {
+            "th": "ห้องเก็บของ",
+            "en": "Storage Room"
+          },
           "type": "STORAGE",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/STORAGE.webp",
           "latitude": 14.072527089544543,
           "longitude": 100.60687996502568
         },
         {
-          "id": "room-132",
+          "id": "0d94816d-946f-50a1-93a8-353d471550fc",
           "room_number": "132",
-          "name": "ห้องควบคุมไฟฟ้า / Electricity Control Room",
+          "name": {
+            "th": "ห้องควบคุมไฟฟ้า",
+            "en": "Electricity Control Room"
+          },
           "type": "STORAGE",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/STORAGE.webp",
           "latitude": 14.072527089544543,
           "longitude": 100.60687996502568
         },
         {
-          "id": "room-135",
+          "id": "2951b1af-8bc0-5aab-a883-a486e01f3230",
           "room_number": "135",
-          "name": "ห้องประชุม 135 / Conference Room 135",
+          "name": {
+            "th": "ห้องประชุม 135",
+            "en": "Conference Room 135"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.072744172684363,
           "longitude": 100.60690082771569
         },
         {
-          "id": "room-136",
+          "id": "c992edc3-d3d2-5827-a507-a4acf612dbb5",
           "room_number": "136",
-          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (ฟิสิกส์)",
+            "en": "Faculty Offices (Physics)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072882149151487,
           "longitude": 100.60685246420702
         },
         {
-          "id": "room-137-1",
-          "room_number": "137/1",
-          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "id": "39a3a2de-b923-55b5-9e79-c5b72b82c427",
+          "room_number": "137-1",
+          "name": {
+            "th": "ห้องวิจัยฟิสิกส์",
+            "en": "Physics Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072861912608545,
           "longitude": 100.60679082444106
         },
         {
-          "id": "room-137-2",
-          "room_number": "137/2",
-          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "id": "e921f7c1-2f1f-5bf5-91cd-a7efc4c0be7a",
+          "room_number": "137-2",
+          "name": {
+            "th": "ห้องวิจัยฟิสิกส์",
+            "en": "Physics Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072873870565946,
           "longitude": 100.60672918467509
         },
         {
-          "id": "room-137-3",
-          "room_number": "137/3",
-          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "id": "3a09dcdd-8f90-58e6-ae42-24f5dbd79383",
+          "room_number": "137-3",
+          "name": {
+            "th": "ห้องวิจัยฟิสิกส์",
+            "en": "Physics Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072856393551058,
           "longitude": 100.60657081789176
         },
         {
-          "id": "room-138",
+          "id": "0860acff-683e-5ce8-ae07-5727195aff5c",
           "room_number": "138",
-          "name": "ห้องพักอาจารย์ (ฟิสิกส์) / Faculty Offices (Physics)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (ฟิสิกส์)",
+            "en": "Faculty Offices (Physics)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072873870565946,
           "longitude": 100.60649021204397
         },
         {
-          "id": "room-139",
+          "id": "57ccfe50-0e50-5423-b5e7-b179ca420525",
           "room_number": "139",
-          "name": "ห้องวิจัยฟิสิกส์ / Physics Lab",
+          "name": {
+            "th": "ห้องวิจัยฟิสิกส์",
+            "en": "Physics Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072877549937335,
           "longitude": 100.60644753835984
         },
         {
-          "id": "room-140",
+          "id": "7346b7ad-46da-551d-92e5-7a3786af6969",
           "room_number": "140",
-          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการอิเล็กทรอนิกส์",
+            "en": "Electronic Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072834317319806,
           "longitude": 100.60649021204397
         },
         {
-          "id": "room-141",
+          "id": "f6e9ef0f-424a-5ef7-a225-5f823ba8781c",
           "room_number": "141",
-          "name": "ห้องปฏิบัติการอิเล็กทรอนิกส์ / Electronic Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการอิเล็กทรอนิกส์",
+            "en": "Electronic Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072855473708133,
           "longitude": 100.6064409002312
         },
         {
-          "id": "room-restroom-left",
+          "id": "8d65c3b1-9801-51a4-9210-04af96ccd03b",
           "room_number": null,
-          "name": "ห้องน้ำ / Restroom",
+          "name": {
+            "th": "ห้องน้ำ / Restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.0725685311312,
           "longitude": 100.60687200520628
         },
         {
-          "id": "room-restroom-right",
+          "id": "23addd77-1806-5f7e-af57-d3f6bc0b2c1a",
           "room_number": null,
-          "name": "ห้องน้ำ / Restroom",
+          "name": {
+            "th": "ห้องน้ำ / Restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072547747312822,
           "longitude": 100.60688779342591
+        },
+        {
+          "id": "09fcc513-7fa0-5558-9b69-237682785d97",
+          "room_number": null,
+          "name": {
+            "th": "จุดเด่นอาคาร LC3",
+            "en": "LC3 Landmark"
+          },
+          "type": "LANDMARK",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": false,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/LC3-LANDMARK.webp",
+          "latitude": 14.072603828706107,
+          "longitude": 100.60628435011894
         }
       ],
       "facilities": [
         {
-          "id": "facility-stair3",
-          "name": "West Stair",
+          "id": "61dc7e3d-8ebe-5300-8126-db99059e8148",
+          "name": {
+            "th": "West Stair",
+            "en": "West Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.07257290667166,
           "longitude": 100.6056969105743
         },
         {
-          "id": "facility-stair1",
-          "name": "East Stair",
+          "id": "5a026622-1cc3-5f01-a4f6-9a66ab4ae4a6",
+          "name": {
+            "th": "East Stair",
+            "en": "East Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.07258275163742,
           "longitude": 100.60688328250602
@@ -515,301 +1540,876 @@
       ]
     },
     {
-      "id": "lc3-floor-2",
+      "id": "2144ef87-969d-5b9a-abd1-0485f5742893",
       "floor_number": 2,
+      "floor_plan_key": "floor-plan/LC3/LC3-floor2-neutral.svg",
       "rooms": [
         {
-          "id": "room-201",
+          "id": "4cf1309f-69bd-51fa-bec2-eec5a269a1a5",
           "room_number": "201",
-          "name": "ห้องสำนักงานภาควิชาคณิตศาสตร์และสถิติ / Department Office of Mathematics and Statistics",
+          "name": {
+            "th": "ห้องสำนักงานภาควิชาคณิตศาสตร์และสถิติ",
+            "en": "Department Office of Mathematics and Statistics"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07287,
           "longitude": 100.60614
         },
         {
-          "id": "room-203",
+          "id": "622849fe-eb7a-5330-8477-7aa8fead5166",
           "room_number": "203",
-          "name": "ห้องปฏิบัติการระบบบำบัดน้ำเสีย / Wastewater Treatment Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการระบบบำบัดน้ำเสีย",
+            "en": "Wastewater Treatment Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07286,
           "longitude": 100.6061
         },
         {
-          "id": "room-204",
+          "id": "51a7f811-cfe4-588b-9f8b-6cfeb9c16f5b",
           "room_number": "204",
-          "name": "ห้องเตรียมปฏิบัติการระบบบำบัดน้ำเสีย / Wastewater Treatment Preparation Lab",
+          "name": {
+            "th": "ห้องเตรียมปฏิบัติการระบบบำบัดน้ำเสีย",
+            "en": "Wastewater Treatment Preparation Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07285,
           "longitude": 100.60605
         },
         {
-          "id": "room-205",
+          "id": "8e4c66ee-a38c-56ed-ba86-dd25c86351b4",
           "room_number": "205",
-          "name": "ห้องปฏิบัติการนิเวศวิทยาและสิ่งแวดล้อมวัฒนธรรม / Ecology and Cultural Environment Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการนิเวศวิทยาและสิ่งแวดล้อมวัฒนธรรม",
+            "en": "Ecology and Cultural Environment Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07284,
           "longitude": 100.606
         },
         {
-          "id": "room-206",
+          "id": "342e1bc4-07c4-50c5-88c3-4e71ad40339a",
           "room_number": "206",
-          "name": "ห้องปฏิบัติการนิเวศวิทยาทางทะเล ชายฝั่ง และน้ำกร่อย / Marine, Coastal and Brackish Water Ecology Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการนิเวศวิทยาทางทะเล ชายฝั่ง และน้ำกร่อย",
+            "en": "Marine, Coastal and Brackish Water Ecology Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07283,
           "longitude": 100.60595
         },
         {
-          "id": "room-207",
+          "id": "65c9c30e-f8e7-5fee-9e90-12e1bb29efe7",
           "room_number": "207",
-          "name": "ห้องเตรียมปฏิบัติการชีววิทยาทางทะเล / Marine Biology Preparation Lab",
+          "name": {
+            "th": "ห้องเตรียมปฏิบัติการชีววิทยาทางทะเล",
+            "en": "Marine Biology Preparation Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07282,
           "longitude": 100.6059
         },
         {
-          "id": "room-208",
+          "id": "e1863999-6476-5c6d-909e-798d896e0eae",
           "room_number": "208",
-          "name": "ห้องปฏิบัติการด้านชีววิทยาทางทะเล / Marine Biology Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการด้านชีววิทยาทางทะเล",
+            "en": "Marine Biology Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07281,
           "longitude": 100.60585
         },
         {
-          "id": "room-209",
+          "id": "b2bdcc80-fec3-5c5b-9aae-8c270714e5b8",
           "room_number": "209",
-          "name": "ห้องปฏิบัติการวิทยาศาสตร์สิ่งแวดล้อมทางดิน / Environmental Soil Science Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการวิทยาศาสตร์สิ่งแวดล้อมทางดิน",
+            "en": "Environmental Soil Science Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.0728,
           "longitude": 100.6058
         },
         {
-          "id": "room-212",
+          "id": "1d48ce49-4324-5bd4-8a4a-9f7422c7d0da",
           "room_number": "212",
-          "name": "ห้องเตรียมปฏิบัติการวิเคราะห์คุณภาพน้ำจืด / Freshwater Quality Analysis Preparation Lab",
+          "name": {
+            "th": "ห้องเตรียมปฏิบัติการวิเคราะห์คุณภาพน้ำจืด",
+            "en": "Freshwater Quality Analysis Preparation Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07275,
           "longitude": 100.60575
         },
         {
-          "id": "room-213",
+          "id": "8ef55898-1226-52fd-8111-bf2ed7ef8dbb",
           "room_number": "213",
-          "name": "ห้องปฏิบัติการวิเคราะห์คุณภาพน้ำจืด / Freshwater Quality Analysis Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการวิเคราะห์คุณภาพน้ำจืด",
+            "en": "Freshwater Quality Analysis Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.0727,
           "longitude": 100.6057
         },
         {
-          "id": "room-217",
+          "id": "4f5e41e2-56ad-5653-b2cf-af4f851a0044",
           "room_number": "217",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ และอื่นๆ) / Faculty Offices (Mathematics, Statistics and Others)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ และอื่นๆ)",
+            "en": "Faculty Offices (Mathematics, Statistics and Others)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07265,
           "longitude": 100.6057
         },
         {
-          "id": "room-220",
+          "id": "2940b961-7a6e-50ae-95e3-157d46f25cc5",
           "room_number": "220",
-          "name": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ) / Faculty Offices (Mathematics and Statistics)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (คณิตศาสตร์และสถิติ)",
+            "en": "Faculty Offices (Mathematics and Statistics)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07255,
           "longitude": 100.6057
         },
         {
-          "id": "room-221",
+          "id": "a917c266-e311-56f7-8496-d10360d95d39",
           "room_number": "221",
-          "name": "ห้องนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม) / Graduate Student Room (Environmental Science)",
+          "name": {
+            "th": "ห้องนักศึกษาระดับบัณฑิตศึกษา (วิทยาศาสตร์สิ่งแวดล้อม)",
+            "en": "Graduate Student Room (Environmental Science)"
+          },
           "type": "COMMON_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/COMMONROOM.webp",
           "latitude": 14.07245,
           "longitude": 100.6057
         },
         {
-          "id": "room-222",
+          "id": "c519a709-dffc-5f1c-aa98-e468b9a4434f",
           "room_number": "222",
-          "name": "ห้องปฏิบัติการทางคณิตศาสตร์และสถิติ / Mathematics and Statistics Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการทางคณิตศาสตร์และสถิติ",
+            "en": "Mathematics and Statistics Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07235,
           "longitude": 100.6057
         },
         {
-          "id": "room-223",
+          "id": "0aeba054-89c8-508c-b0c4-39a2922b44d1",
           "room_number": "223",
-          "name": "ห้องพักอาจารย์ (วิทยาศาสตร์สิ่งแวดล้อม) / Faculty Offices (Environmental Science)",
+          "name": {
+            "th": "ห้องพักอาจารย์ (วิทยาศาสตร์สิ่งแวดล้อม)",
+            "en": "Faculty Offices (Environmental Science)"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07234,
           "longitude": 100.6058
         },
         {
-          "id": "room-224",
+          "id": "9347cc0b-167b-5595-bddd-af0577ecf618",
           "room_number": "224",
-          "name": "ห้องปฏิบัติการคอมพิวเตอร์ (วิทยาศาสตร์สิ่งแวดล้อม) / Computer Lab (Environmental Science)",
+          "name": {
+            "th": "ห้องปฏิบัติการคอมพิวเตอร์ (วิทยาศาสตร์สิ่งแวดล้อม)",
+            "en": "Computer Lab (Environmental Science)"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07234,
           "longitude": 100.6059
         },
         {
-          "id": "room-225",
+          "id": "30e325f0-d37b-5ce1-bffb-d1898ecd866d",
           "room_number": "225",
-          "name": "ห้องประชุมภาควิชาคณิตศาสตร์และสถิติ / Mathematics and Statistics Meeting Room",
+          "name": {
+            "th": "ห้องประชุมภาควิชาคณิตศาสตร์และสถิติ",
+            "en": "Mathematics and Statistics Meeting Room"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.07234,
           "longitude": 100.606
         },
         {
-          "id": "room-226",
+          "id": "f53b4ad7-b96c-57be-a040-8bbb92a18d6d",
           "room_number": "226",
-          "name": "ห้องควบคุม / Control Room",
+          "name": {
+            "th": "ห้องควบคุม",
+            "en": "Control Room"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07234,
           "longitude": 100.6061
         },
         {
-          "id": "room-227",
+          "id": "40b16f0b-0ed4-556f-9454-edceba34e98f",
           "room_number": "227",
-          "name": "ห้องสัมมนาภาควิชาคณิตศาสตร์และสถิติ / Mathematics and Statistics Seminar Room",
+          "name": {
+            "th": "ห้องสัมมนาภาควิชาคณิตศาสตร์และสถิติ",
+            "en": "Mathematics and Statistics Seminar Room"
+          },
           "type": "MEETING_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": null,
           "latitude": 14.07234,
           "longitude": 100.6062
         },
         {
-          "id": "room-230",
+          "id": "d891a944-9355-5576-b81a-e724cc4f30cd",
           "room_number": "230",
-          "name": "ห้องประชุม/บรรยาย 1 / Conference Room / Lecture Room 1",
+          "name": {
+            "th": "ห้องประชุม/บรรยาย 1",
+            "en": "Conference Room / Lecture Room 1"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07234,
           "longitude": 100.6064
         },
         {
-          "id": "room-233",
+          "id": "37311e46-7fe0-5515-9cb4-e20f7e40de95",
           "room_number": "233",
-          "name": "ห้องบรรยาย 2 / Lecture Room 2",
+          "name": {
+            "th": "ห้องบรรยาย 2",
+            "en": "Lecture Room 2"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07235,
           "longitude": 100.6066
         },
         {
-          "id": "room-234",
+          "id": "78a1eede-b7a9-5cd3-8e74-639785674c87",
           "room_number": "234",
-          "name": "ห้องประชุม/บรรยาย 3 / Conference Room / Lecture Room 3",
+          "name": {
+            "th": "ห้องประชุม/บรรยาย 3",
+            "en": "Conference Room / Lecture Room 3"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07236,
           "longitude": 100.6068
         },
         {
-          "id": "room-235",
+          "id": "7850fb8e-85a9-58fb-af19-e3e9faa89f6a",
           "room_number": "235",
-          "name": "ห้องปฏิบัติการนิเวศวิทยาน้ำจืด / Freshwater Ecology Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการนิเวศวิทยาน้ำจืด",
+            "en": "Freshwater Ecology Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07252,
           "longitude": 100.60688
         },
         {
-          "id": "room-236",
+          "id": "f237d5b4-afce-5249-83c6-7ffd764f4b7e",
           "room_number": "236",
-          "name": "ห้องสำนักงานภาควิชาวิทยาศาสตร์สิ่งแวดล้อม / Department Office of Environmental Science",
+          "name": {
+            "th": "ห้องสำนักงานภาควิชาวิทยาศาสตร์สิ่งแวดล้อม",
+            "en": "Department Office of Environmental Science"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.07274,
           "longitude": 100.6069
         },
         {
-          "id": "room-236-1",
-          "room_number": "236/1",
-          "name": "ห้องปฏิบัติการชุมชน/เมือง / Community and Urban Lab",
+          "id": "365f22fa-e0d5-5c36-a693-ad60da8a08de",
+          "room_number": "236-1",
+          "name": {
+            "th": "ห้องปฏิบัติการชุมชน/เมือง",
+            "en": "Community and Urban Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.0728,
           "longitude": 100.60688
         },
         {
-          "id": "room-237",
+          "id": "de1f6b4f-6620-5938-ba77-921f57b21e77",
           "room_number": "237",
-          "name": "ห้องอาจารย์และเตรียมปฏิบัติการนิเวศวิทยาป่าไม้ / Faculty and Forest Ecology Lab Prep Room",
+          "name": {
+            "th": "ห้องอาจารย์และเตรียมปฏิบัติการนิเวศวิทยาป่าไม้",
+            "en": "Faculty and Forest Ecology Lab Prep Room"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07286,
           "longitude": 100.60679
         },
         {
-          "id": "room-238",
+          "id": "9ef39cf3-9e18-5ba7-939a-b5e2b5514889",
           "room_number": "238",
-          "name": "ห้องปฏิบัติการนิเวศวิทยาป่าไม้ / Forest Ecology Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการนิเวศวิทยาป่าไม้",
+            "en": "Forest Ecology Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07287,
           "longitude": 100.60672
         },
         {
-          "id": "room-239",
+          "id": "55b994b7-e2c3-5b36-b6f2-fd2cadb6840d",
           "room_number": "239",
-          "name": "ห้องปฏิบัติการมลพิษทางอากาศและเสียง / Air and Noise Pollution Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการมลพิษทางอากาศและเสียง",
+            "en": "Air and Noise Pollution Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07285,
           "longitude": 100.60657
         },
         {
-          "id": "room-240",
+          "id": "8ba94f63-3fc7-52e5-8895-0c4606d464d5",
           "room_number": "240",
-          "name": "ห้องปฏิบัติการเครื่องมือวิเคราะห์โลหะหนัก (AAS) / Heavy Metal Analytical Instrument Lab (AAS)",
+          "name": {
+            "th": "ห้องปฏิบัติการเครื่องมือวิเคราะห์โลหะหนัก (AAS)",
+            "en": "Heavy Metal Analytical Instrument Lab (AAS)"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07287,
           "longitude": 100.60649
         },
         {
-          "id": "room-241",
+          "id": "6e23bdc4-c5e2-5e4d-a4ea-67aa8454d001",
           "room_number": "241",
-          "name": "ห้องปฏิบัติการวิเคราะห์น้ำและน้ำเสีย / Water and Wastewater Quality Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการวิเคราะห์น้ำและน้ำเสีย",
+            "en": "Water and Wastewater Quality Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07287,
           "longitude": 100.60644
         },
         {
-          "id": "room-242",
+          "id": "fcc3de89-f832-587f-b889-52d71d0ae925",
           "room_number": "242",
-          "name": "ห้องปฏิบัติการเครื่องมือ GC/HPLC / GC/HPLC Instrument Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการเครื่องมือ GC/HPLC",
+            "en": "GC/HPLC Instrument Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07283,
           "longitude": 100.60649
         },
         {
-          "id": "room-243",
+          "id": "ed386834-5c2a-584d-adcc-b7e1e0a99d61",
           "room_number": "243",
-          "name": "ห้องปฏิบัติการพิษวิทยาสิ่งแวดล้อม / Environmental Toxicity Lab",
+          "name": {
+            "th": "ห้องปฏิบัติการพิษวิทยาสิ่งแวดล้อม",
+            "en": "Environmental Toxicity Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07285,
           "longitude": 100.60644
         },
         {
-          "id": "room-243-1",
-          "room_number": "243/1",
-          "name": "ห้องปฏิบัติการด้านจุลชีววิทยา / Microbiology Lab",
+          "id": "04004f83-c696-5b2c-9095-cc9e896aa161",
+          "room_number": "243-1",
+          "name": {
+            "th": "ห้องปฏิบัติการด้านจุลชีววิทยา",
+            "en": "Microbiology Lab"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07286,
           "longitude": 100.60643
         },
         {
-          "id": "room-restroom-right",
+          "id": "23addd77-1806-5f7e-af57-d3f6bc0b2c1a",
           "room_number": null,
-          "name": "ห้องน้ำ / Restroom",
+          "name": {
+            "th": "ห้องน้ำ / Restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072568,
           "longitude": 100.606872
         },
         {
-          "id": "room-restroom-left",
+          "id": "8d65c3b1-9801-51a4-9210-04af96ccd03b",
           "room_number": null,
-          "name": "ห้องน้ำ / Restroom",
+          "name": {
+            "th": "ห้องน้ำ / Restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072547,
           "longitude": 100.606887
         }
       ],
       "facilities": [
         {
-          "id": "facility-stair3",
-          "name": "West Stair",
+          "id": "df9b5422-0e14-5f45-b7b3-bffcbb1293f1",
+          "name": {
+            "th": "West Stair",
+            "en": "West Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072572,
           "longitude": 100.605696
         },
         {
-          "id": "facility-stair1",
-          "name": "East Stair",
+          "id": "b311c8fe-8702-5bf5-902b-bcbbb4ac8f45",
+          "name": {
+            "th": "East Stair",
+            "en": "East Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072582,
           "longitude": 100.606883
