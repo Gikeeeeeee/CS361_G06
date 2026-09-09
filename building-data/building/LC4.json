@@ -1,127 +1,366 @@
 {
   "id": "lc4",
-  "name": "LC4",
+  "code": "LC4",
+  "name": {
+    "th": "อาคาร LC4",
+    "en": "LC4 Building"
+  },
+  "description": {
+    "th": "อาคารเรียนรวม LC4",
+    "en": "LC4 lecture building"
+  },
+  "image_key": "image/building/LC4.webp",
+  "opening_hours": "08:00-18:00",
   "latitude": 14.072606976041664,
   "longitude": 100.60772614298118,
   "floors": [
     {
-      "id": "lc4-floor-1",
+      "id": "a6ab42cb-0abd-57ee-acd2-993d64b20a82",
       "floor_number": 1,
+      "floor_plan_key": "floor-plan/LC4/LC4-floor1-neutral.svg",
       "rooms": [
         {
-          "id": "room-lab102",
+          "id": "2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a",
           "room_number": null,
-          "name": "LAB102",
+          "name": {
+            "th": "LAB102",
+            "en": "Laboratory 102"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072882788956523,
           "longitude": 100.6077629190076
         },
         {
-          "id": "room-lab103",
+          "id": "b8e18439-becb-5dc7-8032-9348efae93d6",
           "room_number": null,
-          "name": "Lab103",
+          "name": {
+            "th": "Lab103",
+            "en": "Lab103"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072874983831266,
           "longitude": 100.60748396928727
         },
         {
-          "id": "room-lab104",
+          "id": "a2f8e492-3bff-5b26-aeb0-f87d544ab9ea",
           "room_number": null,
-          "name": "LAB104",
+          "name": {
+            "th": "LAB104",
+            "en": "LAB104"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072877585539715,
           "longitude": 100.60726134595276
         },
         {
-          "id": "room-lab105",
+          "id": "a287949e-5b48-589e-8653-3cf8ebd23ead",
           "room_number": null,
-          "name": "LAB105",
+          "name": {
+            "th": "LAB105",
+            "en": "LAB105"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072747500080865,
           "longitude": 100.60723720607314
         },
         {
-          "id": "room-lab106",
+          "id": "0bbef6fb-c7b0-5194-9189-818483b878a6",
           "room_number": null,
-          "name": "LAB106",
+          "name": {
+            "th": "LAB106",
+            "en": "LAB106"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072393667258222,
           "longitude": 100.60752688462885
         },
         {
-          "id": "room-lab107",
+          "id": "13b0939f-6355-52cb-9cf4-44655d44a16d",
           "room_number": null,
-          "name": "LAB107",
+          "name": {
+            "th": "LAB107",
+            "en": "LAB107"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072385862116247,
           "longitude": 100.60730962571206
         },
         {
-          "id": "room-commonroom1",
+          "id": "e50b0396-d780-5106-b662-829a26a19b3f",
           "room_number": null,
-          "name": "CommonRoom1",
-          "type": "COMMONROOM",
+          "name": {
+            "th": "CommonRoom1",
+            "en": "Common Room 1"
+          },
+          "type": "COMMON_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/COMMONROOM.webp",
           "latitude": 14.072633024815827,
           "longitude": 100.60814915708188
         },
         {
-          "id": "room-commonroom2",
+          "id": "35198d1e-6814-52f8-8c26-b4dab6b2f471",
           "room_number": null,
-          "name": "CommonRoom2",
-          "type": "COMMONROOM",
+          "name": {
+            "th": "CommonRoom2",
+            "en": "Common Room 2"
+          },
+          "type": "COMMON_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/COMMONROOM.webp",
           "latitude": 14.072877585539715,
           "longitude": 100.6080740552341
         },
         {
-          "id": "room-commonroom3",
+          "id": "650b9e3e-724a-5d5c-bde1-ab596755285c",
           "room_number": null,
-          "name": "Common Room3",
-          "type": "COMMONROOM",
+          "name": {
+            "th": "Common Room3",
+            "en": "Common Room 3"
+          },
+          "type": "COMMON_ROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/COMMONROOM.webp",
           "latitude": 14.072846365036341,
           "longitude": 100.60824035218275
         },
         {
-          "id": "room-restroom",
+          "id": "2dba09e3-8c82-5924-a50b-af55c345eab9",
           "room_number": null,
-          "name": "restroom",
+          "name": {
+            "th": "restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072617414547981,
           "longitude": 100.60723720607314
         },
         {
-          "id": "room-faculty-offices",
+          "id": "b3ea118a-600f-5cd2-aa5c-01e471bef883",
           "room_number": null,
-          "name": "Faculty Offices",
+          "name": {
+            "th": "ห้องพักอาจารย์",
+            "en": "Faculty Offices"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072877585539715,
           "longitude": 100.60782192760227
+        },
+        {
+          "id": "eb16b412-d64f-5c2b-ba36-cb38f5f02cb6",
+          "room_number": null,
+          "name": {
+            "th": "จุดเด่นอาคาร LC4",
+            "en": "LC4 Landmark"
+          },
+          "type": "LANDMARK",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": false,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/LC4-LANDMARK.webp",
+          "latitude": 14.072606976041664,
+          "longitude": 100.60772614298118
         }
       ],
       "facilities": [
         {
-          "id": "facility-stair1",
-          "name": "Stair 1",
+          "id": "0c38035b-73c4-58b7-8b73-b45a4131086b",
+          "name": {
+            "th": "บันได 1",
+            "en": "Stair 1"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072411879255112,
           "longitude": 100.6077843766784
         },
         {
-          "id": "facility-stair2",
-          "name": "Stair 2",
+          "id": "936b5ec7-cf59-5d3a-af57-0550f66a25fc",
+          "name": {
+            "th": "บันได 2",
+            "en": "Stair 2"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072700669297548,
           "longitude": 100.60779242330494
         },
         {
-          "id": "facility-stair3",
-          "name": "Stair 3",
+          "id": "711077ac-8ffa-5c31-ba10-afccf1deaad7",
+          "name": {
+            "th": "บันได 3",
+            "en": "Stair 3"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072586194009062,
           "longitude": 100.60728012141473
         },
         {
-          "id": "facility-elevator",
-          "name": "Elevator",
+          "id": "0f9a2c49-b714-520e-9954-1c82b7ba5c36",
+          "name": {
+            "th": "ลิฟต์",
+            "en": "Elevator"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "ELEVATOR",
           "latitude": 14.072599202567453,
           "longitude": 100.60741959627066
@@ -129,140 +368,386 @@
       ]
     },
     {
-      "id": "lc4-floor-2",
+      "id": "d9c020ee-1f1f-5035-a7ec-2f9063569335",
       "floor_number": 2,
+      "floor_plan_key": "floor-plan/LC4/LC4-floor2-neutral.svg",
       "rooms": [
         {
-          "id": "room-201",
+          "id": "152ba663-77e5-539a-938e-9632d1f9f9a1",
           "room_number": "201",
-          "name": "ห้องปฏิบัติการ",
+          "name": {
+            "th": "ห้องปฏิบัติการ",
+            "en": "Laboratory"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072884501523038,
           "longitude": 100.6080683624228
         },
         {
-          "id": "room-202-1",
+          "id": "4bb8fa1e-4e9e-51c1-a828-bc6e839d4fe3",
           "room_number": "202/1",
-          "name": "LAB 202/1",
+          "name": {
+            "th": "LAB 202/1",
+            "en": "LAB 202/1"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072889704940316,
           "longitude": 100.60781087035821
         },
         {
-          "id": "room-202-2",
+          "id": "ff4b043f-ee80-5b11-9bc0-695c168ecc19",
           "room_number": "202/2",
-          "name": "LAB 202/2",
+          "name": {
+            "th": "LAB 202/2",
+            "en": "LAB 202/2"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072897510065065,
           "longitude": 100.60760970467241
         },
         {
-          "id": "room-202-3",
+          "id": "6a62ed2a-a558-589c-8125-2d203a989d8e",
           "room_number": "202/3",
-          "name": "LAB 202/3",
+          "name": {
+            "th": "LAB 202/3",
+            "en": "LAB 202/3"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072881899815274,
           "longitude": 100.60746486537866
         },
         {
-          "id": "room-204",
+          "id": "c9073d16-62db-52ea-ac98-7113c15bb57f",
           "room_number": "204",
-          "name": "สำนักงาน",
+          "name": {
+            "th": "สำนักงาน",
+            "en": "Office"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072746610939094,
           "longitude": 100.6073280727123
         },
         {
-          "id": "room-209",
+          "id": "2bc1f94e-fea6-5d51-9f21-96d47fbf2bd4",
           "room_number": "209",
-          "name": "LAB",
+          "name": {
+            "th": "LAB 209",
+            "en": "LAB 209"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": null,
           "longitude": null
         },
         {
-          "id": "room-210",
+          "id": "fdf93970-0f47-5b2a-b6e5-002cb358ffaa",
           "room_number": "210",
-          "name": "ห้องโปรเจค",
+          "name": {
+            "th": "ห้องโปรเจค",
+            "en": "Project Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072522863775816,
           "longitude": 100.60731734387574
         },
         {
-          "id": "room-211",
+          "id": "43e66435-7d00-597e-9cd2-ce530ef4b668",
           "room_number": "211",
-          "name": "211",
+          "name": {
+            "th": "211",
+            "en": "211"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072396680687568,
           "longitude": 100.60730058006702
         },
         {
-          "id": "room-212",
+          "id": "0bd14958-f693-5697-8008-2662452344a3",
           "room_number": "212",
-          "name": "212",
+          "name": {
+            "th": "212",
+            "en": "212"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072395379830613,
           "longitude": 100.60738976352106
         },
         {
-          "id": "room-213",
+          "id": "a99be47a-317a-5bc9-be0f-52ab0971cd61",
           "room_number": "213",
-          "name": "213",
+          "name": {
+            "th": "213",
+            "en": "213"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072390826831182,
           "longitude": 100.6074601715111
         },
         {
-          "id": "room-214",
+          "id": "e6333e8f-3338-55fb-9522-aedbc0f86df5",
           "room_number": "214",
-          "name": "214",
+          "name": {
+            "th": "214",
+            "en": "214"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072390176402696,
           "longitude": 100.60753929668084
         },
         {
-          "id": "room-215",
+          "id": "826b5d35-65ab-56b7-8aca-dc95fae19257",
           "room_number": "215",
-          "name": "215",
+          "name": {
+            "th": "215",
+            "en": "215"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072396030259082,
           "longitude": 100.60762311571658
         },
         {
-          "id": "room-500",
-          "room_number": null,
-          "name": "ห้องเรียน 500 คน",
+          "id": "20cdb958-8c81-525a-a9f2-03a6a8d4d5e4",
+          "room_number": "500",
+          "name": {
+            "th": "ห้องเรียน 500 คน",
+            "en": "500-Seat Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.072565166760484,
           "longitude": 100.60805125955436
         },
         {
-          "id": "room-restroom",
+          "id": "2dba09e3-8c82-5924-a50b-af55c345eab9",
           "room_number": null,
-          "name": "ห้องน้ำชาย",
+          "name": {
+            "th": "ห้องน้ำชาย",
+            "en": "Men Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072522919223317,
           "longitude": 100.60819406447837
         }
       ],
       "facilities": [
         {
-          "id": "facility-stair1",
-          "name": "บันไดหลัก",
+          "id": "f893ee2e-e006-5b16-8e46-c349166aac82",
+          "name": {
+            "th": "บันไดหลัก",
+            "en": "Main Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072679021918434,
           "longitude": 100.60776088770163
         },
         {
-          "id": "facility-stair3",
-          "name": "บันไดหนีไฟ",
+          "id": "e927d7c8-ea9b-5eff-b4ef-41568555f4a3",
+          "name": {
+            "th": "บันไดหนีไฟ",
+            "en": "Fire Escape Stair"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072411879255112,
           "longitude": 100.6077843766784
         },
         {
-          "id": "facility-elavator",
-          "name": "ลิฟต์",
+          "id": "1a06f355-879c-56e3-8751-77fd506e3955",
+          "name": {
+            "th": "ลิฟต์",
+            "en": "Elevator"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "ELEVATOR",
           "latitude": 14.072599202567453,
           "longitude": 100.60741959627066
@@ -270,115 +755,304 @@
       ]
     },
     {
-      "id": "lc4-floor-3",
+      "id": "57040add-f04e-5fab-9b78-814250d708b1",
       "floor_number": 3,
+      "floor_plan_key": "floor-plan/LC4/LC4-floor3-neutral.svg",
       "rooms": [
         {
-          "id": "room-318",
+          "id": "98b10727-5cc4-589d-9d49-3c9a37ff2251",
           "room_number": "318",
-          "name": "ศูนย์บริการ",
+          "name": {
+            "th": "ศูนย์บริการ",
+            "en": "Service Center"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072824911653417,
           "longitude": 100.60813117488465
         },
         {
-          "id": "room-302",
+          "id": "197e9690-15c1-5e26-8559-7e60821e8d67",
           "room_number": "302",
-          "name": "Lab Chem 302",
+          "name": {
+            "th": "Lab Chem 302",
+            "en": "Lab Chem 302"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072873960858967,
           "longitude": 100.60778786130663
         },
         {
-          "id": "room-303",
+          "id": "aaf0c7e0-b660-52a0-b1c7-dc8b493a22d1",
           "room_number": "303",
-          "name": "Lab Chem 303",
+          "name": {
+            "th": "Lab Chem 303",
+            "en": "Lab Chem 303"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.07287141626183,
           "longitude": 100.60752290492124
         },
         {
-          "id": "room-304",
+          "id": "79caa1fb-dfe6-573c-8202-ba4627b6537a",
           "room_number": "304",
-          "name": "Lab Chem 304",
+          "name": {
+            "th": "Lab Chem 304",
+            "en": "Lab Chem 304"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072876505456078,
           "longitude": 100.60741010170766
         },
         {
-          "id": "room-305",
+          "id": "09f0442a-967a-5955-adbd-bfe06c9430ba",
           "room_number": "305",
-          "name": "Lab Chem 305",
+          "name": {
+            "th": "Lab Chem 305",
+            "en": "Lab Chem 305"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072871054538492,
           "longitude": 100.60732922363943
         },
         {
-          "id": "room-306",
+          "id": "c7a60ce5-e01f-5bbe-86ec-ea79ff815e54",
           "room_number": "306",
-          "name": "Lab Chem 306",
+          "name": {
+            "th": "Lab Chem 306",
+            "en": "Lab Chem 306"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072791702415127,
           "longitude": 100.60730374265383
         },
         {
-          "id": "room-308",
+          "id": "4a5e7bc3-553f-56cc-a4fd-b891f2d0edf3",
           "room_number": "308",
-          "name": "Lab 308",
+          "name": {
+            "th": "Lab 308",
+            "en": "Lab 308"
+          },
           "type": "LAB",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/LAB.webp",
           "latitude": 14.072414454238734,
           "longitude": 100.60727155614573
         },
         {
-          "id": "room-faculty-office",
+          "id": "d434054d-5c40-5932-a15e-0456f16256c5",
           "room_number": null,
-          "name": "ห้องพักอาจารย์",
+          "name": {
+            "th": "ห้องพักอาจารย์",
+            "en": "Faculty Office"
+          },
           "type": "OFFICE",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": false,
+            "whiteboard": true,
+            "computer": true,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/OFFICE.webp",
           "latitude": 14.072315589096444,
           "longitude": 100.60738152671509
         },
         {
-          "id": "room-500",
+          "id": "20cdb958-8c81-525a-a9f2-03a6a8d4d5e4",
           "room_number": null,
-          "name": "ห้องเรียน 500 คน",
+          "name": {
+            "th": "ห้องเรียน 500 คน",
+            "en": "500-Seat Lecture Room"
+          },
           "type": "CLASSROOM",
+          "facilities": {
+            "air_conditioner": true,
+            "fan": true,
+            "projector": true,
+            "whiteboard": true,
+            "computer": false,
+            "microphone": true,
+            "speaker": true,
+            "power_outlet": true,
+            "wifi": true,
+            "smart_board": false
+          },
+          "image_key": "image/room/CLASSROOM.webp",
           "latitude": 14.07251462019457,
           "longitude": 100.60808292437092
         },
         {
-          "id": "room-restroom",
+          "id": "2dba09e3-8c82-5924-a50b-af55c345eab9",
           "room_number": null,
-          "name": "Restroom",
+          "name": {
+            "th": "Restroom",
+            "en": "Restroom"
+          },
           "type": "RESTROOM",
+          "facilities": {
+            "air_conditioner": false,
+            "fan": true,
+            "projector": false,
+            "whiteboard": false,
+            "computer": false,
+            "microphone": false,
+            "speaker": false,
+            "power_outlet": false,
+            "wifi": false,
+            "smart_board": false
+          },
+          "image_key": "image/room/RESTROOM.webp",
           "latitude": 14.072605675185919,
           "longitude": 100.60725943862911
         }
       ],
       "facilities": [
         {
-          "id": "facility-stair1",
-          "name": "Stair 1",
+          "id": "97e65086-fdec-5240-a723-fb7c708b6ba4",
+          "name": {
+            "th": "บันได 1",
+            "en": "Stair 1"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072411879255112,
           "longitude": 100.6077843766784
         },
         {
-          "id": "facility-stair2",
-          "name": "Stair 2",
+          "id": "9a049bbd-f005-5288-9975-db12442fab2a",
+          "name": {
+            "th": "บันได 2",
+            "en": "Stair 2"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072700669297548,
           "longitude": 100.60779242330494
         },
         {
-          "id": "facility-stair3",
-          "name": "Stair 3",
+          "id": "254a2795-698f-5ebe-a1fc-eafa09361e74",
+          "name": {
+            "th": "บันได 3",
+            "en": "Stair 3"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "STAIR",
           "latitude": 14.072586194009062,
           "longitude": 100.60728012141473
         },
         {
-          "id": "facility-elevator",
-          "name": "Elevator",
+          "id": "79401fb5-c4ca-5504-99b2-2fe6600f0686",
+          "name": {
+            "th": "ลิฟต์",
+            "en": "Elevator"
+          },
+          "description": {
+            "th": null,
+            "en": null
+          },
           "type": "ELEVATOR",
           "latitude": 14.072599202567453,
           "longitude": 100.60741959627066
