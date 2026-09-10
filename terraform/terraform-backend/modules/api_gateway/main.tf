@@ -69,7 +69,7 @@ resource "aws_apigatewayv2_route" "get_room" {
 resource "aws_apigatewayv2_route" "get_facility" {
   api_id = aws_apigatewayv2_api.this.id
 
-  route_key = "GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}"
+  route_key = "GET /api/v1/facilities/{facilityId}"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

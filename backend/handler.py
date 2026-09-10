@@ -56,10 +56,13 @@ DEPS = Dependencies()
 
 Route = namedtuple("Route", "required_params action")
 
+
 BUILDINGS = "/api/v1/buildings"
 BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = f"{BUILDING}/floors/{{floorId}}"
 ROOM = f"/api/v1/rooms/{{roomId}}"
+FACILITY = f"/api/v1/facilities/{{facilityId}}"
+
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
@@ -77,11 +80,9 @@ ROUTES = {
         ("roomId",),
         lambda deps, p: deps.rooms.get_room(p["roomId"]),
     ),
-    f"GET {FLOOR}/facilities/{{facilityId}}": Route(
-        ("buildingId", "floorId", "facilityId"),
-        lambda deps, p: deps.facilities.get_facility(
-            p["buildingId"], p["floorId"], p["facilityId"]
-        ),
+    f"GET {FACILITY}": Route(
+        ("facilityId",),
+        lambda deps, p: deps.facilities.get_facility(p["facilityId"]),
     ),
 }
 
