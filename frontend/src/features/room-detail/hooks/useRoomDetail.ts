@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import type { Room } from '../../../shared/types/domain.types';
+import type { Room, Floor } from '../../../shared/types/domain.types';
 import { campusService } from '../../../services';
 
 export function useRoomDetail(roomId: string | undefined) {
   const [room, setRoom] = useState<Room | null>(null);
   const [buildingId, setBuildingId] = useState<string | null>(null);
   const [floorId, setFloorId] = useState<string | null>(null);
+  const [floor, setFloor] = useState<Floor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +51,7 @@ export function useRoomDetail(roomId: string | undefined) {
               setRoom(r);
               setBuildingId(bid);
               setFloorId(floor.id);
+              setFloor(floor);
               setLoading(false);
               return;
             }
@@ -72,5 +74,5 @@ export function useRoomDetail(roomId: string | undefined) {
     };
   }, [roomId]);
 
-  return { room, buildingId, floorId, loading, error };
+  return { room, buildingId, floorId, floor, loading, error };
 }

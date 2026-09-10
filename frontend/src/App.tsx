@@ -6,6 +6,7 @@ import SavedPage from './pages/SavedPage';
 import ProfilePage from './pages/ProfilePage';
 import BuildingInfoPage from './pages/BuildingDetailPage';
 import RoomDetailPage from './pages/RoomDetailPage';
+import FacilityDetailPage from './pages/FacilityDetailPage';
 
 function DynamicPageTitle() {
   const location = useLocation();
@@ -22,6 +23,8 @@ function DynamicPageTitle() {
       document.title = 'Building Details | KU Long';
     } else if (pathname.startsWith('/rooms/')) {
       document.title = 'Room Details | KU Long';
+    } else if (pathname.startsWith('/facilities/')) {
+      document.title = 'Facility Details | KU Long';
     } else {
       document.title = 'KU Long';
     }
@@ -42,6 +45,7 @@ function App() {
         </Route>
         <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
         <Route path="rooms/:roomId" element={<RoomDetailPage />} />
+        <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -9,8 +9,8 @@ interface BuildingRoomListProps {
 }
 
 type BuildingListItem = 
-  | (Room & { isFacility: false; room_number: string | null })
-  | (Facility & { isFacility: true; room_number: string | null });
+  | (Room & { isFacility: false })
+  | (Facility & { isFacility: true });
 
 export function BuildingRoomList({ floor }: BuildingRoomListProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,29 +39,35 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
 
   const allItems: BuildingListItem[] = useMemo(() => {
     return [
-      ...(floor.rooms || []).map(r => ({ ...r, isFacility: false as const, room_number: r.room_number })),
-      ...(floor.facilities || []).map(f => ({ ...f, isFacility: true as const, room_number: 'FAC' }))
+      ...(floor.rooms || []).map(r => ({ ...r, isFacility: false as const })),
+      ...(floor.facilities || []).map(f => ({ ...f, isFacility: true as const }))
     ];
   }, [floor]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery) return allItems;
     const lowerQuery = searchQuery.toLowerCase();
-    return allItems.filter(
-      item => 
-        item.name.th.toLowerCase().includes(lowerQuery) || 
-        (item.room_number && item.room_number.toLowerCase().includes(lowerQuery)) ||
-        item.type.toLowerCase().includes(lowerQuery)
-    );
+    return allItems.filter(item => {
+      const matchName = item.name.th.toLowerCase().includes(lowerQuery) ||
+        item.name.en.toLowerCase().includes(lowerQuery);
+      const matchType = item.type.toLowerCase().includes(lowerQuery);
+      let matchRoom = false;
+      if (!item.isFacility) {
+        const roomItem = item as Room & { isFacility: false };
+        matchRoom = roomItem.room_number
+          ? roomItem.room_number.toLowerCase().includes(lowerQuery)
+          : false;
+      }
+      return matchName || matchType || matchRoom;
+    });
   }, [allItems, searchQuery]);
 
   const handleItemClick = (item: BuildingListItem) => {
+    if (!buildingId) return;
     if (item.isFacility) {
-      return;
-    }
-    if (buildingId) {
-      const roomIdentifier = item.id;
-      navigate(`/rooms/${buildingId}_${roomIdentifier}`);
+      navigate(`/facilities/${buildingId}_${item.id}`);
+    } else {
+      navigate(`/rooms/${buildingId}_${item.id}`);
     }
   };
 
@@ -119,7 +125,10 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">{item.name.en}</p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                        {!item.isFacility ? `Room ${item.room_number || item.id.replace('room-', '')}` : 'Facility'}
+                        {item.isFacility
+                          ? 'FACILITY'
+                          : `ROOM ${(item as Room & { isFacility: false }).room_number || ''}`
+                        }
                       </span>
                       <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                       <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${getBadgeStyle(item.type)}`}>
