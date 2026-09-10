@@ -11,7 +11,10 @@ data "archive_file" "package" {
     "__pycache__",
     "**/__pycache__",
     ".pytest_cache",
+    "tests",
+    "pytest.ini",
     "test_local.py",
+    "test_*.py",
     "smoke_local.py",
     "README.md"
   ]
