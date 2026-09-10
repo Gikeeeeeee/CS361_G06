@@ -54,7 +54,6 @@ def invoke_api(buildings=None, error=None):
 # Positive Tests
 # =========================================================
 
-# TC01: Successfully retrieve buildings
 def test_get_buildings_success():
     buildings = [
         {
@@ -90,7 +89,6 @@ def test_get_buildings_success():
     assert body["buildings"] == buildings
 
 
-# TC02: Successfully retrieve a single building
 def test_get_buildings_single_building():
     buildings = [
         {
@@ -116,7 +114,6 @@ def test_get_buildings_single_building():
     assert body["buildings"][0]["id"] == "lc3"
 
 
-# TC03: Successfully retrieve multiple buildings
 def test_get_buildings_multiple_buildings():
     buildings = [
         {"id": "lc1"},
