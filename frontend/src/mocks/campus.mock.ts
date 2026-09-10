@@ -1,5 +1,5 @@
 import type { ICampusService } from '../services/campus.interface';
-import type { Building, Floor, Room, Facility } from '../shared/types/domain.types';
+import type { Building, BuildingListResponse, Floor, Room, Facility } from '../shared/types/domain.types';
 import { mockBuildings, mockFloors } from './campus.data';
 
 export class CampusMockService implements ICampusService {
@@ -7,8 +7,15 @@ export class CampusMockService implements ICampusService {
     return new Promise((resolve) => setTimeout(() => resolve(data), ms));
   }
 
-  async getBuildings(): Promise<Building[]> {
-    return this.delay(mockBuildings);
+  async getBuildings(): Promise<BuildingListResponse> {
+    const buildings = mockBuildings.map(b => ({
+      id: b.id,
+      code: b.code,
+      name: b.name,
+      latitude: b.latitude,
+      longitude: b.longitude
+    }));
+    return this.delay({ buildings });
   }
 
   async getBuildingById(buildingId: string): Promise<Building | null> {

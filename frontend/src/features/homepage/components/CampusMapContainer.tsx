@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Building } from '../../../shared/types/domain.types';
+import type { BuildingSummary } from '../../../shared/types/domain.types';
 import '../styles/map.css';
 
 declare const L: any;
 
 interface CampusMapContainerProps {
-  buildings: Building[];
+  buildings: BuildingSummary[];
 }
 
 export function CampusMapContainer({ buildings }: CampusMapContainerProps) {

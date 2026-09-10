@@ -1,10 +1,10 @@
-import type { Building, Floor, Room, Facility } from '../shared/types/domain.types';
+import type { Building, BuildingListResponse, Floor, Room, Facility } from '../shared/types/domain.types';
 
 export interface ICampusService {
   /**
    * Fetch all buildings on campus.
    */
-  getBuildings(): Promise<Building[]>;
+  getBuildings(): Promise<BuildingListResponse>;
 
   /**
    * Fetch a specific building by its ID.

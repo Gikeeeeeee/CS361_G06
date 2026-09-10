@@ -21,12 +21,24 @@ export interface LocalizedString {
   en: string;
 }
 
+export interface BuildingSummary {
+  id: string; // UUID
+  code: string;
+  name: LocalizedString;
+  latitude: number;
+  longitude: number;
+}
+
+export interface BuildingListResponse {
+  buildings: BuildingSummary[];
+}
+
 export interface Building {
   id: string; // UUID
   code: string;
   name: LocalizedString;
   description: LocalizedString;
-  image_key: string;
+  image_url: string | null;
   opening_hours: string;
   latitude: number;
   longitude: number;

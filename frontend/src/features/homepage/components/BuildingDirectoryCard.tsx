@@ -1,16 +1,15 @@
-import { Building as BuildingIcon, ChevronRight, Clock } from 'lucide-react';
-import type { Building } from '../../../shared/types/domain.types';
+import { Building as BuildingIcon, ChevronRight } from 'lucide-react';
+import type { BuildingSummary } from '../../../shared/types/domain.types';
 import { Badge } from '../../../shared/components/Badge';
 
 interface BuildingDirectoryCardProps {
-  building: Building;
+  building: BuildingSummary;
   onClick: () => void;
 }
 
 export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCardProps) {
   const code = building.code;
   const status = 'OPEN'; // Mocked
-  const operatingHours = building.opening_hours;
 
   return (
     <div 
@@ -39,10 +38,6 @@ export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCa
             </Badge>
           </div>
           <span className="text-slate-500 text-xs font-semibold mb-1 line-clamp-1">{building.name.th}</span>
-          <div className="flex items-center text-[11px] text-slate-400 font-medium">
-            <Clock className="w-3.5 h-3.5 mr-1" />
-            <span>เปิดทำการ {operatingHours}</span>
-          </div>
         </div>
       </div>
       

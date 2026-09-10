@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { campusService } from '../../../services';
-import type { Building } from '../../../shared/types/domain.types';
+import type { BuildingSummary } from '../../../shared/types/domain.types';
 import type { CategoryFilter } from '../types/mapDirectory.types';
 
 export function useMapFilter() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('All');
-  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [buildings, setBuildings] = useState<BuildingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     campusService.getBuildings().then(data => {
       if (isMounted) {
-        setBuildings(data);
+        setBuildings(data.buildings || []);
         setIsLoading(false);
       }
     }).catch(err => {

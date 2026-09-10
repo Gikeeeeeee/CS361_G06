@@ -1,5 +1,5 @@
 import type { ICampusService } from './campus.interface';
-import type { Building, Floor, Room, Facility } from '../shared/types/domain.types';
+import type { Building, BuildingListResponse, Floor, Room, Facility } from '../shared/types/domain.types';
 
 export class CampusApiService implements ICampusService {
   private async fetchApi<T>(endpoint: string): Promise<T> {
@@ -10,8 +10,8 @@ export class CampusApiService implements ICampusService {
     return response.json();
   }
 
-  async getBuildings(): Promise<Building[]> {
-    return this.fetchApi<Building[]>('/buildings');
+  async getBuildings(): Promise<BuildingListResponse> {
+    return this.fetchApi<BuildingListResponse>('/buildings');
   }
 
   async getBuildingById(buildingId: string): Promise<Building | null> {

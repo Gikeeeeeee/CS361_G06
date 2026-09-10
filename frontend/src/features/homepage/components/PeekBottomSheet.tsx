@@ -4,11 +4,11 @@ import { useBottomSheetGesture } from '../hooks/useBottomSheetGesture';
 import { SheetDragHeader } from './SheetDragHeader';
 import { BuildingDirectoryCard } from './BuildingDirectoryCard';
 import type { BottomSheetState } from '../types/mapDirectory.types';
-import type { Building } from '../../../shared/types/domain.types';
+import type { BuildingSummary } from '../../../shared/types/domain.types';
 
 interface PeekBottomSheetProps {
-  buildings: Building[];
-  onSelectBuilding: (building: Building) => void;
+  buildings: BuildingSummary[];
+  onSelectBuilding: (building: BuildingSummary) => void;
 }
 
 export interface PeekBottomSheetRef {
