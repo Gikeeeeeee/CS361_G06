@@ -112,13 +112,13 @@ class RoomNotFound(NotFoundError):
 
 
 class FacilityNotFound(NotFoundError):
+
     code = "FACILITY_NOT_FOUND"
 
-    def __init__(self, building_id: str, floor_id: str, facility_id: str):
-        self.building_id = building_id
-        self.floor_id = floor_id
+    def __init__(self, facility_id: str):
+
         self.facility_id = facility_id
+
         super().__init__(
-            f"Facility '{facility_id}' not found on floor '{floor_id}' "
-            f"in building '{building_id}'"
+            f"Facility '{facility_id}' not found"
         )
