@@ -59,12 +59,12 @@ Route = namedtuple("Route", "required_params action")
 BUILDINGS = "/api/v1/buildings"
 BUILDING = f"{BUILDINGS}/{{buildingId}}"
 
-# A floor is addressed by its uuid alone -- the building is no longer in the
-# path. Rooms and facilities are still nested under a building; when they are
-# flattened too, NESTED_FLOOR disappears with them.
+# Floors and rooms are addressed by their uuid alone -- the building is no
+# longer in the path. Facilities are still nested; when they are flattened
+# too, the last f-string here goes away with them.
 FLOOR = "/api/v1/floors/{floorId}"
+ROOM = "/api/v1/rooms/{roomId}"
 NESTED_FLOOR = f"{BUILDING}/floors/{{floorId}}"
-
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
@@ -78,11 +78,9 @@ ROUTES = {
         ("floorId",),
         lambda deps, p: deps.floors.get_details(p["floorId"]),
     ),
-    f"GET {NESTED_FLOOR}/rooms/{{roomId}}": Route(
-        ("buildingId", "floorId", "roomId"),
-        lambda deps, p: deps.rooms.get_room(
-            p["buildingId"], p["floorId"], p["roomId"]
-        ),
+    f"GET {ROOM}": Route(
+        ("roomId",),
+        lambda deps, p: deps.rooms.get_room(p["roomId"]),
     ),
     f"GET {NESTED_FLOOR}/facilities/{{facilityId}}": Route(
         ("buildingId", "floorId", "facilityId"),
