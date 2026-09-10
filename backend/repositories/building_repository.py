@@ -77,17 +77,11 @@ class BuildingRepository:
         """
         One building's raw record, or None if no such building exists.
 
-        Object keys are upper case (`building/LC4.json`) while callers may pass
-        `lc4`, so each candidate spelling is tried in order. (The previous
-        implementation recursed into itself to do this.)
+        S3 building object keys use upper-case building codes
+        (e.g. building/LC3.json).
         """
-        for candidate in self._key_candidates(building_id):
-            data = self._get_json(f"building/{candidate}.json")
-
-            if data is not None:
-                return data
-
-        return None
+        key = f"building/{str(building_id).upper()}.json"
+        return self._get_json(key)
 
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
         """A time-limited GET URL for a stored object (used for floor plans)."""

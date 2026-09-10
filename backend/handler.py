@@ -59,7 +59,7 @@ Route = namedtuple("Route", "required_params action")
 BUILDINGS = "/api/v1/buildings"
 BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = f"{BUILDING}/floors/{{floorId}}"
-
+ROOM = f"/api/v1/rooms/{{roomId}}"
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
@@ -73,11 +73,9 @@ ROUTES = {
         ("buildingId", "floorId"),
         lambda deps, p: deps.floors.get_details(p["buildingId"], p["floorId"]),
     ),
-    f"GET {FLOOR}/rooms/{{roomId}}": Route(
-        ("buildingId", "floorId", "roomId"),
-        lambda deps, p: deps.rooms.get_room(
-            p["buildingId"], p["floorId"], p["roomId"]
-        ),
+    f"GET {ROOM}": Route(
+        ("roomId",),
+        lambda deps, p: deps.rooms.get_room(p["roomId"]),
     ),
     f"GET {FLOOR}/facilities/{{facilityId}}": Route(
         ("buildingId", "floorId", "facilityId"),
