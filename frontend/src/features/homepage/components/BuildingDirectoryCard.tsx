@@ -1,16 +1,16 @@
-import { Building, ChevronRight, Clock } from 'lucide-react';
-import type { BuildingItem } from '../../../shared/types/api.contracts';
+import { Building as BuildingIcon, ChevronRight, Clock } from 'lucide-react';
+import type { Building } from '../../../shared/types/domain.types';
 import { Badge } from '../../../shared/components/Badge';
 
 interface BuildingDirectoryCardProps {
-  building: BuildingItem;
+  building: Building;
   onClick: () => void;
 }
 
 export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCardProps) {
-  const code = building.id.toUpperCase();
+  const code = building.code;
   const status = 'OPEN'; // Mocked
-  const operatingHours = '08:00 - 18:00'; // Mocked
+  const operatingHours = building.opening_hours;
 
   return (
     <div 
@@ -20,7 +20,7 @@ export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCa
       <div className="flex items-center gap-4">
         {/* Left icon box */}
         <div className="w-12 h-12 flex-shrink-0 rounded-xl bg-blue-900 flex items-center justify-center text-white">
-          <Building className="w-6 h-6" />
+          <BuildingIcon className="w-6 h-6" />
         </div>
         
         {/* Middle content */}
@@ -38,10 +38,10 @@ export function BuildingDirectoryCard({ building, onClick }: BuildingDirectoryCa
               {status}
             </Badge>
           </div>
-          <span className="text-slate-500 text-xs font-semibold mb-1 line-clamp-1">{building.name}</span>
+          <span className="text-slate-500 text-xs font-semibold mb-1 line-clamp-1">{building.name.th}</span>
           <div className="flex items-center text-[11px] text-slate-400 font-medium">
             <Clock className="w-3.5 h-3.5 mr-1" />
-            <span>เปิดทำการ {operatingHours} น.</span>
+            <span>เปิดทำการ {operatingHours}</span>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Floor, RoomDetail, Facility } from '../../../shared/types/domain.types';
+import type { Floor, Room, Facility } from '../../../shared/types/domain.types';
 import { Card, CardContent } from '../../../shared/components/Card';
 import { Badge, type badgeVariants } from '../../../shared/components/Badge';
 import { Search, MapPin, ChevronRight, Beaker, GraduationCap, Briefcase, UserRound, ArrowUpDown } from 'lucide-react';
@@ -13,8 +13,8 @@ interface BuildingRoomListProps {
 type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 
 type BuildingListItem = 
-  | (RoomDetail & { isFacility: false })
-  | (Facility & { isFacility: true; number: string });
+  | (Room & { isFacility: false; room_number: string | null })
+  | (Facility & { isFacility: true; room_number: string | null });
 
 export function BuildingRoomList({ floor }: BuildingRoomListProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,8 +43,8 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
 
   const allItems: BuildingListItem[] = useMemo(() => {
     return [
-      ...floor.rooms.map(r => ({ ...r, isFacility: false as const })),
-      ...floor.facilities.map(f => ({ ...f, isFacility: true as const, number: 'FAC' }))
+      ...(floor.rooms || []).map(r => ({ ...r, isFacility: false as const, room_number: r.room_number })),
+      ...(floor.facilities || []).map(f => ({ ...f, isFacility: true as const, room_number: 'FAC' }))
     ];
   }, [floor]);
 
@@ -53,21 +53,18 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
     const lowerQuery = searchQuery.toLowerCase();
     return allItems.filter(
       item => 
-        item.name.toLowerCase().includes(lowerQuery) || 
-        item.number?.toLowerCase().includes(lowerQuery) ||
+        item.name.th.toLowerCase().includes(lowerQuery) || 
+        (item.room_number && item.room_number.toLowerCase().includes(lowerQuery)) ||
         item.type.toLowerCase().includes(lowerQuery)
     );
   }, [allItems, searchQuery]);
 
   const handleItemClick = (item: BuildingListItem) => {
     if (item.isFacility) {
-      if (item.svgId) {
-        console.log('Clicked facility to highlight svgId:', item.svgId);
-      }
       return;
     }
     if (buildingId) {
-      const roomIdentifier = item.number || item.id.replace('room-', '');
+      const roomIdentifier = item.room_number || item.id.replace('room-', '');
       navigate(`/rooms/${buildingId}-${roomIdentifier.toLowerCase()}`);
     }
   };
@@ -108,10 +105,10 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
                     {getIconForType(item.type)}
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800 text-base">{item.name}</h3>
+                    <h3 className="font-bold text-slate-800 text-base">{item.name.th}</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        {!item.isFacility ? `Room ${item.number || item.id.replace('room-', '')}` : 'Facility'}
+                        {!item.isFacility ? `Room ${item.room_number || item.id.replace('room-', '')}` : 'Facility'}
                       </span>
                       <span className="w-1 h-1 rounded-full bg-slate-200"></span>
                       <Badge variant={getBadgeVariant(item.type)} className="text-[10px] py-0 h-4 px-2 font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border-none">

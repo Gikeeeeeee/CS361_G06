@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBuildingDetails } from '../features/building-info/hooks/useBuildingDetails';
 import { BuildingHero } from '../features/building-info/components/BuildingHero';
@@ -18,6 +19,12 @@ export default function BuildingInfoPage() {
     error, 
     selectFloor 
   } = useBuildingDetails(buildingId);
+
+  useEffect(() => {
+    if (building) {
+      document.title = `${building.name.th} | KU Long`;
+    }
+  }, [building]);
 
   if (isLoading) {
     return (
@@ -53,11 +60,11 @@ export default function BuildingInfoPage() {
 
       <BuildingHero building={building} />
 
-      {building.floors.length > 0 && selectedFloor && (
+      {(building.floors?.length || 0) > 0 && selectedFloor && (
         <>
           <div className="sticky top-0 z-30">
             <FloorTabBar 
-              floors={building.floors} 
+              floors={building.floors || []} 
               selectedFloorId={selectedFloor.id} 
               onSelectFloor={selectFloor} 
             />

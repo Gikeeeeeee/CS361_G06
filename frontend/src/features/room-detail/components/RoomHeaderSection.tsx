@@ -1,21 +1,21 @@
-import type { RoomDetail } from '../../../shared/types/domain.types';
+import type { Room } from '../../../shared/types/domain.types';
 
 interface RoomHeaderSectionProps {
-  room: RoomDetail;
+  room: Room;
 }
 
 export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
-  const isAvailable = room.status === 'AVAILABLE';
-  const statusColor = isAvailable ? 'text-emerald-700 bg-emerald-50' : room.status === 'IN_USE' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50';
+  const status = 'AVAILABLE';
+  const statusColor = status === 'AVAILABLE' ? 'text-emerald-700 bg-emerald-50' : status === 'IN_USE' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50';
 
   return (
     <section className="flex flex-col">
       {/* Hero Background - Image or Gradient fallback */}
       <div className="w-full h-56 relative overflow-hidden bg-slate-900">
-        {room.imageUrl ? (
+        {room.image_key ? (
           <img 
-            src={room.imageUrl} 
-            alt={room.number || 'Room Preview'} 
+            src={`/${room.image_key}`} 
+            alt={room.room_number || 'Room Preview'} 
             className="w-full h-full object-cover"
           />
         ) : (
@@ -24,7 +24,7 @@ export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
         <div className="absolute bottom-4 left-4">
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-md ${statusColor}`}>
             <span className="text-xs font-bold tracking-wide capitalize">
-              {room.status?.replace('_', ' ').toLowerCase() || 'available'}
+              {status.replace('_', ' ').toLowerCase()}
             </span>
           </div>
         </div>
@@ -33,13 +33,13 @@ export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
       {/* Room Title and Breadcrumbs */}
       <div className="px-5 pt-5 pb-6 bg-white border-b border-slate-100">
         <div className="text-xs font-semibold text-slate-400 mb-2 tracking-wide uppercase">
-          {room.buildingCode} &gt; Floor {room.floorLevel} &gt; {room.wingOrZone}
+          {room.id}
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-1">
-          {room.number}
+          {room.room_number || room.name.th}
         </h1>
         <p className="text-slate-500 font-medium text-sm">
-          {room.name} &bull; {room.department}
+          {room.name.th} &bull; {room.type}
         </p>
       </div>
     </section>

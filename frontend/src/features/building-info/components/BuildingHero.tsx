@@ -1,13 +1,15 @@
 import type { Building } from '../../../shared/types/domain.types';
 import { Badge } from '../../../shared/components/Badge';
 import { Clock, Layers, Grid2X2 } from 'lucide-react';
-import { getTodayOpeningHours } from '../../../shared/utils/date';
+
 
 interface BuildingHeroProps {
   building: Building;
 }
 
 export function BuildingHero({ building }: BuildingHeroProps) {
+  const status = 'OPEN'; // Mocked status as it's no longer in domain spec
+  const totalRooms = building.floors?.reduce((acc, f) => acc + (f.rooms?.length || 0), 0) || 0;
   return (
     <div className="flex flex-col">
       {/* Hero Header Section */}
@@ -21,22 +23,22 @@ export function BuildingHero({ building }: BuildingHeroProps) {
             <Badge
               variant="default"
               className={
-                building.status === 'OPEN'
+                status === 'OPEN'
                   ? 'bg-emerald-400/90 text-emerald-950 border-none px-3 py-1 text-sm font-bold shadow-sm'
-                  : building.status === 'CLOSED'
+                  : status === 'CLOSED'
                   ? 'bg-rose-400/90 text-rose-950 border-none px-3 py-1 text-sm font-bold shadow-sm'
                   : 'bg-amber-400/90 text-amber-950 border-none px-3 py-1 text-sm font-bold shadow-sm'
               }
             >
-              {building.status}
+              {status}
             </Badge>
           </div>
           <h1 className="text-3xl font-extrabold text-white leading-tight tracking-tight mt-1">
-            {building.name}
+            {building.name.th}
           </h1>
           <div className="flex items-center text-primary-100 font-medium text-sm mt-1 bg-black/10 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
             <Clock className="w-4 h-4 mr-1.5 opacity-80" />
-            <span>{getTodayOpeningHours(building.opening_hours)}</span>
+            <span>{building.opening_hours}</span>
           </div>
         </div>
       </div>
@@ -44,7 +46,7 @@ export function BuildingHero({ building }: BuildingHeroProps) {
       {/* Details & Stats */}
       <div className="p-5 space-y-5 bg-slate-50/50">
         <p className="text-slate-600 text-sm leading-relaxed font-medium">
-          {building.description}
+          {building.description.th}
         </p>
 
         <div className="grid grid-cols-2 gap-4">
@@ -52,14 +54,14 @@ export function BuildingHero({ building }: BuildingHeroProps) {
             <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
               <Layers className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats?.totalFloors || building.floors?.length || 0}</span>
+            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.floors?.length || 0}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Floors</span>
           </div>
           <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-none">
             <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center mb-2">
               <Grid2X2 className="w-5 h-5 text-primary" />
             </div>
-            <span className="text-2xl font-bold text-slate-800 tracking-tight">{building.stats?.totalRooms || 0}</span>
+            <span className="text-2xl font-bold text-slate-800 tracking-tight">{totalRooms}</span>
             <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">Rooms</span>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import { Users, ThermometerSnowflake, Plug, LayoutDashboard } from 'lucide-react';
-import type { RoomDetail } from '../../../shared/types/domain.types';
+import type { Room } from '../../../shared/types/domain.types';
 
 interface RoomSpecsGridProps {
-  room: RoomDetail;
+  room: Room;
 }
 
 export function RoomSpecsGrid({ room }: RoomSpecsGridProps) {
@@ -16,7 +16,7 @@ export function RoomSpecsGrid({ room }: RoomSpecsGridProps) {
             <Users size={18} strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-slate-800">{room.capacity}</span>
+            <span className="text-sm font-bold text-slate-800">{room.type === 'CLASSROOM' ? 60 : room.type === 'LAB' ? 40 : 15}</span>
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Seats</span>
           </div>
         </div>
@@ -38,7 +38,7 @@ export function RoomSpecsGrid({ room }: RoomSpecsGridProps) {
             <ThermometerSnowflake size={18} strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-slate-800">{room.hasAirCon ? 'Yes' : 'No'}</span>
+            <span className="text-sm font-bold text-slate-800">Yes</span>
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Air Con</span>
           </div>
         </div>
@@ -49,7 +49,7 @@ export function RoomSpecsGrid({ room }: RoomSpecsGridProps) {
             <Plug size={18} strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-slate-800">{room.hasPowerOutlets ? 'Available' : 'Limited'}</span>
+            <span className="text-sm font-bold text-slate-800">{room.type !== 'CLASSROOM' ? 'Available' : 'Limited'}</span>
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Outlets</span>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRoomDetail } from '../features/room-detail/hooks/useRoomDetail';
 import { RoomDetailContainer } from '../features/room-detail/components/RoomDetailContainer';
@@ -8,7 +9,14 @@ import { FloorPlanContainer } from '../features/floor-viewer/components/FloorPla
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, loading, error } = useRoomDetail(roomId || '');
+  const { room, buildingId, floorId, loading, error } = useRoomDetail(roomId || '');
+
+  useEffect(() => {
+    if (room) {
+      const roomTitle = room.room_number ? `${room.room_number} (${room.name.th})` : room.name.th;
+      document.title = `${roomTitle} | KU Long`;
+    }
+  }, [room]);
 
   if (loading) {
     return (
@@ -28,12 +36,12 @@ export default function RoomDetailPage() {
   }
 
   return (
-    <RoomDetailContainer roomNumber={room.number || ''}>
+    <RoomDetailContainer roomNumber={room.room_number || ''}>
       <RoomHeaderSection room={room} />
       <RoomSpecsGrid room={room} />
       
-      {room.buildingId && room.floorId && (
-        <FloorPlanContainer buildingId={room.buildingId} floorId={room.floorId} />
+      {buildingId && floorId && (
+        <FloorPlanContainer buildingId={buildingId} floorId={floorId} />
       )}
 
       <div className="h-px w-full bg-slate-100 my-2" />

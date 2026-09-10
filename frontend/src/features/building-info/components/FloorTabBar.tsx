@@ -32,7 +32,7 @@ export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTab
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               )}
             >
-              {floor.name || `Floor ${floor.floor_number}`}
+              {`Floor ${floor.floor_number}`}
             </button>
           );
         })}

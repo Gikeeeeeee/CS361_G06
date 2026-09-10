@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { BuildingItem } from '../../../shared/types/api.contracts';
+import type { Building } from '../../../shared/types/domain.types';
 import '../styles/map.css';
 
 declare const L: any;
 
 interface CampusMapContainerProps {
-  buildings: BuildingItem[];
+  buildings: Building[];
 }
 
 export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
@@ -32,7 +32,7 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
     const markerGroup = L.featureGroup().addTo(map);
 
     buildings.forEach((building) => {
-      const displayName = building.name;
+      const displayName = building.name.th;
       const status = 'OPEN'; // Mocked since API doesn't provide status yet
 
       // 📌 Modern Bubble Pin (Matching requested design)
