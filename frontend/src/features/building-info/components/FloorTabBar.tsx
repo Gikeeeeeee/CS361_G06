@@ -17,8 +17,8 @@ export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTab
   const sortedFloors = [...floors].sort((a, b) => a.floor_number - b.floor_number);
 
   return (
-    <div className="pt-8 pb-4">
-      <div className="flex overflow-x-auto px-5 hide-scrollbar gap-3 snap-x">
+    <div className="py-3 border-b border-slate-100">
+      <div className="flex overflow-x-auto px-5 hide-scrollbar gap-2.5 snap-x">
         {sortedFloors.map((floor) => {
           const isActive = floor.id === selectedFloorId;
           return (

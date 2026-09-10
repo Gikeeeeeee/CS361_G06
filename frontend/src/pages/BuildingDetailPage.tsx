@@ -48,12 +48,12 @@ export default function BuildingInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 relative">
+    <div className="min-h-screen bg-white pb-20 relative">
       <BuildingHero building={building} />
 
       {(building.floors?.length || 0) > 0 && selectedFloor && (
         <>
-          <div className="sticky top-0 z-30">
+          <div className="sticky top-0 z-30 bg-white">
             <FloorTabBar 
               floors={building.floors || []} 
               selectedFloorId={selectedFloor.id} 

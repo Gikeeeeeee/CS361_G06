@@ -60,8 +60,8 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
       return;
     }
     if (buildingId) {
-      const roomIdentifier = item.room_number || item.id.replace('room-', '');
-      navigate(`/rooms/${buildingId}-${roomIdentifier.toLowerCase()}`);
+      const roomIdentifier = item.id;
+      navigate(`/rooms/${buildingId}_${roomIdentifier}`);
     }
   };
 
