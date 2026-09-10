@@ -42,9 +42,9 @@ aws sts get-caller-identity
    cd CS361_G06
    ```
 
-2. **Go to terraform directory & create `terraform.tfvars`:**
+2. **Go to terraform-backend directory & create `terraform.tfvars`:**
    ```bash
-   cd terraform
+   cd terraform/terraform-backend
    ```
    * *Linux / macOS / Git Bash:* `cp terraform.tfvars.example terraform.tfvars`
    * *Windows PowerShell:* `Copy-Item terraform.tfvars.example terraform.tfvars`
@@ -141,5 +141,6 @@ curl https://<api_endpoint>/buildings/LC4/floors/floor-uuid
 ## 4. Teardown / Cleanup
 To terminate all created AWS resources:
 ```bash
+cd terraform/terraform-backend
 terraform destroy -auto-approve
 ```

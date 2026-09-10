@@ -88,11 +88,18 @@ class BuildingNotFound(NotFoundError):
 class FloorNotFound(NotFoundError):
     code = "FLOOR_NOT_FOUND"
 
-    def __init__(self, building_id: str, floor_id: str):
+    def __init__(self, floor_id: str, building_id: str | None = None):
+        """
+        `building_id` is optional: `GET /api/v1/floors/{floorId}` has no
+        building in its path, so naming one in the message would be inventing
+        it. The nested room and facility routes still pass it.
+        """
         self.building_id = building_id
         self.floor_id = floor_id
         super().__init__(
             f"Floor '{floor_id}' in building '{building_id}' not found"
+            if building_id is not None
+            else f"Floor '{floor_id}' not found"
         )
 
 

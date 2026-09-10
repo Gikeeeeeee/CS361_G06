@@ -21,6 +21,18 @@ class FakeBuildingSource:
                 return self._buildings[candidate]
         return None
 
+    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
+        """
+        Walks the buildings in insertion order, mirroring the real adapter's
+        scan -- so a test can assert the search does not stop at the first
+        building that lacks the floor.
+        """
+        for building in self._buildings.values():
+            for floor in building.get("floors") or []:
+                if str(floor.get("id")) == str(floor_id):
+                    return floor
+        return None
+
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
         return f"https://mock-bucket.s3.amazonaws.com/{key}?expires={expires_in}"
 
@@ -51,15 +63,27 @@ def sample_building_raw() -> dict[str, Any]:
                 "rooms": [
                     {
                         "id": "room-uuid-1",
-                        "name": "101",
+                        "room_number": "101",
+                        "name": {"th": "ห้อง 101", "en": "Room 101"},
                         "type": "CLASSROOM",
+                        "latitude": 14.07269,
+                        "longitude": 100.60614,
+                        # Present in storage, absent from the floor contract --
+                        # the projection has to drop these three.
+                        "facilities": {"projector": True, "wifi": True},
+                        "image_key": "image/room/CLASSROOM.webp",
+                        "description": {"th": None, "en": "A lecture room"},
                     }
                 ],
                 "facilities": [
                     {
                         "id": "facility-uuid-1",
-                        "name": "Restroom",
+                        "name": {"th": "ห้องน้ำ", "en": "Restroom"},
                         "type": "TOILET",
+                        "latitude": 14.07257,
+                        "longitude": 100.60569,
+                        # Storage-only, as above.
+                        "description": {"th": None, "en": None},
                     }
                 ],
             }
@@ -68,5 +92,48 @@ def sample_building_raw() -> dict[str, Any]:
 
 
 @pytest.fixture
+def sample_building_lc4_raw() -> dict[str, Any]:
+    """A second building, so a floor lookup has somewhere to scan past LC3 to."""
+    return {
+        "id": "lc4",
+        "code": "LC4",
+        "name": {"th": "อาคาร LC4", "en": "LC4 Building"},
+        "image_key": "image/building/LC4.webp",
+        "latitude": 14.0726,
+        "longitude": 100.6077,
+        "floors": [
+            {
+                "id": "lc4-floor-uuid-2",
+                "floor_number": 2,
+                "floor_plan_key": "floor-plan/LC4/LC4-floor2-neutral.svg",
+                "rooms": [
+                    {
+                        "id": "lc4-room-uuid-1",
+                        "room_number": "201",
+                        "name": {"th": None, "en": "Lab 201"},
+                        "type": "LAB",
+                        "latitude": 14.07261,
+                        "longitude": 100.60772,
+                        "image_key": "image/room/LAB.webp",
+                    }
+                ],
+                "facilities": [],
+            }
+        ],
+    }
+
+
+@pytest.fixture
 def fake_source(sample_building_raw: dict[str, Any]) -> FakeBuildingSource:
     return FakeBuildingSource({"lc3": sample_building_raw})
+
+
+@pytest.fixture
+def campus_source(
+    sample_building_raw: dict[str, Any],
+    sample_building_lc4_raw: dict[str, Any],
+) -> FakeBuildingSource:
+    """Two buildings, LC3 first -- an LC4 floor is only reachable by scanning."""
+    return FakeBuildingSource(
+        {"lc3": sample_building_raw, "lc4": sample_building_lc4_raw}
+    )

@@ -51,14 +51,19 @@ DEPS = Dependencies()
 # Route table
 #
 # Keys are API Gateway route keys -- byte-for-byte the `route_key` values
-# declared in terraform/main.tf.
+# declared in terraform/terraform-backend/modules/api_gateway/main.tf.
 # ---------------------------------------------------------------------------
 
 Route = namedtuple("Route", "required_params action")
 
 BUILDINGS = "/api/v1/buildings"
 BUILDING = f"{BUILDINGS}/{{buildingId}}"
-FLOOR = f"{BUILDING}/floors/{{floorId}}"
+
+# A floor is addressed by its uuid alone -- the building is no longer in the
+# path. Rooms and facilities are still nested under a building; when they are
+# flattened too, NESTED_FLOOR disappears with them.
+FLOOR = "/api/v1/floors/{floorId}"
+NESTED_FLOOR = f"{BUILDING}/floors/{{floorId}}"
 
 ROUTES = {
     f"GET {BUILDINGS}": Route(
@@ -70,16 +75,16 @@ ROUTES = {
         lambda deps, p: deps.buildings.get_summary(p["buildingId"]),
     ),
     f"GET {FLOOR}": Route(
-        ("buildingId", "floorId"),
-        lambda deps, p: deps.floors.get_details(p["buildingId"], p["floorId"]),
+        ("floorId",),
+        lambda deps, p: deps.floors.get_details(p["floorId"]),
     ),
-    f"GET {FLOOR}/rooms/{{roomId}}": Route(
+    f"GET {NESTED_FLOOR}/rooms/{{roomId}}": Route(
         ("buildingId", "floorId", "roomId"),
         lambda deps, p: deps.rooms.get_room(
             p["buildingId"], p["floorId"], p["roomId"]
         ),
     ),
-    f"GET {FLOOR}/facilities/{{facilityId}}": Route(
+    f"GET {NESTED_FLOOR}/facilities/{{facilityId}}": Route(
         ("buildingId", "floorId", "facilityId"),
         lambda deps, p: deps.facilities.get_facility(
             p["buildingId"], p["floorId"], p["facilityId"]
@@ -164,7 +169,7 @@ def lambda_handler(event, context):
 
       - GET /api/v1/buildings
       - GET /api/v1/buildings/{buildingId}
-      - GET /api/v1/buildings/{buildingId}/floors/{floorId}
+      - GET /api/v1/floors/{floorId}
       - GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
       - GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}
     """

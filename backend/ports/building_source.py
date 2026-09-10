@@ -23,6 +23,18 @@ class BuildingSource(Protocol):
         """Return one building's raw record, or None if it does not exist."""
         ...
 
+    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
+        """
+        Return one floor's raw record by its uuid, or None if no such floor
+        exists -- without being told which building it belongs to.
+
+        The core needs "the floor with this id" as a single capability, because
+        `GET /api/v1/floors/{floorId}` has no building in its path. How the
+        adapter satisfies it (a scan today, an indexed query once storage moves
+        to DynamoDB) is storage layout, and stays on the adapter's side.
+        """
+        ...
+
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
         """Return a time-limited URL for a stored asset (e.g. a floor plan)."""
         ...
