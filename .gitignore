@@ -19,3 +19,6 @@ venv/
 frontend/node_modules/
 # terraform generated files
 *.zip
+
+CLAUDE*
+Claude*
