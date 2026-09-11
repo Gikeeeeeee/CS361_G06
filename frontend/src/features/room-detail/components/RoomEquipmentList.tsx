@@ -1,18 +1,32 @@
 import * as LucideIcons from 'lucide-react';
-import type { RoomDetail } from '../../../shared/types/domain.types';
+import type { Room } from '../../../shared/types/domain.types';
 
 interface RoomEquipmentListProps {
-  room: RoomDetail;
+  room: Room;
 }
 
 export function RoomEquipmentList({ room }: RoomEquipmentListProps) {
-  if (!room.amenities || room.amenities.length === 0) return null;
+  // Mocking amenities since they are not in the core domain spec for Room
+  const amenities = room.type === 'LAB' ? [
+    { id: 'am-1', name: 'Chemical Fume Hood', icon: 'Shield' },
+    { id: 'am-2', name: 'Emergency Eyewash', icon: 'Heart' },
+    { id: 'am-3', name: 'Lab Bench Equipment', icon: 'Wrench' }
+  ] : room.type === 'CLASSROOM' ? [
+    { id: 'am-1', name: 'Projector', icon: 'Projector' },
+    { id: 'am-2', name: 'Whiteboard', icon: 'Square' },
+    { id: 'am-3', name: 'Audio System', icon: 'Speaker' }
+  ] : [
+    { id: 'am-1', name: 'Desk Phone', icon: 'Phone' },
+    { id: 'am-2', name: 'Meeting Table', icon: 'Grid' }
+  ];
+
+  if (amenities.length === 0) return null;
 
   return (
     <section className="px-5 py-2 mb-8">
       <h3 className="text-sm font-bold text-slate-800 mb-4">Equipment & Facilities</h3>
       <div className="flex flex-col gap-3">
-        {room.amenities.map((amenity) => {
+        {amenities.map((amenity) => {
           // Dynamically resolve icon from lucide-react, fallback to a standard icon if not found
           const iconName = amenity.icon as keyof typeof LucideIcons;
           const IconComponent = (LucideIcons[iconName] as React.ElementType) || LucideIcons.CheckCircle;

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Building, Floor } from '../../../shared/types/domain.types';
-import { buildingService } from '../../../services/buildingService';
-import { floorService } from '../../../services/floorService';
+import { campusService } from '../../../services';
 
 interface UseBuildingDetailsReturn {
   building: Building | null;
@@ -31,7 +30,7 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
       setError(null);
 
       try {
-        const data = await buildingService.getBuildingById(buildingId);
+        const data = await campusService.getBuildingById(buildingId);
         if (isMounted) {
           if (data) {
             setBuilding(data as any); // Type assertion until domain types match perfectly
@@ -41,9 +40,9 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
               
               // Fetch detailed floor info for the default floor
               try {
-                const floorDetails = await floorService.getFloorDetails(buildingId, defaultFloor.id);
+                const floorDetails = await campusService.getFloorById(defaultFloor.id);
                 if (isMounted) {
-                  setSelectedFloor(floorDetails as any);
+                  setSelectedFloor((floorDetails || defaultFloor) as any);
                 }
               } catch (floorErr) {
                 console.error("Failed to load default floor details:", floorErr);
@@ -82,8 +81,10 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
   const selectFloor = async (floorId: string) => {
     if (!buildingId) return;
     try {
-      const floorDetails = await floorService.getFloorDetails(buildingId, floorId);
-      setSelectedFloor(floorDetails as any);
+      const floorDetails = await campusService.getFloorById(floorId);
+      if (floorDetails) {
+        setSelectedFloor(floorDetails as any);
+      }
     } catch (err) {
       console.error("Failed to load selected floor details:", err);
     }
