@@ -116,28 +116,29 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
               onClick={() => handleItemClick(item)}
             >
               <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-primary-50 group-hover:text-primary transition-colors">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 group-hover:bg-primary-50 group-hover:text-primary transition-colors flex-shrink-0">
                     {getIconForType(item.type)}
                   </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-bold text-slate-800 text-[13px] leading-tight">{item.name.th}</h3>
-                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">{item.name.en}</p>
+                  {/* เพิ่ม min-w-0 เพื่อบังคับให้ flex ยอมหดตัวและทำงานร่วมกับ truncate ได้สมบูรณ์ */}
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-800 text-[13px] leading-tight truncate">{item.name.th}</h3>
+                    <p className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">{item.name.en}</p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex-shrink-0">
                         {item.isFacility
                           ? 'FACILITY'
                           : `ROOM ${(item as Room & { isFacility: false }).room_number || ''}`
                         }
                       </span>
-                      <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${getBadgeStyle(item.type)}`}>
+                      <span className="w-1 h-1 rounded-full bg-slate-300 flex-shrink-0"></span>
+                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded flex-shrink-0 ${getBadgeStyle(item.type)}`}>
                         {item.type}
                       </span>
                     </div>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors" />
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors flex-shrink-0 ml-2" />
               </CardContent>
             </Card>
           ))
