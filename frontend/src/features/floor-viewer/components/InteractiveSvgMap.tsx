@@ -4,35 +4,64 @@ import { useRoomHighlight } from "../hooks/useRoomHighlight";
 interface InteractiveSvgMapProps {
   svgContent: string;
   onRoomClick?: (roomId: string) => void;
+  roomNumber?: string;
 }
 
-export function InteractiveSvgMap({ svgContent }: InteractiveSvgMapProps) {
+export function InteractiveSvgMap({ svgContent, roomNumber }: InteractiveSvgMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { highlightedRoomId } = useRoomHighlight();
 
-  // Effect to change font color of the highlighted room to white
+  const targetRoom = roomNumber || highlightedRoomId;
+
+  // รันการไฮไลต์ทุกครั้งที่ svgContent โหลดเสร็จ หรือเมื่อ roomNumber เปลี่ยนแปลง
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !svgContent) return;
 
-    const allText = container.querySelectorAll("text");
-    
-    // Reset all text to default
-    allText.forEach(t => {
-      t.style.fill = ""; 
-    });
+    // หน่วงเวลาเล็กน้อย (10 มิลลิวินาที) เพื่อรอให้ DOM ของ SVG โหลดลงหน้าจอสมบูรณ์แบบ
+    const timer = setTimeout(() => {
+      // 1. ล้างสีเก่าทั้งหมดก่อน
+      const elements = container.querySelectorAll("svg g[id], svg path[id], svg rect[id], svg polygon[id]");
+      elements.forEach((el) => {
+        (el as HTMLElement).style.removeProperty("fill");
+        (el as HTMLElement).style.removeProperty("stroke");
+      });
 
-    if (highlightedRoomId) {
-      const searchStr = highlightedRoomId.toLowerCase();
-      allText.forEach(t => {
-        if (t.textContent?.toLowerCase().includes(searchStr)) {
+      const allText = container.querySelectorAll("text");
+      allText.forEach((t) => {
+        t.style.fill = "";
+      });
+
+      if (!targetRoom) return;
+
+      const cleanTarget = targetRoom.toLowerCase().trim();
+
+      // 2. ไฮไลต์ตัวหนังสือเฉพาะห้องที่ตรงกันเป๊ะๆ
+      allText.forEach((t) => {
+        const textVal = t.textContent?.toLowerCase().trim() || "";
+        if (textVal === cleanTarget) {
           t.style.fill = "#ffffff";
         }
       });
-    }
-  }, [highlightedRoomId, svgContent]);
 
-  // Inject styles to highlight the active room and style default rooms
+      // 3. ไฮไลต์ Shape แบบแม่นยำ (ไม่ให้ 101 ไปโดน 101/1)
+      elements.forEach((el) => {
+        const rawId = el.getAttribute("id") || "";
+        const cleanId = rawId.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        const targetClean = cleanTarget.replace(/[^a-z0-9]/g, '');
+
+        const regex = new RegExp(`^(room|rm)?(${targetClean})$`, 'i');
+
+        if (regex.test(cleanId) || rawId.toLowerCase().trim() === cleanTarget) {
+          (el as HTMLElement).style.setProperty("fill", "#2563EB", "important");
+          (el as HTMLElement).style.setProperty("stroke", "#1D4ED8", "important");
+        }
+      });
+    }, 10);
+
+    return () => clearTimeout(timer);
+  }, [targetRoom, svgContent]);
+
   const dynamicStyles = `
     .svg-map-container {
       display: flex;
@@ -56,38 +85,21 @@ export function InteractiveSvgMap({ svgContent }: InteractiveSvgMapProps) {
       cursor: default;
     }
     
-    /* Default style for interactable shapes */
     .svg-map-container svg g[id] > *,
     .svg-map-container svg path[id],
     .svg-map-container svg rect[id],
     .svg-map-container svg polygon[id] {
-      fill: #F1F5F9; /* slate-100 */
-      stroke: #CBD5E1; /* slate-300 */
+      fill: #F1F5F9; 
+      stroke: #CBD5E1; 
       stroke-width: 1px;
       vector-effect: non-scaling-stroke;
     }
 
-    /* Hover style */
     .svg-map-container svg g[id]:hover > *,
     .svg-map-container svg path[id]:hover,
     .svg-map-container svg rect[id]:hover,
     .svg-map-container svg polygon[id]:hover {
-      fill: #DBEAFE; /* blue-100 */
-    }
-
-    /* Active Highlight style */
-    ${
-      highlightedRoomId
-        ? `
-      .svg-map-container svg g[id*="${highlightedRoomId}"] > *,
-      .svg-map-container svg path[id*="${highlightedRoomId}"],
-      .svg-map-container svg rect[id*="${highlightedRoomId}"],
-      .svg-map-container svg polygon[id*="${highlightedRoomId}"] {
-        fill: #2563EB !important; /* blue-600 */
-        stroke: #1D4ED8 !important; /* blue-700 */
-      }
-    `
-        : ""
+      fill: #DBEAFE; 
     }
   `;
 
