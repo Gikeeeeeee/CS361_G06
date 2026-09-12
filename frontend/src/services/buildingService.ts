@@ -1,21 +1,14 @@
-// frontend/src/services/buildingService.ts
 import { apiClient } from './api/apiClient';
 import { endpoints } from './api/endpoints';
-import type { BuildingListResponse, Building } from '../shared/types/domain.types';
+import type { BuildingItem, BuildingDetailResponse } from '../shared/types/api.contracts';
 
 export const buildingService = {
-  // เส้นที่ 1: ดึงรายชื่อตึกทั้งหมด
-  async getBuildings(): Promise<BuildingListResponse> {
-    return apiClient.get<BuildingListResponse>(endpoints.buildings.list());
+  async getBuildings(): Promise<BuildingItem[]> {
+    const response = await apiClient.get<{buildings: BuildingItem[]}>(endpoints.buildings.list());
+    return response.buildings;
   },
 
-  // เส้นที่ 2: ดึงรายละเอียดตึกรายตัวตาม ID
-  async getBuildingById(buildingId: string): Promise<Building | null> {
-    try {
-      return await apiClient.get<Building>(endpoints.buildings.detail(buildingId));
-    } catch (error) {
-      console.error(`Failed to fetch building ${buildingId}:`, error);
-      return null;
-    }
-  },
+  async getBuildingById(buildingId: string): Promise<BuildingDetailResponse> {
+    return apiClient.get<BuildingDetailResponse>(endpoints.buildings.detail(buildingId));
+  }
 };

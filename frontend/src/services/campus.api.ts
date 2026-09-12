@@ -1,35 +1,36 @@
-// frontend/src/services/campus.api.ts
 import type { ICampusService } from './campus.interface';
 import type { Building, BuildingListResponse, Floor, Room, Facility } from '../shared/types/domain.types';
-import { buildingService } from './buildingService';
-import { floorService } from './floorService';
 
 export class CampusApiService implements ICampusService {
-  
+  private async fetchApi<T>(endpoint: string): Promise<T> {
+    const response = await fetch(`/api/v1${endpoint}`);
+    if (!response.ok) {
+      throw new Error(`API fetch error for ${endpoint}: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
   async getBuildings(): Promise<BuildingListResponse> {
-    return buildingService.getBuildings();
+    return this.fetchApi<BuildingListResponse>('/buildings');
   }
 
   async getBuildingById(buildingId: string): Promise<Building | null> {
-    return buildingService.getBuildingById(buildingId);
+    return this.fetchApi<Building | null>(`/buildings/${buildingId}`);
   }
 
   async getFloorsByBuildingId(buildingId: string): Promise<Floor[]> {
-    const building = await buildingService.getBuildingById(buildingId);
-    return building?.floors || [];
+    return this.fetchApi<Floor[]>(`/buildings/${buildingId}/floors`);
   }
 
   async getFloorById(floorId: string): Promise<Floor | null> {
-    return floorService.getFloorById(floorId);
+    return this.fetchApi<Floor | null>(`/floors/${floorId}`);
   }
 
   async getRoomsByFloorId(floorId: string): Promise<Room[]> {
-    const floor = await floorService.getFloorById(floorId);
-    return (floor?.rooms as Room[]) || [];
+    return this.fetchApi<Room[]>(`/floors/${floorId}/rooms`);
   }
 
   async getFacilitiesByFloorId(floorId: string): Promise<Facility[]> {
-    const floor = await floorService.getFloorById(floorId);
-    return (floor?.facilities as Facility[]) || [];
+    return this.fetchApi<Facility[]>(`/floors/${floorId}/facilities`);
   }
 }
