@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Bookmark, Building as BuildingIcon } from 'lucide-react';
 import type { Room } from '../../../shared/types/domain.types';
 
@@ -8,8 +8,31 @@ interface RoomHeroProps {
 
 export function RoomHero({ room }: RoomHeroProps) {
   const navigate = useNavigate();
-  const displayNumber = room.room_number || room.name.en || room.id;
+  const { roomId } = useParams<{ roomId: string }>();
+  
+  // 1. ดึงรหัสตึกจาก URL หรือ ID (เช่น LC3, LC4)
+  const targetId = roomId || room.id || '';
+  let prefix = 'LC3';
+  if (targetId.includes('_')) {
+    prefix = targetId.split('_')[0].toUpperCase();
+  }
 
+  // 2. ฟังก์ชันจัดรูปแบบชื่อ/เลขห้องให้เป็นมาตรฐานเดียวกันทุกห้อง
+  const formatRoomNumber = (r: Room) => {
+    // ดึงค่าตั้งต้นจาก room_number หรือชื่อภาษาอังกฤษ
+    let raw = r.room_number || r.name?.en || r.id;
+
+    // ถ้าข้อความยาวเกินไปหรือมีคำว่า Laboratory นำหน้า สามารถจัดการตัดคำหรือจัดรูปได้ที่นี่
+    // เช่น ถ้าอยากให้คำว่า "Laboratory 102" กลายเป็น "102" หรือ "Lab 102"
+    if (raw.toLowerCase().includes('laboratory')) {
+      raw = raw.replace(/laboratory/gi, 'Lab').trim();
+    }
+
+    return raw;
+  };
+
+  const roomNum = formatRoomNumber(room);
+  const displayNumber = `${prefix} - ${roomNum}`;
   return (
     <div className="flex flex-col">
       {/* Blue Hero Header */}
