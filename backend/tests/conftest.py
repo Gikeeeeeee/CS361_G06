@@ -1,9 +1,29 @@
-"""
-Shared pytest fixtures for CS361 backend tests.
-"""
-
+import os
 from typing import Any
 import pytest
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--api-url",
+        action="store",
+        default="",
+        help="Base URL of the deployed API Gateway for live API tests (e.g. --api-url https://...)",
+    )
+
+
+@pytest.fixture(scope="session")
+def api_base_url(request) -> str:
+    """
+    Returns the target API base URL from either:
+    1. CLI argument `--api-url <url>`
+    2. Environment variable `API_BASE_URL`
+    If neither is provided, automatically skips the test.
+    """
+    url = request.config.getoption("--api-url") or os.getenv("API_BASE_URL", "")
+    if not url:
+        pytest.skip("Neither --api-url CLI argument nor API_BASE_URL env var was provided")
+    return url.rstrip("/")
 
 
 class FakeBuildingSource:
@@ -137,3 +157,49 @@ def campus_source(
     return FakeBuildingSource(
         {"lc3": sample_building_raw, "lc4": sample_building_lc4_raw}
     )
+
+
+def make_apigw_event(
+    method: str = "GET",
+    path: str = "/api/v1/buildings",
+    route_key: str | None = None,
+    path_parameters: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Helper to generate an API Gateway HTTP API v2 event payload."""
+    event: dict[str, Any] = {
+        "version": "2.0",
+        "routeKey": route_key or f"{method} {path}",
+        "rawPath": path,
+        "requestContext": {
+            "http": {
+                "method": method,
+                "path": path,
+            }
+        },
+        "headers": headers or {},
+    }
+    if path_parameters is not None:
+        event["pathParameters"] = path_parameters
+    return event
+
+
+@pytest.fixture
+def invoke_handler(campus_source: FakeBuildingSource):
+    """
+    Fixture to invoke lambda_handler with Dependencies wired to a fake source.
+    Safely restores original handler.DEPS after execution.
+    """
+    import handler
+    from handler import Dependencies, lambda_handler
+
+    def _invoke(event: dict[str, Any], source: FakeBuildingSource | None = None):
+        target_source = source if source is not None else campus_source
+        original_deps = handler.DEPS
+        handler.DEPS = Dependencies(target_source)
+        try:
+            return lambda_handler(event, None)
+        finally:
+            handler.DEPS = original_deps
+
+    return _invoke

@@ -59,6 +59,15 @@ resource "aws_iam_policy" "s3_read" {
         ]
 
         Resource = "${var.bucket_arn}/*"
+      },
+      {
+        Effect = "Allow"
+
+        Action = [
+          "s3:ListBucket"
+        ]
+
+        Resource = var.bucket_arn
       }
     ]
   })
