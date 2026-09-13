@@ -1,12 +1,9 @@
 name: CI
 
 on:
-  pull_request:
-    branches:
-      - v1-known-issue
   push:
     branches:
-      - v1-known-issue
+      - ci/cd-github-actions
 
 jobs:
   test:
@@ -46,9 +43,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
         run: terraform init -backend=false
 
       - name: Terraform Validate
