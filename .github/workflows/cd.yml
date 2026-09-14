@@ -1,83 +1,85 @@
 # --------------------------------------------------
 # Continuous Deployment (CD)
 # --------------------------------------------------
-# This workflow deploys the Terraform infrastructure
-# to AWS when changes are pushed to the deployment branch.
 
 name: CD
 
-# --------------------------------------------------
-# Workflow Trigger
-# --------------------------------------------------
-# Run the CD workflow when changes are pushed to
-# the CI/CD deployment branch.
 on:
   push:
     branches:
       - main
       - v1-known-issue
       - ci/cd-github-actions
+
+# Prevent multiple Terraform deployments on the same branch
+# from running at the same time.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+
   # --------------------------------------------------
   # Terraform Deployment
   # --------------------------------------------------
-  # This job validates the Terraform configuration
-  # and deploys the infrastructure to AWS.
+
   deploy:
     name: Terraform Deploy
     runs-on: ubuntu-latest
 
-    # Use the Terraform project directory as the
-    # working directory for all Terraform commands.
+    # Prevent Terraform from running forever
+    timeout-minutes: 30
+
     defaults:
       run:
         working-directory: terraform/terraform-backend
 
     steps:
+
       # --------------------------------------------------
       # Checkout Source Code
       # --------------------------------------------------
-      # Checkout the latest source code from the
-      # ci/cd-github-actions branch.
+
       - name: Checkout
         uses: actions/checkout@v4
 
       # --------------------------------------------------
       # Setup Terraform
       # --------------------------------------------------
-      # Install the Terraform CLI required to initialize,
-      # plan, and apply the infrastructure configuration.
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       # --------------------------------------------------
       # Configure AWS Credentials
       # --------------------------------------------------
-      # Authenticate with AWS using credentials stored
-      # securely in GitHub Actions Secrets.
-      #
-      # AWS credentials are not stored directly in
-      # the workflow file.
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       # --------------------------------------------------
       # Terraform Init
       # --------------------------------------------------
-      # Initialize Terraform and download the required
-      # providers and dependencies.
+
       - name: Terraform Init
         run: terraform init
 
       # --------------------------------------------------
+      # Terraform Validate
+      # --------------------------------------------------
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # --------------------------------------------------
       # Terraform Plan
       # --------------------------------------------------
-      # Generate and display the infrastructure changes
-      # that Terraform plans to make.
+
       - name: Terraform Plan
         run: |
           terraform plan \
@@ -89,14 +91,11 @@ jobs:
       # --------------------------------------------------
       # Terraform Apply
       # --------------------------------------------------
-      # Apply the Terraform configuration and deploy
-      # the infrastructure changes to AWS.
-      #
-      # -auto-approve allows Terraform to run without
-      # waiting for interactive confirmation.
+
       - name: Terraform Apply
         run: |
-          terraform apply -auto-approve \
+          terraform apply \
+            -auto-approve \
             -var="aws_region=${{ vars.AWS_REGION }}" \
             -var="bucket_name=${{ vars.BUCKET_NAME }}" \
             -var="project_name=${{ vars.PROJECT_NAME }}" \
