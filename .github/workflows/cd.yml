@@ -62,7 +62,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ vars.AWS_REGION }}
 
       # --------------------------------------------------
       # Terraform Init
@@ -78,7 +78,12 @@ jobs:
       # Generate and display the infrastructure changes
       # that Terraform plans to make.
       - name: Terraform Plan
-        run: terraform plan
+        run: |
+          terraform plan \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}"
 
       # --------------------------------------------------
       # Terraform Apply
@@ -89,4 +94,9 @@ jobs:
       # -auto-approve allows Terraform to run without
       # waiting for interactive confirmation.
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: |
+          terraform apply -auto-approve \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}"
