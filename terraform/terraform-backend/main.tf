@@ -39,6 +39,8 @@ module "lambda" {
   bucket_name    = module.storage.bucket_name
   bucket_arn     = module.storage.bucket_arn
   buildings_file = "building-index.json"
+
+  dynamodb_table_arn = module.dynamodb.table_arn
 }
 
 module "api_gateway" {
