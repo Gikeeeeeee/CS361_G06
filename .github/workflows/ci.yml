@@ -54,9 +54,8 @@ jobs:
 
     # Run Terraform commands from the backend directory
     defaults:
-      run:
-        working-directory: terraform/backend
-
+      run: 
+        working-directory: terraform/terraform-backend
     steps:
       # Checkout the source code from the Pull Request
       - name: Checkout
