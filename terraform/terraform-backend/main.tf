@@ -51,3 +51,10 @@ module "api_gateway" {
   lambda_function_arn  = module.lambda.function_arn
   lambda_invoke_arn    = module.lambda.invoke_arn
 }
+
+module "dynamodb" {
+  source = "./modules/dynamodb"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
