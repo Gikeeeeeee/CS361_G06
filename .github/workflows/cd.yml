@@ -1,34 +1,62 @@
-# THIS IS TESTING FOR CD
-# GitHub Actions workflow for CD
-# Deploys Terraform infrastructure to AWS after changes are merged
+# --------------------------------------------------
+# Continuous Deployment (CD)
+# --------------------------------------------------
+# This workflow deploys the Terraform infrastructure
+# to AWS when changes are pushed to the deployment branch.
+
 name: CD
 
-# Run CD when changes are pushed to the deployment branch
+# --------------------------------------------------
+# Workflow Trigger
+# --------------------------------------------------
+# Run the CD workflow when changes are pushed to
+# the CI/CD deployment branch.
 on:
   push:
     branches:
       - ci/cd-github-actions
 
 jobs:
+  # --------------------------------------------------
+  # Terraform Deployment
+  # --------------------------------------------------
+  # This job validates the Terraform configuration
+  # and deploys the infrastructure to AWS.
   deploy:
     name: Terraform Deploy
     runs-on: ubuntu-latest
 
-    # Terraform root directory
+    # Use the Terraform project directory as the
+    # working directory for all Terraform commands.
     defaults:
       run:
         working-directory: terraform/terraform-backend
 
     steps:
-      # Checkout repository
+      # --------------------------------------------------
+      # Checkout Source Code
+      # --------------------------------------------------
+      # Checkout the latest source code from the
+      # ci/cd-github-actions branch.
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Terraform CLI
+      # --------------------------------------------------
+      # Setup Terraform
+      # --------------------------------------------------
+      # Install the Terraform CLI required to initialize,
+      # plan, and apply the infrastructure configuration.
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Configure AWS credentials
+      # --------------------------------------------------
+      # Configure AWS Credentials
+      # --------------------------------------------------
+      # Authenticate with AWS using credentials stored
+      # securely in GitHub Actions Secrets.
+      #
+      # AWS credentials are not stored directly in
+      # the workflow file.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -36,14 +64,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Initialize Terraform
+      # --------------------------------------------------
+      # Terraform Init
+      # --------------------------------------------------
+      # Initialize Terraform and download the required
+      # providers and dependencies.
       - name: Terraform Init
         run: terraform init
 
-      # Show Terraform changes before deployment
+      # --------------------------------------------------
+      # Terraform Plan
+      # --------------------------------------------------
+      # Generate and display the infrastructure changes
+      # that Terraform plans to make.
       - name: Terraform Plan
         run: terraform plan
 
-      # Deploy infrastructure
+      # --------------------------------------------------
+      # Terraform Apply
+      # --------------------------------------------------
+      # Apply the Terraform configuration and deploy
+      # the infrastructure changes to AWS.
+      #
+      # -auto-approve allows Terraform to run without
+      # waiting for interactive confirmation.
       - name: Terraform Apply
         run: terraform apply -auto-approve
