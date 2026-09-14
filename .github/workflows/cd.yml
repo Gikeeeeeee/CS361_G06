@@ -16,6 +16,7 @@ on:
     branches:
       - main
       - v1-known-issue
+      - ci/cd-github-actions
 jobs:
   # --------------------------------------------------
   # Terraform Deployment
