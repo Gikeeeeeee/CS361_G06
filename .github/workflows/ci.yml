@@ -1,51 +1,75 @@
+# GitHub Actions workflow for CI
+# Runs automated tests and Terraform validation on Pull Requests
 name: CI
 
+# Trigger this workflow when a Pull Request targets the CI branch
 on:
   pull_request:
     branches:
       - ci/cd-github-actions
 
 jobs:
+  # --------------------------------------------------
+  # Python Tests
+  # --------------------------------------------------
+  # Runs Unit, Handler, and Integration tests.
+  # API Contract tests are excluded because they require
+  # a live AWS API and AWS credentials.
   test:
     name: Python Tests
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the source code from the Pull Request
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install Python 3.13
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
+      # Install project dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
+      # Run all tests except API Contract tests
+      # API tests are excluded because they require AWS/API Gateway.
       - name: Run tests
         run: |
           cd backend
           pytest -v -m "not api"
 
+  # --------------------------------------------------
+  # Terraform Validation
+  # --------------------------------------------------
+  # Validates the Terraform configuration without
+  # connecting to or modifying AWS infrastructure.
   terraform:
     name: Terraform Validate
     runs-on: ubuntu-latest
 
+    # Run Terraform commands from the backend directory
     defaults:
-      run:
+      run: 
         working-directory: terraform/terraform-backend
-
     steps:
+      # Checkout the source code from the Pull Request
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Install Terraform CLI
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # Initialize Terraform without configuring
+      # or connecting to a remote backend.
       - name: Terraform Init
         run: terraform init -backend=false
 
+      # Check whether the Terraform configuration is valid
       - name: Terraform Validate
         run: terraform validate
