@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - ci/cd-github-actions
+      - v1-known-issue
+      - main
 
 jobs:
   # --------------------------------------------------

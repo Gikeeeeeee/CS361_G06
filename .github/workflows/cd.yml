@@ -14,8 +14,8 @@ name: CD
 on:
   push:
     branches:
-      - ci/cd-github-actions
-
+      - main
+      - v1-known-issue
 jobs:
   # --------------------------------------------------
   # Terraform Deployment
