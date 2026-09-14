@@ -1,5 +1,19 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+
+      configuration_aliases = [
+        aws.dynamodb
+      ]
+    }
+  }
+}
+
 resource "aws_dynamodb_table" "faculty_navigator" {
-  name         = "${var.project_name}-data"
+  provider = aws.dynamodb
+
+  name         = "${var.project_name}-data-dynamodb"
   billing_mode = "PAY_PER_REQUEST"
 
   hash_key  = "PK"
@@ -21,11 +35,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI0 - Entity Type Index
-  #
-  # ENTITY#BUILDING
-  # ENTITY#FLOOR
-  # ENTITY#ROOM
-  # ENTITY#FACILITY
   # ==========================================================
 
   attribute {
@@ -40,9 +49,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI1 - Floors by Building
-  #
-  # PK: BUILDING#{building_id}
-  # SK: FLOOR#{floor_number}#{floor_id}
   # ==========================================================
 
   attribute {
@@ -57,9 +63,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI2 - Rooms by Floor
-  #
-  # PK: FLOOR#{floor_id}
-  # SK: ROOM#{room_number}#{room_id}
   # ==========================================================
 
   attribute {
@@ -74,9 +77,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI3 - Facilities by Floor
-  #
-  # PK: FLOOR#{floor_id}
-  # SK: FACILITY#{type}#{facility_id}
   # ==========================================================
 
   attribute {
@@ -91,9 +91,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI4 - Schedules by Room
-  #
-  # PK: ROOM#{room_id}
-  # SK: START#{start_at}#SCHEDULE#{schedule_id}
   # ==========================================================
 
   attribute {
@@ -108,9 +105,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI5 - Schedules by Course
-  #
-  # PK: COURSE#{course_code}
-  # SK: START#{start_at}#SCHEDULE#{schedule_id}
   # ==========================================================
 
   attribute {
@@ -125,9 +119,6 @@ resource "aws_dynamodb_table" "faculty_navigator" {
 
   # ==========================================================
   # GSI6 - Schedules by Type
-  #
-  # PK: TYPE#{type}
-  # SK: START#{start_at}#SCHEDULE#{schedule_id}
   # ==========================================================
 
   attribute {

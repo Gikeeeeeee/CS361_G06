@@ -16,10 +16,19 @@ terraform {
   }
 }
 
+# Default AWS Provider
 provider "aws" {
   region = var.aws_region
 }
 
+# DynamoDB Provider
+# Explicitly use us-east-1
+provider "aws" {
+  alias  = "dynamodb"
+  region = "us-east-1"
+}
+
+# Storage
 module "storage" {
   source = "./modules/storage"
 
@@ -28,6 +37,19 @@ module "storage" {
   environment  = var.environment
 }
 
+# DynamoDB
+module "dynamodb" {
+  source = "./modules/dynamodb"
+
+  providers = {
+    aws.dynamodb = aws.dynamodb
+  }
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
+# Lambda
 module "lambda" {
   source = "./modules/lambda"
 
@@ -43,6 +65,7 @@ module "lambda" {
   dynamodb_table_arn = module.dynamodb.table_arn
 }
 
+# API Gateway
 module "api_gateway" {
   source = "./modules/api_gateway"
 
@@ -52,11 +75,4 @@ module "api_gateway" {
   lambda_function_name = module.lambda.function_name
   lambda_function_arn  = module.lambda.function_arn
   lambda_invoke_arn    = module.lambda.invoke_arn
-}
-
-module "dynamodb" {
-  source = "./modules/dynamodb"
-
-  project_name = var.project_name
-  environment  = var.environment
 }
