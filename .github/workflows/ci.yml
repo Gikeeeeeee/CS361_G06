@@ -35,7 +35,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: terraform/backend
+        working-directory: terraform/terraform-backend
 
     steps:
       - name: Checkout
