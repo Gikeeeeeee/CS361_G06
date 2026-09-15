@@ -7,24 +7,24 @@
           "SK": { "S": "BUILDING#LC4" },
           "GSI0PK": { "S": "BUILDING" },
           "GSI0SK": { "S": "LC4" },
-          "id": { "S": "110e8400-e29b-41d4-a716-446655440010" },
+          "id": { "S": "lc4" },
           "code": { "S": "LC4" },
           "name": {
             "M": {
-              "th": { "S": "อาคารศูนย์การเรียนรู้ 4" },
-              "en": { "S": "Learning Center 4" }
+              "th": { "S": "อาคาร LC4" },
+              "en": { "S": "LC4 Building" }
             }
           },
           "description": {
             "M": {
-              "th": { "S": "อาคารเรียนรวมและศูนย์กิจกรรมนักศึกษา" },
-              "en": { "S": "General learning and student activity center building" }
+              "th": { "S": "อาคารเรียนรวม LC4" },
+              "en": { "S": "LC4 lecture building" }
             }
           },
-          "image_key": { "S": "buildings/lc4/image.jpg" },
-          "opening_hours": { "S": "08:00-22:00" },
-          "latitude": { "N": "14.0701" },
-          "longitude": { "N": "100.6078" }
+          "image_key": { "S": "image/building/LC4.webp" },
+          "opening_hours": { "S": "08:00-18:00" },
+          "latitude": { "N": "14.072606976041664" },
+          "longitude": { "N": "100.60772614298118" }
         }
       }
     },
@@ -35,82 +35,88 @@
           "SK": { "S": "FLOOR#1" },
           "GSI0PK": { "S": "FLOOR" },
           "GSI0SK": { "S": "LC4#1" },
-          "GSI1PK": { "S": "BUILDING#110e8400-e29b-41d4-a716-446655440010" },
-          "GSI1SK": { "S": "FLOOR#1#220e8400-e29b-41d4-a716-446655440020" },
-          "id": { "S": "220e8400-e29b-41d4-a716-446655440020" },
+          "GSI1PK": { "S": "BUILDING#lc4" },
+          "GSI1SK": { "S": "FLOOR#1#a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
+          "id": { "S": "a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
           "floor_number": { "N": "1" },
-          "floor_plan_key": { "S": "buildings/lc4/floors/1/floor-plan.svg" }
+          "floor_plan_key": { "S": "floor-plan/LC4/LC4-floor1-neutral.svg" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
-          "SK": { "S": "ROOM#LC4-102" },
+          "PK": { "S": "FLOOR#a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
+          "SK": { "S": "ROOM#LAB102" },
           "GSI0PK": { "S": "ROOM" },
-          "GSI0SK": { "S": "LC4-102" },
-          "GSI2PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
-          "GSI2SK": { "S": "ROOM#102#330e8400-e29b-41d4-a716-446655440030" },
-          "id": { "S": "330e8400-e29b-41d4-a716-446655440030" },
-          "room_number": { "S": "102" },
+          "GSI0SK": { "S": "LAB102" },
+          "GSI2PK": { "S": "FLOOR#a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
+          "GSI2SK": { "S": "ROOM#LAB102#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "id": { "S": "2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "room_number": { "NULL": true },
           "name": {
             "M": {
-              "th": { "S": "ห้องบรรยาย 102" },
-              "en": { "S": "Lecture Room 102" }
+              "th": { "S": "LAB102" },
+              "en": { "S": "Laboratory 102" }
             }
           },
-          "type": { "S": "CLASSROOM" },
+          "type": { "S": "LAB" },
           "facilities": {
             "M": {
-              "projector": { "BOOL": true },
               "air_conditioner": { "BOOL": true },
+              "fan": { "BOOL": true },
+              "projector": { "BOOL": true },
               "whiteboard": { "BOOL": true },
-              "wifi": { "BOOL": true }
+              "computer": { "BOOL": true },
+              "microphone": { "BOOL": false },
+              "speaker": { "BOOL": true },
+              "power_outlet": { "BOOL": true },
+              "wifi": { "BOOL": true },
+              "smart_board": { "BOOL": false }
             }
           },
-          "image_key": { "S": "buildings/lc4/floors/1/rooms/102/image.jpg" },
-          "latitude": { "N": "14.0702" },
-          "longitude": { "N": "100.6079" }
+          "image_key": { "S": "image/room/LAB.webp" },
+          "latitude": { "N": "14.072882788956523" },
+          "longitude": { "N": "100.6077629190076" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
-          "SK": { "S": "FACILITY#WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
+          "PK": { "S": "FLOOR#a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
+          "SK": { "S": "FACILITY#STAIR#0c38035b-73c4-58b7-8b73-b45a4131086b" },
           "GSI0PK": { "S": "FACILITY" },
-          "GSI0SK": { "S": "WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
-          "GSI3PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
-          "GSI3SK": { "S": "FACILITY#WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
-          "id": { "S": "440e8400-e29b-41d4-a716-446655440040" },
+          "GSI0SK": { "S": "STAIR#0c38035b-73c4-58b7-8b73-b45a4131086b" },
+          "GSI3PK": { "S": "FLOOR#a6ab42cb-0abd-57ee-acd2-993d64b20a82" },
+          "GSI3SK": { "S": "FACILITY#STAIR#0c38035b-73c4-58b7-8b73-b45a4131086b" },
+          "id": { "S": "0c38035b-73c4-58b7-8b73-b45a4131086b" },
           "name": {
             "M": {
-              "th": { "S": "ตู้กดน้ำดื่มชั้น 1" },
-              "en": { "S": "Floor 1 Water Dispenser" }
+              "th": { "S": "บันได 1" },
+              "en": { "S": "Stair 1" }
             }
           },
           "description": {
             "M": {
-              "th": { "S": "ตู้กดน้ำดื่มบริการฟรีบริเวณโถงลิฟต์" },
-              "en": { "S": "Free water dispenser near elevator hall" }
+              "th": { "NULL": true },
+              "en": { "NULL": true }
             }
           },
-          "type": { "S": "WATER_DISPENSER" },
-          "latitude": { "N": "14.0703" },
-          "longitude": { "N": "100.6080" }
+          "type": { "S": "STAIR" },
+          "latitude": { "N": "14.072411879255112" },
+          "longitude": { "N": "100.6077843766784" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": { "S": "ROOM#330e8400-e29b-41d4-a716-446655440030" },
+          "PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
           "SK": { "S": "SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
           "GSI0PK": { "S": "SCHEDULE" },
           "GSI0SK": { "S": "550e8400-e29b-41d4-a716-446655440050" },
-          "GSI4PK": { "S": "ROOM#330e8400-e29b-41d4-a716-446655440030" },
+          "GSI4PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
           "GSI4SK": { "S": "2026-09-16T13:00:00+07:00#SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
           "GSI5PK": { "S": "COURSE#CS361" },
           "GSI5SK": { "S": "2026-09-16T13:00:00+07:00#SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
@@ -126,7 +132,7 @@
           "end_at": { "S": "2026-09-16T16:00:00+07:00" },
           "time_zone": { "S": "Asia/Bangkok" },
           "recurrence_rule": { "S": "FREQ=WEEKLY;BYDAY=WE" },
-          "room_id": { "S": "330e8400-e29b-41d4-a716-446655440030" },
+          "room_id": { "S": "2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
           "status": { "S": "CONFIRM" },
           "source_id": { "S": "CSV-CS361-02" },
           "source_type": { "S": "CSV" },
