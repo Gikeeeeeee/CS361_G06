@@ -7,6 +7,11 @@ terraform {
         aws.dynamodb
       ]
     }
+
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 
@@ -16,12 +21,12 @@ resource "aws_dynamodb_table" "faculty_navigator" {
   name         = "${var.project_name}-data-dynamodb"
   billing_mode = "PAY_PER_REQUEST"
 
-  hash_key  = "PK"
-  range_key = "SK"
-
   # ==========================================================
   # Base Table
   # ==========================================================
+
+  hash_key  = "PK"
+  range_key = "SK"
 
   attribute {
     name = "PK"
@@ -132,56 +137,136 @@ resource "aws_dynamodb_table" "faculty_navigator" {
   }
 
   # ==========================================================
-  # Global Secondary Indexes
+  # GSI0 - Entity Type Index
   # ==========================================================
 
   global_secondary_index {
     name            = "GSI0"
-    hash_key        = "GSI0PK"
-    range_key       = "GSI0SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI0PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI0SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI1 - Floors by Building
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI1"
-    hash_key        = "GSI1PK"
-    range_key       = "GSI1SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI1PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI1SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI2 - Rooms by Floor
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI2"
-    hash_key        = "GSI2PK"
-    range_key       = "GSI2SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI2PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI2SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI3 - Facilities by Floor
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI3"
-    hash_key        = "GSI3PK"
-    range_key       = "GSI3SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI3PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI3SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI4 - Schedules by Room
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI4"
-    hash_key        = "GSI4PK"
-    range_key       = "GSI4SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI4PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI4SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI5 - Schedules by Course
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI5"
-    hash_key        = "GSI5PK"
-    range_key       = "GSI5SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI5PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI5SK"
+      key_type       = "RANGE"
+    }
   }
+
+  # ==========================================================
+  # GSI6 - Schedules by Type
+  # ==========================================================
 
   global_secondary_index {
     name            = "GSI6"
-    hash_key        = "GSI6PK"
-    range_key       = "GSI6SK"
     projection_type = "ALL"
+
+    key_schema {
+      attribute_name = "GSI6PK"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "GSI6SK"
+      key_type       = "RANGE"
+    }
   }
 
   # ==========================================================
@@ -204,5 +289,23 @@ resource "aws_dynamodb_table" "faculty_navigator" {
     Project     = var.project_name
     Environment = var.environment
     ManagedBy   = "Terraform"
+  }
+}
+
+# ==========================================================
+# Seed Mock Data
+# ==========================================================
+
+resource "null_resource" "seed_mock_data" {
+  depends_on = [
+    aws_dynamodb_table.faculty_navigator
+  ]
+
+  triggers = {
+    file_sha256 = filesha256("${path.module}/mock-data.json")
+  }
+
+  provisioner "local-exec" {
+    command = "aws dynamodb batch-write-item --request-items file://${path.module}/mock-data.json --region us-east-1"
   }
 }

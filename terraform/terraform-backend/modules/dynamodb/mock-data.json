@@ -3,68 +3,135 @@
     {
       "PutRequest": {
         "Item": {
-          "PK": {"S": "BUILDING#LC3"},
-          "SK": {"S": "BUILDING#LC3"},
-          "GSI0PK": {"S": "BUILDING"},
-          "GSI0SK": {"S": "LC3"},
-          "building_id": {"S": "LC3"},
-          "name": {"S": "Learning Center 3"},
-          "type": {"S": "building"}
+          "PK": { "S": "BUILDING#LC4" },
+          "SK": { "S": "BUILDING#LC4" },
+          "GSI0PK": { "S": "BUILDING" },
+          "GSI0SK": { "S": "LC4" },
+          "id": { "S": "110e8400-e29b-41d4-a716-446655440010" },
+          "code": { "S": "LC4" },
+          "name": {
+            "M": {
+              "th": { "S": "อาคารศูนย์การเรียนรู้ 4" },
+              "en": { "S": "Learning Center 4" }
+            }
+          },
+          "description": {
+            "M": {
+              "th": { "S": "อาคารเรียนรวมและศูนย์กิจกรรมนักศึกษา" },
+              "en": { "S": "General learning and student activity center building" }
+            }
+          },
+          "image_key": { "S": "buildings/lc4/image.jpg" },
+          "opening_hours": { "S": "08:00-22:00" },
+          "latitude": { "N": "14.0701" },
+          "longitude": { "N": "100.6078" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": {"S": "BUILDING#LC3"},
-          "SK": {"S": "FLOOR#1"},
-          "GSI0PK": {"S": "FLOOR"},
-          "GSI0SK": {"S": "LC3#1"},
-          "GSI1PK": {"S": "BUILDING#LC3"},
-          "GSI1SK": {"S": "FLOOR#1"},
-          "building_id": {"S": "LC3"},
-          "floor_number": {"N": "1"},
-          "type": {"S": "floor"}
+          "PK": { "S": "BUILDING#LC4" },
+          "SK": { "S": "FLOOR#1" },
+          "GSI0PK": { "S": "FLOOR" },
+          "GSI0SK": { "S": "LC4#1" },
+          "GSI1PK": { "S": "BUILDING#110e8400-e29b-41d4-a716-446655440010" },
+          "GSI1SK": { "S": "FLOOR#1#220e8400-e29b-41d4-a716-446655440020" },
+          "id": { "S": "220e8400-e29b-41d4-a716-446655440020" },
+          "floor_number": { "N": "1" },
+          "floor_plan_key": { "S": "buildings/lc4/floors/1/floor-plan.svg" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": {"S": "BUILDING#LC3"},
-          "SK": {"S": "ROOM#LC3-101"},
-          "GSI0PK": {"S": "ROOM"},
-          "GSI0SK": {"S": "LC3-101"},
-          "GSI2PK": {"S": "FLOOR#LC3#1"},
-          "GSI2SK": {"S": "ROOM#LC3-101"},
-          "building_id": {"S": "LC3"},
-          "floor_number": {"N": "1"},
-          "room_id": {"S": "LC3-101"},
-          "name": {"S": "Classroom 101"},
-          "type": {"S": "classroom"}
+          "PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
+          "SK": { "S": "ROOM#LC4-102" },
+          "GSI0PK": { "S": "ROOM" },
+          "GSI0SK": { "S": "LC4-102" },
+          "GSI2PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
+          "GSI2SK": { "S": "ROOM#102#330e8400-e29b-41d4-a716-446655440030" },
+          "id": { "S": "330e8400-e29b-41d4-a716-446655440030" },
+          "room_number": { "S": "102" },
+          "name": {
+            "M": {
+              "th": { "S": "ห้องบรรยาย 102" },
+              "en": { "S": "Lecture Room 102" }
+            }
+          },
+          "type": { "S": "CLASSROOM" },
+          "facilities": {
+            "M": {
+              "projector": { "BOOL": true },
+              "air_conditioner": { "BOOL": true },
+              "whiteboard": { "BOOL": true },
+              "wifi": { "BOOL": true }
+            }
+          },
+          "image_key": { "S": "buildings/lc4/floors/1/rooms/102/image.jpg" },
+          "latitude": { "N": "14.0702" },
+          "longitude": { "N": "100.6079" }
         }
       }
     },
     {
       "PutRequest": {
         "Item": {
-          "PK": {"S": "ROOM#LC3-101"},
-          "SK": {"S": "SCHEDULE#CS101#MON#0900"},
-          "GSI0PK": {"S": "SCHEDULE"},
-          "GSI0SK": {"S": "CS101#MON#0900"},
-          "GSI4PK": {"S": "ROOM#LC3-101"},
-          "GSI4SK": {"S": "MON#0900#CS101"},
-          "GSI5PK": {"S": "COURSE#CS101"},
-          "GSI5SK": {"S": "MON#0900#LC3-101"},
-          "GSI6PK": {"S": "SCHEDULE#MON"},
-          "GSI6SK": {"S": "0900#LC3-101"},
-          "room_id": {"S": "LC3-101"},
-          "course_id": {"S": "CS101"},
-          "course_name": {"S": "Introduction to Computer Science"},
-          "day": {"S": "MON"},
-          "start_time": {"S": "09:00"},
-          "end_time": {"S": "12:00"},
-          "type": {"S": "class"}
+          "PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
+          "SK": { "S": "FACILITY#WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
+          "GSI0PK": { "S": "FACILITY" },
+          "GSI0SK": { "S": "WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
+          "GSI3PK": { "S": "FLOOR#220e8400-e29b-41d4-a716-446655440020" },
+          "GSI3SK": { "S": "FACILITY#WATER_DISPENSER#440e8400-e29b-41d4-a716-446655440040" },
+          "id": { "S": "440e8400-e29b-41d4-a716-446655440040" },
+          "name": {
+            "M": {
+              "th": { "S": "ตู้กดน้ำดื่มชั้น 1" },
+              "en": { "S": "Floor 1 Water Dispenser" }
+            }
+          },
+          "description": {
+            "M": {
+              "th": { "S": "ตู้กดน้ำดื่มบริการฟรีบริเวณโถงลิฟต์" },
+              "en": { "S": "Free water dispenser near elevator hall" }
+            }
+          },
+          "type": { "S": "WATER_DISPENSER" },
+          "latitude": { "N": "14.0703" },
+          "longitude": { "N": "100.6080" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": { "S": "ROOM#330e8400-e29b-41d4-a716-446655440030" },
+          "SK": { "S": "SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
+          "GSI0PK": { "S": "SCHEDULE" },
+          "GSI0SK": { "S": "550e8400-e29b-41d4-a716-446655440050" },
+          "GSI4PK": { "S": "ROOM#330e8400-e29b-41d4-a716-446655440030" },
+          "GSI4SK": { "S": "2026-09-16T13:00:00+07:00#SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
+          "GSI5PK": { "S": "COURSE#CS361" },
+          "GSI5SK": { "S": "2026-09-16T13:00:00+07:00#SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
+          "GSI6PK": { "S": "TYPE#COURSE" },
+          "GSI6SK": { "S": "2026-09-16T13:00:00+07:00#SCHEDULE#550e8400-e29b-41d4-a716-446655440050" },
+          "id": { "S": "550e8400-e29b-41d4-a716-446655440050" },
+          "type": { "S": "COURSE" },
+          "title": { "S": "Software Engineering" },
+          "description": { "S": "Lecture and project coordination for CS361" },
+          "course_code": { "S": "CS361" },
+          "organizer": { "S": "Aj. Example" },
+          "start_at": { "S": "2026-09-16T13:00:00+07:00" },
+          "end_at": { "S": "2026-09-16T16:00:00+07:00" },
+          "time_zone": { "S": "Asia/Bangkok" },
+          "recurrence_rule": { "S": "FREQ=WEEKLY;BYDAY=WE" },
+          "room_id": { "S": "330e8400-e29b-41d4-a716-446655440030" },
+          "status": { "S": "CONFIRM" },
+          "source_id": { "S": "CSV-CS361-02" },
+          "source_type": { "S": "CSV" },
+          "created_at": { "S": "2026-09-01T10:00:00+07:00" },
+          "updated_at": { "S": "2026-09-10T12:00:00+07:00" }
         }
       }
     }
