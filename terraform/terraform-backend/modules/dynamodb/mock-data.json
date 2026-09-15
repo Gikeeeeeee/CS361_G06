@@ -140,6 +140,67 @@
           "updated_at": { "S": "2026-09-10T12:00:00+07:00" }
         }
       }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "SK": { "S": "SCHEDULE#111e8400-e29b-41d4-a716-446655440051" },
+          "GSI0PK": { "S": "SCHEDULE" },
+          "GSI0SK": { "S": "111e8400-e29b-41d4-a716-446655440051" },
+          "GSI4PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "GSI4SK": { "S": "2026-10-20T09:00:00+07:00#SCHEDULE#111e8400-e29b-41d4-a716-446655440051" },
+          "GSI5PK": { "S": "COURSE#CS361" },
+          "GSI5SK": { "S": "2026-10-20T09:00:00+07:00#SCHEDULE#111e8400-e29b-41d4-a716-446655440051" },
+          "GSI6PK": { "S": "TYPE#EXAM" },
+          "GSI6SK": { "S": "2026-10-20T09:00:00+07:00#SCHEDULE#111e8400-e29b-41d4-a716-446655440051" },
+          "id": { "S": "111e8400-e29b-41d4-a716-446655440051" },
+          "type": { "S": "EXAM" },
+          "title": { "S": "Software Engineering Midterm Exam" },
+          "description": { "S": "Midterm examination for CS361" },
+          "course_code": { "S": "CS361" },
+          "organizer": { "S": "Aj. Example" },
+          "start_at": { "S": "2026-10-20T09:00:00+07:00" },
+          "end_at": { "S": "2026-10-20T12:00:00+07:00" },
+          "time_zone": { "S": "Asia/Bangkok" },
+          "room_id": { "S": "2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "status": { "S": "CONFIRM" },
+          "source_id": { "S": "MANUAL-EXAM-01" },
+          "source_type": { "S": "MANUAL" },
+          "created_at": { "S": "2026-09-01T10:00:00+07:00" },
+          "updated_at": { "S": "2026-09-10T12:00:00+07:00" }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "SK": { "S": "SCHEDULE#222e8400-e29b-41d4-a716-446655440052" },
+          "GSI0PK": { "S": "SCHEDULE" },
+          "GSI0SK": { "S": "222e8400-e29b-41d4-a716-446655440052" },
+          "GSI4PK": { "S": "ROOM#2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "GSI4SK": { "S": "2026-09-18T17:00:00+07:00#SCHEDULE#222e8400-e29b-41d4-a716-446655440052" },
+          "GSI5PK": { "S": "ACTIVITY#WORKSHOP" },
+          "GSI5SK": { "S": "2026-09-18T17:00:00+07:00#SCHEDULE#222e8400-e29b-41d4-a716-446655440052" },
+          "GSI6PK": { "S": "TYPE#ACTIVITY" },
+          "GSI6SK": { "S": "2026-09-18T17:00:00+07:00#SCHEDULE#222e8400-e29b-41d4-a716-446655440052" },
+          "id": { "S": "222e8400-e29b-41d4-a716-446655440052" },
+          "type": { "S": "ACTIVITY" },
+          "title": { "S": "Cybersecurity & CTF Practice Workshop" },
+          "description": { "S": "Hands-on security training session" },
+          "organizer": { "S": "CSTU Cyber Club" },
+          "start_at": { "S": "2026-09-18T17:00:00+07:00" },
+          "end_at": { "S": "2026-09-18T20:00:00+07:00" },
+          "time_zone": { "S": "Asia/Bangkok" },
+          "room_id": { "S": "2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a" },
+          "status": { "S": "CONFIRM" },
+          "source_id": { "S": "CLUB-ACT-01" },
+          "source_type": { "S": "MANUAL" },
+          "created_at": { "S": "2026-09-01T10:00:00+07:00" },
+          "updated_at": { "S": "2026-09-10T12:00:00+07:00" }
+        }
+      }
     }
   ]
 }
