@@ -1,0 +1,72 @@
+{
+  "CS361-G06-rickoroxd-data-dynamodb": [
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {"S": "BUILDING#LC3"},
+          "SK": {"S": "BUILDING#LC3"},
+          "GSI0PK": {"S": "BUILDING"},
+          "GSI0SK": {"S": "LC3"},
+          "building_id": {"S": "LC3"},
+          "name": {"S": "Learning Center 3"},
+          "type": {"S": "building"}
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {"S": "BUILDING#LC3"},
+          "SK": {"S": "FLOOR#1"},
+          "GSI0PK": {"S": "FLOOR"},
+          "GSI0SK": {"S": "LC3#1"},
+          "GSI1PK": {"S": "BUILDING#LC3"},
+          "GSI1SK": {"S": "FLOOR#1"},
+          "building_id": {"S": "LC3"},
+          "floor_number": {"N": "1"},
+          "type": {"S": "floor"}
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {"S": "BUILDING#LC3"},
+          "SK": {"S": "ROOM#LC3-101"},
+          "GSI0PK": {"S": "ROOM"},
+          "GSI0SK": {"S": "LC3-101"},
+          "GSI2PK": {"S": "FLOOR#LC3#1"},
+          "GSI2SK": {"S": "ROOM#LC3-101"},
+          "building_id": {"S": "LC3"},
+          "floor_number": {"N": "1"},
+          "room_id": {"S": "LC3-101"},
+          "name": {"S": "Classroom 101"},
+          "type": {"S": "classroom"}
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "PK": {"S": "ROOM#LC3-101"},
+          "SK": {"S": "SCHEDULE#CS101#MON#0900"},
+          "GSI0PK": {"S": "SCHEDULE"},
+          "GSI0SK": {"S": "CS101#MON#0900"},
+          "GSI4PK": {"S": "ROOM#LC3-101"},
+          "GSI4SK": {"S": "MON#0900#CS101"},
+          "GSI5PK": {"S": "COURSE#CS101"},
+          "GSI5SK": {"S": "MON#0900#LC3-101"},
+          "GSI6PK": {"S": "SCHEDULE#MON"},
+          "GSI6SK": {"S": "0900#LC3-101"},
+          "room_id": {"S": "LC3-101"},
+          "course_id": {"S": "CS101"},
+          "course_name": {"S": "Introduction to Computer Science"},
+          "day": {"S": "MON"},
+          "start_time": {"S": "09:00"},
+          "end_time": {"S": "12:00"},
+          "type": {"S": "class"}
+        }
+      }
+    }
+  ]
+}
