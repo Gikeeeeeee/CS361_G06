@@ -17,8 +17,8 @@ export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTab
   const sortedFloors = [...floors].sort((a, b) => a.floor_number - b.floor_number);
 
   return (
-    <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-slate-100 pt-2 pb-2">
-      <div className="flex overflow-x-auto px-4 hide-scrollbar gap-2 snap-x">
+    <div className="py-3 border-b border-slate-100">
+      <div className="flex overflow-x-auto px-5 hide-scrollbar gap-2.5 snap-x">
         {sortedFloors.map((floor) => {
           const isActive = floor.id === selectedFloorId;
           return (
@@ -26,13 +26,13 @@ export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTab
               key={floor.id}
               onClick={() => onSelectFloor(floor.id)}
               className={cn(
-                'snap-start flex-shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 border shadow-sm',
+                'snap-start flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 border',
                 isActive
-                  ? 'bg-primary border-primary text-white shadow-primary-200'
+                  ? 'bg-primary border-primary text-white'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               )}
             >
-              {floor.name || `Floor ${floor.floor_number}`}
+              {`Floor ${floor.floor_number}`}
             </button>
           );
         })}

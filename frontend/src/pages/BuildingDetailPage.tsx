@@ -1,10 +1,10 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBuildingDetails } from '../features/building-info/hooks/useBuildingDetails';
 import { BuildingHero } from '../features/building-info/components/BuildingHero';
 import { FloorTabBar } from '../features/building-info/components/FloorTabBar';
 import { BuildingRoomList } from '../features/building-info/components/BuildingRoomList';
-import { BackButton } from '../shared/components/BackButton';
-import { Bookmark, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '../shared/components/Button';
 
 export default function BuildingInfoPage() {
@@ -18,6 +18,12 @@ export default function BuildingInfoPage() {
     error, 
     selectFloor 
   } = useBuildingDetails(buildingId);
+
+  useEffect(() => {
+    if (building) {
+      document.title = `${building.name.th} | KU Long`;
+    }
+  }, [building]);
 
   if (isLoading) {
     return (
@@ -42,22 +48,14 @@ export default function BuildingInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20 relative">
-      {/* Top Navigation Bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 flex justify-between items-center bg-gradient-to-b from-black/50 to-transparent">
-        <BackButton />
-        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-md">
-          <Bookmark className="w-5 h-5" />
-        </Button>
-      </div>
-
+    <div className="min-h-screen bg-white pb-20 relative">
       <BuildingHero building={building} />
 
-      {building.floors.length > 0 && selectedFloor && (
+      {(building.floors?.length || 0) > 0 && selectedFloor && (
         <>
-          <div className="sticky top-0 z-30">
+          <div className="sticky top-0 z-30 bg-white">
             <FloorTabBar 
-              floors={building.floors} 
+              floors={building.floors || []} 
               selectedFloorId={selectedFloor.id} 
               onSelectFloor={selectFloor} 
             />

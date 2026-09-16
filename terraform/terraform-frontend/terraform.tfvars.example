@@ -1,0 +1,9 @@
+# CS361_G06/terraform/frontend/terraform.tfvars
+
+aws_region  = "us-east-1"
+bucket_name = "cs361-g06-frontend-yourname-dev"
+
+project_name = "CS361-G06"
+environment  = "dev"
+
+frontend_build_dir = "../../frontend/dist"

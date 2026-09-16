@@ -2,13 +2,23 @@
   "buildings": [
     {
       "id": "lc3",
-      "name": "LC3",
+      "code": "LC3",
+      "name": {
+        "th": "อาคาร LC3",
+        "en": "LC3 Building"
+      },
+      "image_key": "image/building/LC3.webp",
       "latitude": 14.072603828706107,
       "longitude": 100.60628435011894
     },
     {
       "id": "lc4",
-      "name": "LC4",
+      "code": "LC4",
+      "name": {
+        "th": "อาคาร LC4",
+        "en": "LC4 Building"
+      },
+      "image_key": "image/building/LC4.webp",
       "latitude": 14.072606976041664,
       "longitude": 100.60772614298118
     }

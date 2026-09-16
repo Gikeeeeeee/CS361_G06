@@ -1,0 +1,102 @@
+# --------------------------------------------------
+# Continuous Deployment (CD)
+# --------------------------------------------------
+
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+      - v1-known-issue
+      - ci/cd-github-actions
+
+# Prevent multiple Terraform deployments on the same branch
+# from running at the same time.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+
+  # --------------------------------------------------
+  # Terraform Deployment
+  # --------------------------------------------------
+
+  deploy:
+    name: Terraform Deploy
+    runs-on: ubuntu-latest
+
+    # Prevent Terraform from running forever
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: terraform/terraform-backend
+
+    steps:
+
+      # --------------------------------------------------
+      # Checkout Source Code
+      # --------------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------
+      # Setup Terraform
+      # --------------------------------------------------
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # --------------------------------------------------
+      # Configure AWS Credentials
+      # --------------------------------------------------
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # --------------------------------------------------
+      # Terraform Init
+      # --------------------------------------------------
+
+      - name: Terraform Init
+        run: terraform init
+
+      # --------------------------------------------------
+      # Terraform Validate
+      # --------------------------------------------------
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # --------------------------------------------------
+      # Terraform Plan
+      # --------------------------------------------------
+
+      - name: Terraform Plan
+        run: |
+          terraform plan \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}"
+
+      # --------------------------------------------------
+      # Terraform Apply
+      # --------------------------------------------------
+
+      - name: Terraform Apply
+        run: |
+          terraform apply \
+            -auto-approve \
+            -var="aws_region=${{ vars.AWS_REGION }}" \
+            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
+            -var="project_name=${{ vars.PROJECT_NAME }}" \
+            -var="environment=${{ vars.ENVIRONMENT }}"

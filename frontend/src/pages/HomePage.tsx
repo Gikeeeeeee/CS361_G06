@@ -12,8 +12,6 @@ export default function HomePage() {
   const {
     searchQuery,
     setSearchQuery,
-    selectedCategory,
-    setSelectedCategory,
     filteredBuildings,
   } = useMapFilter();
 
@@ -41,8 +39,6 @@ export default function HomePage() {
       <MapSearchOverlay
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
       />
 
       {/* Full screen Map Viewport */}

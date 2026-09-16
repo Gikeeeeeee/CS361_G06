@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { buildingService } from '../../../services/buildingService';
-import type { BuildingItem } from '../../../shared/types/api.contracts';
+import { campusService } from '../../../services';
+import type { BuildingSummary } from '../../../shared/types/domain.types';
 import type { CategoryFilter } from '../types/mapDirectory.types';
 
 export function useMapFilter() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('All');
-  const [buildings, setBuildings] = useState<BuildingItem[]>([]);
+  const [buildings, setBuildings] = useState<BuildingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    buildingService.getBuildings().then(data => {
+    campusService.getBuildings().then(data => {
       if (isMounted) {
-        setBuildings(data);
+        setBuildings(data.buildings || []);
         setIsLoading(false);
       }
     }).catch(err => {
@@ -27,7 +27,8 @@ export function useMapFilter() {
     return buildings.filter((building) => {
       // 1. Search Query Match
       const matchesSearch = 
-        building.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        building.name.th.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        building.name.en.toLowerCase().includes(searchQuery.toLowerCase()) ||
         building.id.toLowerCase().includes(searchQuery.toLowerCase());
       
       if (!matchesSearch) return false;

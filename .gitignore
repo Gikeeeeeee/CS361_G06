@@ -11,6 +11,7 @@ crash.*.log
 **/__pycache__/
 *.pyc
 venv/
+/backend/.venv
 .env
 # Terraform variable example is safe to commit
 !terraform.tfvars.example
@@ -18,3 +19,8 @@ venv/
 frontend/node_modules/
 # terraform generated files
 *.zip
+
+CLAUDE*
+Claude*
+
+tfplan

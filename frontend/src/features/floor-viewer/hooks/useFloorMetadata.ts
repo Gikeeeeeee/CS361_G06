@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { FloorMetadata } from "../types/floorViewer.types";
-import { floorService } from "../../../services/floorService";
+import { campusService } from "../../../services";
 
 export function useFloorMetadata(buildingId: string, floorId: string) {
   const [metadata, setMetadata] = useState<FloorMetadata | null>(null);
@@ -14,10 +14,10 @@ export function useFloorMetadata(buildingId: string, floorId: string) {
     setLoading(true);
     setError(null);
 
-    floorService.getFloorDetails(buildingId, floorId)
+    campusService.getFloorById(floorId)
       .then((data: any) => {
         if (isMounted) {
-          setMetadata(data.data || data);
+          setMetadata(data);
         }
       })
       .catch((err) => {

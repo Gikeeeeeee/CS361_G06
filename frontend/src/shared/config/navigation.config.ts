@@ -20,6 +20,6 @@ export const BOTTOM_NAV_ITEMS: BottomNavItem[] = [
 ];
 
 export const HEADER_CONFIG: HeaderConfig = {
-  title: 'Ku long chuay duay',
+  title: 'KU Long',
   showLogo: true,
 };
