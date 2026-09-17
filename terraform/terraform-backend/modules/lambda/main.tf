@@ -78,6 +78,33 @@ resource "aws_iam_role_policy_attachment" "s3_read" {
   policy_arn = aws_iam_policy.s3_read.arn
 }
 
+resource "aws_iam_policy" "dynamodb_read" {
+  name = "${var.project_name}-lambda-dynamodb-read-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:BatchGetItem",
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ]
+      Resource = [
+        var.dynamodb_table_arn,
+        "${var.dynamodb_table_arn}/index/*"
+      ]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "dynamodb_read" {
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.dynamodb_read.arn
+}
+
 resource "aws_lambda_function" "this" {
   function_name = "${var.project_name}-building-api-${var.environment}"
 
@@ -96,6 +123,7 @@ resource "aws_lambda_function" "this" {
     variables = {
       BUCKET_NAME    = var.bucket_name
       BUILDINGS_FILE = var.buildings_file
+      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
     }
   }
 

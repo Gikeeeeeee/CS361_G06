@@ -25,6 +25,12 @@ provider "aws" {
   region = var.aws_region
 }
 
+module "dynamodb" {
+  source = "./modules/dynamodb"
+
+  table_name = "CS361-G06-rickoroxd-data-dynamodb"
+}
+
 module "storage" {
   source = "./modules/storage"
 
@@ -44,6 +50,9 @@ module "lambda" {
   bucket_name    = module.storage.bucket_name
   bucket_arn     = module.storage.bucket_arn
   buildings_file = "building-index.json"
+
+  dynamodb_table_name = module.dynamodb.table_name
+  dynamodb_table_arn  = module.dynamodb.table_arn
 }
 
 module "api_gateway" {
