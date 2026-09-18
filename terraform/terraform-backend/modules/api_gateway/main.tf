@@ -9,6 +9,7 @@ resource "aws_apigatewayv2_api" "this" {
 
     allow_methods = [
       "GET",
+      "POST",
       "OPTIONS"
     ]
 
@@ -70,6 +71,23 @@ resource "aws_apigatewayv2_route" "get_facility" {
   api_id = aws_apigatewayv2_api.this.id
 
   route_key = "GET /api/v1/facilities/{facilityId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# Route keys below must match backend/handler.py ROUTES byte for byte.
+resource "aws_apigatewayv2_route" "get_room_schedules" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/rooms/{roomId}/schedules"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_room_schedules" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "POST /api/v1/rooms/{roomId}/schedules"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

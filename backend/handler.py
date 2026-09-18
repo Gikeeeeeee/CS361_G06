@@ -10,17 +10,27 @@ and its service method). See backend/README.md.
 Layer: driving adapter (inbound) + composition root.
 """
 
+import json
 import logging
 import re
 from collections import namedtuple
 
 import response
-from errors import AppError, MissingParameters, RouteNotFound
+from errors import (
+    AppError,
+    MissingParameters,
+    RouteNotFound,
+    ValidationError,
+)
 from repositories.building_repository import BuildingRepository
+from repositories.dynamodb_schedule_repository import (
+    DynamoDBScheduleRepository,
+)
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService
 from services.room_service import RoomService
+from services.schedule_service import ScheduleService
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -34,13 +44,17 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over one data source."""
 
-    def __init__(self, source=None):
+    def __init__(self, source=None, schedule_source=None):
         source = source if source is not None else BuildingRepository()
+
+        if schedule_source is None:
+            schedule_source = DynamoDBScheduleRepository()
 
         self.buildings = BuildingService(source)
         self.floors = FloorService(source)
         self.rooms = RoomService(source)
         self.facilities = FacilityService(source)
+        self.schedules = ScheduleService(schedule_source)
 
 
 # Built once per Lambda container (kept warm across invocations).
@@ -65,6 +79,7 @@ BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = "/api/v1/floors/{floorId}"
 ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
+ROOM_SCHEDULES = f"{ROOM}/schedules"
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
@@ -85,6 +100,16 @@ ROUTES = {
     f"GET {FACILITY}": Route(
         ("facilityId",),
         lambda deps, p: deps.facilities.get_facility(p["facilityId"]),
+    ),
+    f"GET {ROOM_SCHEDULES}": Route(
+        ("roomId", "start", "end"),
+        lambda deps, p: deps.schedules.get_room_schedules(
+            p["roomId"], p["start"], p["end"], p.get("type")
+        ),
+    ),
+    f"POST {ROOM_SCHEDULES}": Route(
+        ("roomId", "body"),
+        lambda deps, p: deps.schedules.create_schedule(p["roomId"], p["body"]),
     ),
 }
 
@@ -134,6 +159,14 @@ def _resolve(event: dict, method: str, path: str) -> tuple[str | None, dict]:
         if value
     }
 
+    params.update(event.get("queryStringParameters") or {})
+
+    if event.get("body"):
+        try:
+            params["body"] = json.loads(event["body"])
+        except json.JSONDecodeError as exc:
+            raise ValidationError("Request body is not valid JSON") from exc
+
     route_key = event.get("routeKey")
 
     if route_key in ROUTES:
@@ -163,11 +196,13 @@ def lambda_handler(event, context):
     """
     Handles every route in ROUTES:
 
-      - GET /api/v1/buildings
-      - GET /api/v1/buildings/{buildingId}
-      - GET /api/v1/floors/{floorId}
-      - GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}
-      - GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}
+      - GET  /api/v1/buildings
+      - GET  /api/v1/buildings/{buildingId}
+      - GET  /api/v1/floors/{floorId}
+      - GET  /api/v1/rooms/{roomId}
+      - GET  /api/v1/facilities/{facilityId}
+      - GET  /api/v1/rooms/{roomId}/schedules
+      - POST /api/v1/rooms/{roomId}/schedules
     """
     method = _method(event)
     path = _path(event)
@@ -192,7 +227,10 @@ def lambda_handler(event, context):
         if missing:
             raise MissingParameters(missing)
 
-        return response.ok(route.action(DEPS, params))
+        # A POST creates a schedule; everything else reads one.
+        return response.ok(
+            route.action(DEPS, params), 201 if method == "POST" else 200
+        )
 
     except AppError as exc:
         logger.warning("%s: %s", exc.code, exc.message)

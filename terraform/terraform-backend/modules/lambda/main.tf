@@ -78,8 +78,8 @@ resource "aws_iam_role_policy_attachment" "s3_read" {
   policy_arn = aws_iam_policy.s3_read.arn
 }
 
-resource "aws_iam_policy" "dynamodb_read" {
-  name = "${var.project_name}-lambda-dynamodb-read-${var.environment}"
+resource "aws_iam_policy" "dynamodb" {
+  name = "${var.project_name}-lambda-dynamodb-${var.environment}"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -90,7 +90,9 @@ resource "aws_iam_policy" "dynamodb_read" {
         "dynamodb:BatchGetItem",
         "dynamodb:GetItem",
         "dynamodb:Query",
-        "dynamodb:Scan"
+        "dynamodb:Scan",
+        "dynamodb:PutItem",
+        "dynamodb:BatchWriteItem"
       ]
       Resource = [
         var.dynamodb_table_arn,
@@ -100,9 +102,9 @@ resource "aws_iam_policy" "dynamodb_read" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "dynamodb_read" {
+resource "aws_iam_role_policy_attachment" "dynamodb" {
   role       = aws_iam_role.this.name
-  policy_arn = aws_iam_policy.dynamodb_read.arn
+  policy_arn = aws_iam_policy.dynamodb.arn
 }
 
 resource "aws_lambda_function" "this" {
@@ -121,8 +123,8 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      BUCKET_NAME    = var.bucket_name
-      BUILDINGS_FILE = var.buildings_file
+      BUCKET_NAME         = var.bucket_name
+      BUILDINGS_FILE      = var.buildings_file
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
     }
   }
