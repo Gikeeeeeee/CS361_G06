@@ -92,14 +92,28 @@ class Schedule:
             id=schedule_id,
             type=schedule_type,
             title=title,
-            description=payload.get("description"),
-            course_code=payload.get("course_code"),
-            organizer=payload.get("organizer"),
+            description=payload.get(
+                "description",
+                existing.description if existing else None,
+            ),
+
+            course_code=payload.get(
+                "course_code",
+                existing.course_code if existing else None,
+            ),
+
+            organizer=payload.get(
+                "organizer",
+                existing.organizer if existing else None,
+            ),
             start_at=start_at,
             end_at=end_at,
             time_zone=payload["time_zone"],
             is_all_day=is_all_day,
-            recurrence_rule=payload.get("recurrence_rule"),
+            recurrence_rule=payload.get(
+                "recurrence_rule",
+                existing.recurrence_rule if existing else None,
+            ),
             room_id=room_id,
             location_text=(
                 payload.get(
