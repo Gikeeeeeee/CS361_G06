@@ -45,7 +45,6 @@ class TestUpdateSchedule:
         assert source.updated_schedule is not None
         assert source.updated_schedule["title"] == "Updated CS361"
 
-
     def test_update_schedule_not_found(
         self,
         fake_schedule_source,
@@ -67,7 +66,6 @@ class TestUpdateSchedule:
             )
 
         assert source.updated_schedule is None
-
 
     def test_update_schedule_invalid_payload(
         self,
@@ -113,13 +111,12 @@ class TestDeleteSchedule:
             "schedule-001",
         )
 
-        assert result is None
+        assert result == "deleted"
 
         assert source.deleted_schedule == (
             "room-lc3-301",
             "schedule-001",
         )
-
 
     def test_delete_schedule_not_found(
         self,

@@ -44,21 +44,27 @@ logger.setLevel(logging.INFO)
 
 
 class Dependencies:
-    """Every use case the routes can call, built over one data source."""
-
-    def __init__(self, source=None):
+    def __init__(self, source=None, schedule_source=None):
         source = source if source is not None else BuildingRepository()
 
         self.buildings = BuildingService(source)
         self.floors = FloorService(source)
         self.rooms = RoomService(source)
         self.facilities = FacilityService(source)
-        self.schedules = ScheduleService(
-            ScheduleRepository()
-        )
+
+        if schedule_source is not None:
+            self.schedules = ScheduleService(schedule_source)
+        else:
+            self.schedules = None
+
+    def ensure_schedules(self):
+        if self.schedules is None:
+            self.schedules = ScheduleService(
+                ScheduleRepository()
+            )
+        return self.schedules
 
 
-# Built once per Lambda container (kept warm across invocations).
 DEPS = Dependencies()
 
 
@@ -110,10 +116,10 @@ ROUTES = {
         ("facilityId",),
         lambda deps, p: deps.facilities.get_facility(p["facilityId"]),
     ),
-
+    
     f"PUT {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
-        lambda deps, p: deps.schedules.update_schedule(
+        lambda deps, p: deps.ensure_schedules().update_schedule(
             p["roomId"],
             p["scheduleId"],
             p["body"],
@@ -122,7 +128,7 @@ ROUTES = {
 
     f"DELETE {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
-        lambda deps, p: deps.schedules.delete_schedule(
+        lambda deps, p: deps.ensure_schedules().delete_schedule(
             p["roomId"],
             p["scheduleId"],
         ),
