@@ -30,3 +30,13 @@ variable "buildings_file" {
   type        = string
   default     = "building-index.json"
 }
+
+variable "dynamodb_table_name" {
+  description = "Existing DynamoDB table name."
+  type        = string
+}
+
+variable "dynamodb_table_arn" {
+  description = "Existing DynamoDB table ARN."
+  type        = string
+}
