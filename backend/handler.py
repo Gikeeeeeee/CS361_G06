@@ -16,23 +16,20 @@ import re
 from collections import namedtuple
 
 import response
-
 from errors import (
     AppError,
     InvalidSchedule,
     MissingParameters,
     RouteNotFound,
+    ValidationError,
 )
-
 from repositories.building_repository import BuildingRepository
 from repositories.schedule_repository import ScheduleRepository
-
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService
 from services.room_service import RoomService
 from services.schedule_service import ScheduleService
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -44,27 +41,49 @@ logger.setLevel(logging.INFO)
 
 
 class Dependencies:
+    """Every use case the routes can call, built over data sources."""
+
     def __init__(self, source=None, schedule_source=None):
-        source = source if source is not None else BuildingRepository()
+        self.buildings = BuildingService(
+            source if source is not None else BuildingRepository()
+        )
+        self.floors = FloorService(
+            source if source is not None else BuildingRepository()
+        )
+        self.rooms = RoomService(
+            source if source is not None else BuildingRepository()
+        )
+        self.facilities = FacilityService(
+            source if source is not None else BuildingRepository()
+        )
 
-        self.buildings = BuildingService(source)
-        self.floors = FloorService(source)
-        self.rooms = RoomService(source)
-        self.facilities = FacilityService(source)
+        self._schedule_source = schedule_source
+        self._schedules = (
+            ScheduleService(schedule_source)
+            if schedule_source is not None
+            else None
+        )
 
-        if schedule_source is not None:
-            self.schedules = ScheduleService(schedule_source)
-        else:
-            self.schedules = None
-
-    def ensure_schedules(self):
-        if self.schedules is None:
-            self.schedules = ScheduleService(
-                ScheduleRepository()
+    @property
+    def schedules(self) -> ScheduleService:
+        if self._schedules is None:
+            source = (
+                self._schedule_source
+                if self._schedule_source is not None
+                else ScheduleRepository()
             )
+            self._schedules = ScheduleService(source)
+        return self._schedules
+
+    @schedules.setter
+    def schedules(self, value: ScheduleService):
+        self._schedules = value
+
+    def ensure_schedules(self) -> ScheduleService:
         return self.schedules
 
 
+# Built once per Lambda container (kept warm across invocations).
 DEPS = Dependencies()
 
 
@@ -86,37 +105,40 @@ BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = "/api/v1/floors/{floorId}"
 ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
-
-# V2 Schedule API
+ROOM_SCHEDULES = f"{ROOM}/schedules"
 SCHEDULE = "/api/v2/rooms/{roomId}/schedules/{scheduleId}"
-
 
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
         lambda deps, p: {"buildings": deps.buildings.list_buildings()},
     ),
-
     f"GET {BUILDING}": Route(
         ("buildingId",),
         lambda deps, p: deps.buildings.get_summary(p["buildingId"]),
     ),
-
     f"GET {FLOOR}": Route(
         ("floorId",),
         lambda deps, p: deps.floors.get_details(p["floorId"]),
     ),
-
     f"GET {ROOM}": Route(
         ("roomId",),
         lambda deps, p: deps.rooms.get_room(p["roomId"]),
     ),
-
     f"GET {FACILITY}": Route(
         ("facilityId",),
         lambda deps, p: deps.facilities.get_facility(p["facilityId"]),
     ),
-    
+    f"GET {ROOM_SCHEDULES}": Route(
+        ("roomId", "start", "end"),
+        lambda deps, p: deps.ensure_schedules().get_room_schedules(
+            p["roomId"], p["start"], p["end"], p.get("type")
+        ),
+    ),
+    f"POST {ROOM_SCHEDULES}": Route(
+        ("roomId", "body"),
+        lambda deps, p: deps.ensure_schedules().create_schedule(p["roomId"], p["body"]),
+    ),
     f"PUT {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
         lambda deps, p: deps.ensure_schedules().update_schedule(
@@ -125,7 +147,6 @@ ROUTES = {
             p["body"],
         ),
     ),
-
     f"DELETE {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
         lambda deps, p: deps.ensure_schedules().delete_schedule(
@@ -137,16 +158,9 @@ ROUTES = {
 
 
 def _compile(route_key: str) -> tuple[str, re.Pattern]:
-    """
-    `"GET /a/{b}"` -> `("GET", re.compile("/a/(?P<b>[^/]+)/?$"))`.
-    """
+    """`"GET /a/{b}"` -> `("GET", re.compile("/a/(?P<b>[^/]+)/?$"))`."""
     method, template = route_key.split(" ", 1)
-
-    pattern = re.sub(
-        r"\{(\w+)\}",
-        r"(?P<\1>[^/]+)",
-        template,
-    )
+    pattern = re.sub(r"\{(\w+)\}", r"(?P<\1>[^/]+)", template)
 
     return method, re.compile(pattern + "/?$")
 
@@ -186,12 +200,25 @@ def _resolve(
     Prefers the `routeKey` API Gateway already resolved (exact, and impossible
     to confuse with a similar path); falls back to matching the path itself.
     """
-
     params = {
         key: value
         for key, value in (event.get("pathParameters") or {}).items()
         if value
     }
+
+    params.update(event.get("queryStringParameters") or {})
+
+    if event.get("body"):
+        body = event["body"]
+        if isinstance(body, dict):
+            params["body"] = body
+        elif isinstance(body, str):
+            try:
+                params["body"] = json.loads(body)
+            except json.JSONDecodeError as exc:
+                raise ValidationError("Request body is not valid JSON") from exc
+        else:
+            raise ValidationError("Request body must be a JSON object")
 
     route_key = event.get("routeKey")
 
@@ -222,33 +249,26 @@ def lambda_handler(event, context):
     """
     Handles every route in ROUTES:
 
-      - GET /api/v1/buildings
-      - GET /api/v1/buildings/{buildingId}
-      - GET /api/v1/floors/{floorId}
-      - GET /api/v1/rooms/{roomId}
-      - GET /api/v1/facilities/{facilityId}
-      - PUT /api/v2/rooms/{roomId}/schedules/{scheduleId}
+      - GET    /api/v1/buildings
+      - GET    /api/v1/buildings/{buildingId}
+      - GET    /api/v1/floors/{floorId}
+      - GET    /api/v1/rooms/{roomId}
+      - GET    /api/v1/facilities/{facilityId}
+      - GET    /api/v1/rooms/{roomId}/schedules
+      - POST   /api/v1/rooms/{roomId}/schedules
+      - PUT    /api/v2/rooms/{roomId}/schedules/{scheduleId}
       - DELETE /api/v2/rooms/{roomId}/schedules/{scheduleId}
     """
-
     method = _method(event)
     path = _path(event)
 
-    logger.info(
-        "Incoming Request -> Method: %s, Path: %s",
-        method,
-        path,
-    )
+    logger.info("Incoming Request -> Method: %s, Path: %s", method, path)
 
     if method == "OPTIONS":
         return response.preflight()
 
     try:
-        route_key, params = _resolve(
-            event,
-            method,
-            path,
-        )
+        route_key, params = _resolve(event, method, path)
 
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
@@ -256,58 +276,35 @@ def lambda_handler(event, context):
         route = ROUTES[route_key]
 
         missing = [
-            name
-            for name in route.required_params
-            if not params.get(name)
+            name for name in route.required_params if not params.get(name)
         ]
 
         if missing:
             raise MissingParameters(missing)
 
-        # ---------------------------------------------------------------
-        # PUT request body
-        #
-        # API Gateway HTTP API sends `body` as a JSON string.
-        # Convert it to a Python dict before passing it to the service.
-        # ---------------------------------------------------------------
-
         if method == "PUT":
-            body = event.get("body")
-
-            # API Gateway can send the body as a string.
-            if isinstance(body, str):
-                try:
-                    body = json.loads(body)
-                except json.JSONDecodeError:
-                    raise InvalidSchedule(
-                        "Request body must be valid JSON"
-                    )
-
+            body = params.get("body")
+            if body is None:
+                body = event.get("body")
+                if isinstance(body, str):
+                    try:
+                        body = json.loads(body)
+                    except json.JSONDecodeError:
+                        raise InvalidSchedule("Request body must be valid JSON")
             if not isinstance(body, dict):
-                raise InvalidSchedule(
-                    "Request body must be a JSON object"
-                )
-
+                raise InvalidSchedule("Request body must be a JSON object")
             params["body"] = body
 
         return response.ok(
-            route.action(DEPS, params)
+            route.action(DEPS, params), 201 if method == "POST" else 200
         )
 
     except AppError as exc:
-        logger.warning(
-            "%s: %s",
-            exc.code,
-            exc.message,
-        )
+        logger.warning("%s: %s", exc.code, exc.message)
 
         return response.error(exc)
 
     except Exception:
-        logger.exception(
-            "Unhandled error while processing %s %s",
-            method,
-            path,
-        )
+        logger.exception("Unhandled error while processing %s %s", method, path)
 
         return response.error(AppError())
