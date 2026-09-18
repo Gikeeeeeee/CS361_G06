@@ -43,7 +43,7 @@ class ScheduleService:
         self,
         room_id: str,
         schedule_id: str,
-    ) -> None:
+    ) -> str:
         existing = self.source.get_schedule(
             room_id,
             schedule_id,
@@ -56,3 +56,5 @@ class ScheduleService:
             room_id,
             schedule_id,
         )
+
+        return "deleted"
