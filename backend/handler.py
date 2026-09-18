@@ -13,14 +13,22 @@ Layer: driving adapter (inbound) + composition root.
 import logging
 import re
 from collections import namedtuple
+import json
 
 import response
-from errors import AppError, MissingParameters, RouteNotFound
+from errors import (
+    AppError,
+    InvalidSchedule,
+    MissingParameters,
+    RouteNotFound,
+)
 from repositories.building_repository import BuildingRepository
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService
 from services.room_service import RoomService
+from repositories.schedule_repository import ScheduleRepository
+from services.schedule_service import ScheduleService
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -41,7 +49,9 @@ class Dependencies:
         self.floors = FloorService(source)
         self.rooms = RoomService(source)
         self.facilities = FacilityService(source)
-
+        self.schedules = ScheduleService(
+             ScheduleRepository()
+        )
 
 # Built once per Lambda container (kept warm across invocations).
 DEPS = Dependencies()
@@ -65,6 +75,7 @@ BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = "/api/v1/floors/{floorId}"
 ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
+SCHEDULE = "/api/v2/rooms/{roomId}/schedules/{scheduleId}"
 ROUTES = {
     f"GET {BUILDINGS}": Route(
         (),
@@ -85,6 +96,22 @@ ROUTES = {
     f"GET {FACILITY}": Route(
         ("facilityId",),
         lambda deps, p: deps.facilities.get_facility(p["facilityId"]),
+    ),
+    f"PUT {SCHEDULE}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: deps.schedules.update_schedule(
+            p["roomId"],
+            p["scheduleId"],
+            p["body"],
+        ),
+    ),
+
+    f"DELETE {SCHEDULE}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: deps.schedules.delete_schedule(
+            p["roomId"],
+            p["scheduleId"],
+        ),
     ),
 }
 

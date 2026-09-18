@@ -203,3 +203,65 @@ def invoke_handler(campus_source: FakeBuildingSource):
             handler.DEPS = original_deps
 
     return _invoke
+class FakeScheduleSource:
+    """In-memory fake implementation of ScheduleSource."""
+
+    def __init__(
+        self,
+        schedules: dict[tuple[str, str], dict[str, Any]] | None = None,
+    ):
+        self._schedules = schedules or {}
+        self.updated_schedule = None
+        self.deleted_schedule = None
+
+    def get_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        return self._schedules.get((room_id, schedule_id))
+
+    def update_schedule(
+        self,
+        schedule: dict[str, Any],
+    ) -> dict[str, Any]:
+        self.updated_schedule = schedule
+        return schedule
+
+    def delete_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> None:
+        self.deleted_schedule = (room_id, schedule_id)
+
+
+@pytest.fixture
+def fake_schedule_source():
+    """Factory fixture for creating an in-memory ScheduleSource."""
+    return FakeScheduleSource
+
+
+@pytest.fixture
+def sample_schedule() -> dict[str, Any]:
+    """Sample schedule data for Schedule service tests."""
+    return {
+        "id": "schedule-001",
+        "type": "COURSE",
+        "title": "Cloud-Based Software Architecture",
+        "description": "CS361 lecture",
+        "course_code": "CS361",
+        "organizer": "Computer Science Department",
+        "start_at": "2026-09-14T09:00:00+07:00",
+        "end_at": "2026-09-14T12:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "is_all_day": False,
+        "recurrence_rule": (
+            "RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=15"
+        ),
+        "room_id": "room-lc3-301",
+        "location_text": None,
+        "status": "CONFIRMED",
+        "source_id": "csv-row-001",
+        "source_type": "CSV",
+    }

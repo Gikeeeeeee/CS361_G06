@@ -122,3 +122,17 @@ class FacilityNotFound(NotFoundError):
         super().__init__(
             f"Facility '{facility_id}' not found"
         )
+class ScheduleNotFound(NotFoundError):
+    code = "SCHEDULE_NOT_FOUND"
+
+    def __init__(self, schedule_id: str):
+        super().__init__(
+            f"Schedule not found: {schedule_id}"
+        )
+
+
+class InvalidSchedule(ValidationError):
+    code = "INVALID_SCHEDULE"
+
+    def __init__(self, message: str):
+        super().__init__(message)
