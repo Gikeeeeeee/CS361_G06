@@ -52,7 +52,7 @@ class ScheduleRepository(ScheduleSource):
 
     # -- ScheduleSource ----------------------------------------------------
 
-    def find_by_room_and_time_range(
+    def get_schedule_by_room_and_time_range(
         self,
         room_id: str,
         start: str,
@@ -73,7 +73,7 @@ class ScheduleRepository(ScheduleSource):
 
         return [self._to_dict(item) for item in self._run(query, "querying")]
 
-    def save(self, schedules: list[dict[str, Any]]) -> None:
+    def save_schedule(self, schedules: list[dict[str, Any]]) -> None:
         """AP21/AP24: write every occurrence. batch_writer chunks at 25."""
         try:
             with self.table.batch_writer() as batch:

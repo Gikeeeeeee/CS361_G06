@@ -24,7 +24,7 @@ from errors import (
     ValidationError,
 )
 from repositories.building_repository import BuildingRepository
-from repositories.schedule_repository import ScheduleRepository
+from repositories.ScheduleRepo import ScheduleRepository
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService

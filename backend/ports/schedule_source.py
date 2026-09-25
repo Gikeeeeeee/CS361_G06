@@ -37,7 +37,7 @@ class ScheduleSource(Protocol):
         """Delete a schedule item by room and schedule id."""
         ...
 
-    def find_by_room_and_time_range(
+    def get_schedule_by_room_and_time_range(
         self,
         room_id: str,
         start: str,
@@ -50,6 +50,6 @@ class ScheduleSource(Protocol):
         """
         ...
 
-    def save(self, schedules: list[dict[str, Any]]) -> None:
+    def save_schedule(self, schedules: list[dict[str, Any]]) -> None:
         """Store every schedule given. One schedule is a list of one."""
         ...

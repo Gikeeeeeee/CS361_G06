@@ -39,7 +39,7 @@ class ScheduleService:
         parse_time(end)
 
         return {
-            "schedules": self.source.find_by_room_and_time_range(
+            "schedules": self.source.get_schedule_by_room_and_time_range(
                 room_id, start, end, schedule_type
             )
         }
@@ -64,7 +64,7 @@ class ScheduleService:
 
         now = datetime.now(timezone.utc).isoformat()
 
-        self.source.save(
+        self.source.save_schedule(
             [
                 {
                     **schedule,
@@ -150,7 +150,7 @@ class ScheduleService:
 
         booked = [
             (parse_time(item["start_at"]), parse_time(item["end_at"]))
-            for item in self.source.find_by_room_and_time_range(
+            for item in self.source.get_schedule_by_room_and_time_range(
                 room_id, window_start, window_end
             )
             if item.get("status") == "CONFIRM"
