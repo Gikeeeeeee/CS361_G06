@@ -111,6 +111,25 @@ class RoomNotFound(NotFoundError):
         super().__init__(f"Room '{room_id}' not found")
 
 
+class ScheduleConflict(AppError):
+    """
+    The requested slot is already taken.
+
+    409 is its own status: the request was well-formed (not 400) and the room
+    does exist (not 404) -- only the time is unavailable.
+    """
+
+    status_code = 409
+    code = "SCHEDULE_CONFLICT"
+
+    def __init__(self, room_id: str, start_at: str, end_at: str):
+        self.room_id = room_id
+        super().__init__(
+            f"Schedule conflict detected for room '{room_id}' between "
+            f"{start_at} and {end_at}. Please choose another time."
+        )
+
+
 class FacilityNotFound(NotFoundError):
 
     code = "FACILITY_NOT_FOUND"
@@ -122,3 +141,17 @@ class FacilityNotFound(NotFoundError):
         super().__init__(
             f"Facility '{facility_id}' not found"
         )
+class ScheduleNotFound(NotFoundError):
+    code = "SCHEDULE_NOT_FOUND"
+
+    def __init__(self, schedule_id: str):
+        super().__init__(
+            f"Schedule not found: {schedule_id}"
+        )
+
+
+class InvalidSchedule(ValidationError):
+    code = "INVALID_SCHEDULE"
+
+    def __init__(self, message: str):
+        super().__init__(message)
