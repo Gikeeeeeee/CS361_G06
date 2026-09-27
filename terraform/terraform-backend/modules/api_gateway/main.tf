@@ -81,7 +81,7 @@ resource "aws_apigatewayv2_route" "get_facility" {
 resource "aws_apigatewayv2_route" "get_room_schedules" {
   api_id = aws_apigatewayv2_api.this.id
 
-  route_key = "GET /api/v1/rooms/{roomId}/schedules"
+  route_key = "GET /api/v2/rooms/{roomId}/schedules"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
@@ -89,7 +89,7 @@ resource "aws_apigatewayv2_route" "get_room_schedules" {
 resource "aws_apigatewayv2_route" "post_room_schedules" {
   api_id = aws_apigatewayv2_api.this.id
 
-  route_key = "POST /api/v1/rooms/{roomId}/schedules"
+  route_key = "POST /api/v2/rooms/{roomId}/schedules"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

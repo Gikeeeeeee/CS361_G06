@@ -60,11 +60,10 @@ class FakeBuildingSource:
 
 class FakeScheduleSource:
     """
-    In-memory fake implementation of ports.schedule_source.ScheduleSource.
+    In-memory fake of ports.schedule_source.ScheduleSource.
 
-    Mirrors the GSI4 semantics of the real adapter: a schedule matches on its
-    `start_at` alone, over the half-open window [start, end). Also supports
-    single item get, update and delete.
+    Mirrors the real adapter: a series matches a window when it starts before
+    `end` and its `series_end_at` is after `start` (UTC strings).
     """
 
     def __init__(
@@ -75,33 +74,31 @@ class FakeScheduleSource:
             self.schedules = list(schedules.values())
         else:
             self.schedules = list(schedules or [])
-        self.updated_schedule = None
         self.deleted_schedule = None
 
-    def get_schedule_by_room_and_time_range(
+    def find_overlapping(
         self,
         room_id: str,
         start: str,
         end: str,
         schedule_type: str | None = None,
     ) -> list[dict[str, Any]]:
+        from models.schedule import to_utc
+
         return [
             schedule
             for schedule in self.schedules
             if schedule.get("room_id") == room_id
-            and start <= schedule["start_at"] < end
-            and (
-                schedule_type is None
-                or schedule["type"] == schedule_type.upper()
-            )
+            and to_utc(schedule["start_at"]) < end
+            and schedule.get("series_end_at", to_utc(schedule["end_at"])) > start
+            and (schedule_type is None or schedule["type"] == schedule_type)
         ]
 
-    find_by_room_and_time_range = get_schedule_by_room_and_time_range
-
-    def save_schedule(self, schedules: list[dict[str, Any]]) -> None:
-        self.schedules.extend(schedules)
-
-    save = save_schedule
+    def save_schedule(self, schedule: dict[str, Any]) -> None:
+        existing = self.get_schedule(schedule["room_id"], schedule["id"])
+        if existing is not None:
+            self.schedules.remove(existing)
+        self.schedules.append(schedule)
 
     def get_schedule(
         self,
@@ -112,18 +109,6 @@ class FakeScheduleSource:
             if s.get("room_id") == room_id and s.get("id") == schedule_id:
                 return s
         return None
-
-    def update_schedule(
-        self,
-        schedule: dict[str, Any],
-    ) -> dict[str, Any]:
-        self.updated_schedule = schedule
-        for i, s in enumerate(self.schedules):
-            if s.get("room_id") == schedule.get("room_id") and s.get("id") == schedule.get("id"):
-                self.schedules[i] = schedule
-                return schedule
-        self.schedules.append(schedule)
-        return schedule
 
     def delete_schedule(
         self,
@@ -336,13 +321,11 @@ def sample_schedule() -> dict[str, Any]:
         "start_at": "2026-09-14T09:00:00+07:00",
         "end_at": "2026-09-14T12:00:00+07:00",
         "time_zone": "Asia/Bangkok",
-        "is_all_day": False,
         "recurrence_rule": (
             "RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=15"
         ),
         "room_id": "room-lc3-301",
-        "location_text": None,
-        "status": "CONFIRMED",
-        "source_id": "csv-row-001",
-        "source_type": "CSV",
+        "status": "CONFIRM",
+        "series_end_at": "2026-12-21T05:00:00+00:00",
+        "created_at": "2026-09-01T00:00:00+00:00",
     }

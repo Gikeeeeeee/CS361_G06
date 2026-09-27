@@ -132,6 +132,8 @@ def _schedule(**overrides: Any) -> dict[str, Any]:
         "title": "Smoke test booking",
         "start_at": "2030-01-01T09:00:00+07:00",
         "end_at": "2030-01-01T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
     }
     payload.update(overrides)
     return payload
@@ -169,21 +171,24 @@ def _schedules(base_url: str, room_id: str, **params: str) -> requests.Response:
     query_string = "&".join(f"{k}={quote(v)}" for k, v in query.items())
 
     return _request(
-        "GET", f"/api/v1/rooms/{room_id}/schedules?{query_string}", base_url
+        "GET", f"/api/v2/rooms/{room_id}/schedules?{query_string}", base_url
     )
 
 
 def test_api_get_schedules_contract(api_base_url: str, throwaway_room: str):
     """Live API contract: an unbooked room returns 200 and an empty list."""
-    res = _schedules(api_base_url, throwaway_room)
+    res = _schedules(api_base_url, throwaway_room, type="EXAM")
 
     assert res.status_code == 200
-    assert res.json() == {"schedules": []}
+    assert res.json() == {
+        "data": [],
+        "meta": {"room_id": throwaway_room, "type": "EXAM", "count": 0},
+    }
 
 
 def test_api_get_schedules_requires_a_window(api_base_url: str, throwaway_room: str):
     """Live API contract: start/end are required."""
-    res = _request("GET", f"/api/v1/rooms/{throwaway_room}/schedules", api_base_url)
+    res = _request("GET", f"/api/v2/rooms/{throwaway_room}/schedules", api_base_url)
 
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "MISSING_PARAMETER"
@@ -193,7 +198,7 @@ def test_api_post_schedule_contract(api_base_url: str, throwaway_room: str):
     """Live API contract: POST creates, and the new booking is readable."""
     res = _request(
         "POST",
-        f"/api/v1/rooms/{throwaway_room}/schedules",
+        f"/api/v2/rooms/{throwaway_room}/schedules",
         api_base_url,
         json_body=_schedule(),
     )
@@ -201,18 +206,23 @@ def test_api_post_schedule_contract(api_base_url: str, throwaway_room: str):
     assert res.status_code == 201
     assert res.json() == "created"
 
-    stored = _schedules(api_base_url, throwaway_room).json()["schedules"]
+    body = _schedules(api_base_url, throwaway_room).json()
+    stored = body["data"]
+    assert body["meta"] == {"room_id": throwaway_room, "type": None, "count": 1}
     assert len(stored) == 1
     assert stored[0]["title"] == "Smoke test booking"
     assert stored[0]["room_id"] == throwaway_room
     assert stored[0]["status"] == "CONFIRM"
-    # Storage keys never leak into the contract.
-    assert not any(key.startswith("GSI") or key in ("PK", "SK") for key in stored[0])
+    # Exactly the contract fields: no storage keys, no timestamps.
+    assert set(stored[0]) == {
+        "id", "type", "title", "description", "course_code", "organizer",
+        "start_at", "end_at", "time_zone", "recurrence_rule", "room_id", "status",
+    }
 
 
 def test_api_post_schedule_conflict_contract(api_base_url: str, throwaway_room: str):
     """Live API contract: a second booking on the same slot is 409."""
-    path = f"/api/v1/rooms/{throwaway_room}/schedules"
+    path = f"/api/v2/rooms/{throwaway_room}/schedules"
 
     assert _request("POST", path, api_base_url, json_body=_schedule()).status_code == 201
 
@@ -227,19 +237,20 @@ def test_api_post_schedule_conflict_contract(api_base_url: str, throwaway_room: 
     assert res.json()["error"]["code"] == "SCHEDULE_CONFLICT"
 
 
-def test_api_post_schedule_expands_a_recurrence_rule(
+def test_api_post_schedule_stores_a_recurrence_rule_once(
     api_base_url: str, throwaway_room: str
 ):
-    """Live API contract: one POST with an RRULE becomes one item per week."""
+    """Live API contract: one POST with an RRULE is one item, rule attached."""
     res = _request(
         "POST",
-        f"/api/v1/rooms/{throwaway_room}/schedules",
+        f"/api/v2/rooms/{throwaway_room}/schedules",
         api_base_url,
         json_body=_schedule(recurrence_rule="FREQ=WEEKLY;BYDAY=TU;COUNT=15"),
     )
 
     assert res.status_code == 201
-    assert len(_schedules(api_base_url, throwaway_room).json()["schedules"]) == 15
+    [stored] = _schedules(api_base_url, throwaway_room).json()["data"]
+    assert stored["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=TU;COUNT=15"
 
 
 @pytest.mark.parametrize(
@@ -256,10 +267,31 @@ def test_api_post_schedule_rejects_a_bad_payload(
 ):
     res = _request(
         "POST",
-        f"/api/v1/rooms/{throwaway_room}/schedules",
+        f"/api/v2/rooms/{throwaway_room}/schedules",
         api_base_url,
         json_body=payload,
     )
 
     assert res.status_code == 400
     assert res.json()["error"]["code"] == code
+
+
+def test_api_put_and_delete_schedule_contract(api_base_url: str, throwaway_room: str):
+    """Live API contract: PUT answers "updated", DELETE answers "deleted"."""
+    path = f"/api/v2/rooms/{throwaway_room}/schedules"
+    assert _request("POST", path, api_base_url, json_body=_schedule()).status_code == 201
+    [created] = _schedules(api_base_url, throwaway_room).json()["data"]
+    item_path = f"{path}/{created['id']}"
+
+    res = _request(
+        "PUT", item_path, api_base_url, json_body=_schedule(title="Renamed")
+    )
+    assert res.status_code == 200
+    assert res.json() == "updated"
+    [updated] = _schedules(api_base_url, throwaway_room).json()["data"]
+    assert updated["title"] == "Renamed"
+
+    res = _request("DELETE", item_path, api_base_url)
+    assert res.status_code == 200
+    assert res.json() == "deleted"
+    assert _schedules(api_base_url, throwaway_room).json()["data"] == []

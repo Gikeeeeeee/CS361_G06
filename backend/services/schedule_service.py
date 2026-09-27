@@ -2,22 +2,29 @@
 Schedule use cases.
 
 Layer: application. Depends on the ScheduleSource port, never on boto3.
+
+A recurring schedule is ONE stored item carrying its `recurrence_rule`; the
+frontend expands it. The backend expands series only to detect conflicts.
 """
 
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from errors import InvalidSchedule, ScheduleConflict, ScheduleNotFound
+from errors import ScheduleConflict, ScheduleNotFound
 from models.schedule import (
-    Schedule,
     occurrences,
     overlaps,
     parse_time,
-    series_window,
+    to_contract,
+    to_utc,
     validate,
 )
 from ports.schedule_source import ScheduleSource
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class ScheduleService:
@@ -32,51 +39,36 @@ class ScheduleService:
         end: str,
         schedule_type: str | None = None,
     ) -> dict[str, Any]:
-        """AP15: every schedule for a room that starts within [start, end)."""
-        # Reject a malformed window here rather than letting DynamoDB compare
-        # it as an opaque string and return an empty list.
-        parse_time(start)
-        parse_time(end)
+        """AP15: every schedule for a room whose series touches [start, end)."""
+        schedule_type = schedule_type.upper() if schedule_type else None
+
+        items = self.source.find_overlapping(
+            room_id, to_utc(start), to_utc(end), schedule_type
+        )
+        data = sorted(
+            (to_contract(item) for item in items),
+            key=lambda schedule: parse_time(schedule["start_at"]),
+        )
 
         return {
-            "schedules": self.source.get_schedule_by_room_and_time_range(
-                room_id, start, end, schedule_type
-            )
+            "data": data,
+            "meta": {"room_id": room_id, "type": schedule_type, "count": len(data)},
         }
 
     def create_schedule(self, room_id: str, payload: dict[str, Any]) -> str:
-        """
-        AP21: validate, expand the recurrence rule, reject overlaps, store.
-
-        Expand-on-write: a recurring booking becomes one item per occurrence,
-        each with its own `start_at`, so GSI4 can answer a time range with a
-        single BETWEEN instead of re-deriving the rule on every read.
-        """
+        """AP21: validate, reject overlaps, store the series as one item."""
         schedule = validate(payload)
+        self._reject_conflicts(room_id, schedule)
 
-        slots = occurrences(
-            schedule["start_at"],
-            schedule["end_at"],
-            schedule.get("recurrence_rule"),
-        )
-
-        self._reject_conflicts(room_id, slots)
-
-        now = datetime.now(timezone.utc).isoformat()
-
+        now = _now()
         self.source.save_schedule(
-            [
-                {
-                    **schedule,
-                    "id": str(uuid4()),
-                    "room_id": room_id,
-                    "start_at": start_at,
-                    "end_at": end_at,
-                    "created_at": now,
-                    "updated_at": now,
-                }
-                for start_at, end_at in slots
-            ]
+            {
+                **schedule,
+                "id": str(uuid4()),
+                "room_id": room_id,
+                "created_at": now,
+                "updated_at": now,
+            }
         )
 
         return "created"
@@ -86,50 +78,38 @@ class ScheduleService:
         room_id: str,
         schedule_id: str,
         payload: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Update an existing schedule."""
-        existing_raw = self.source.get_schedule(
-            room_id,
-            schedule_id,
-        )
+    ) -> str:
+        """AP22: full replace of an existing schedule, same rules as create."""
+        existing = self.source.get_schedule(room_id, schedule_id)
 
-        if existing_raw is None:
+        if existing is None:
             raise ScheduleNotFound(schedule_id)
 
-        existing = Schedule.from_raw(existing_raw)
+        schedule = validate(payload)
+        self._reject_conflicts(room_id, schedule, ignore_id=schedule_id)
 
-        try:
-            schedule = Schedule.from_payload(
-                schedule_id,
-                room_id,
-                payload,
-                existing=existing,
-            )
-        except ValueError as exc:
-            raise InvalidSchedule(str(exc)) from exc
-
-        return self.source.update_schedule(
-            schedule.to_dict()
+        self.source.save_schedule(
+            {
+                **schedule,
+                "id": schedule_id,
+                "room_id": room_id,
+                "created_at": existing.get("created_at"),
+                "updated_at": _now(),
+            }
         )
+
+        return "updated"
 
     def delete_schedule(
         self,
         room_id: str,
         schedule_id: str,
     ) -> str:
-        """Delete an existing schedule."""
-        existing = self.source.get_schedule(
-            room_id,
-            schedule_id,
-        )
-
-        if existing is None:
+        """AP23: delete an existing schedule."""
+        if self.source.get_schedule(room_id, schedule_id) is None:
             raise ScheduleNotFound(schedule_id)
 
-        self.source.delete_schedule(
-            room_id,
-            schedule_id,
-        )
+        self.source.delete_schedule(room_id, schedule_id)
 
         return "deleted"
 
@@ -138,27 +118,31 @@ class ScheduleService:
     def _reject_conflicts(
         self,
         room_id: str,
-        slots: list[tuple[str, str]],
+        schedule: dict[str, Any],
+        ignore_id: str | None = None,
     ) -> None:
         """
         Raise if any occurrence lands on a CONFIRM booking in the same room.
 
-        One query covers the whole series: fetching per occurrence would be a
-        round trip per week of a term.
-        """
-        window_start, window_end = series_window(slots)
+        One query fetches every series touching the new one's span; both sides
+        are expanded (each capped at MAX_OCCURRENCES) and compared pairwise.
 
+        ponytail: O(n*m) pairwise scan; sort-and-sweep if series grow large.
+        """
+        mine = occurrences(
+            schedule["start_at"], schedule["end_at"], schedule["recurrence_rule"]
+        )
         booked = [
-            (parse_time(item["start_at"]), parse_time(item["end_at"]))
-            for item in self.source.get_schedule_by_room_and_time_range(
-                room_id, window_start, window_end
+            slot
+            for item in self.source.find_overlapping(
+                room_id, to_utc(schedule["start_at"]), schedule["series_end_at"]
             )
-            if item.get("status") == "CONFIRM"
+            if item.get("status") == "CONFIRM" and item.get("id") != ignore_id
+            for slot in occurrences(
+                item["start_at"], item["end_at"], item.get("recurrence_rule")
+            )
         ]
 
-        for start_at, end_at in slots:
-            start, end = parse_time(start_at), parse_time(end_at)
-
-            for booked_start, booked_end in booked:
-                if overlaps(start, end, booked_start, booked_end):
-                    raise ScheduleConflict(room_id, start_at, end_at)
+        for start, end in mine:
+            if any(overlaps(start, end, b_start, b_end) for b_start, b_end in booked):
+                raise ScheduleConflict(room_id, start.isoformat(), end.isoformat())

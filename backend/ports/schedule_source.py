@@ -22,11 +22,8 @@ class ScheduleSource(Protocol):
         """Fetch a single schedule by room and schedule id."""
         ...
 
-    def update_schedule(
-        self,
-        schedule: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Update an existing schedule item."""
+    def save_schedule(self, schedule: dict[str, Any]) -> None:
+        """Create or fully replace one schedule (a series is one item)."""
         ...
 
     def delete_schedule(
@@ -37,7 +34,7 @@ class ScheduleSource(Protocol):
         """Delete a schedule item by room and schedule id."""
         ...
 
-    def get_schedule_by_room_and_time_range(
+    def find_overlapping(
         self,
         room_id: str,
         start: str,
@@ -45,11 +42,8 @@ class ScheduleSource(Protocol):
         schedule_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Every schedule for `room_id` that STARTS within `[start, end)`,
-        optionally narrowed to one type.
+        Every schedule for `room_id` whose series touches `[start, end)`:
+        it starts before `end` and its `series_end_at` is after `start`.
+        `start`/`end` are UTC strings from `models.schedule.to_utc`.
         """
-        ...
-
-    def save_schedule(self, schedules: list[dict[str, Any]]) -> None:
-        """Store every schedule given. One schedule is a list of one."""
         ...

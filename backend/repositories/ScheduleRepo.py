@@ -16,6 +16,7 @@ from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from errors import UpstreamError
+from models.schedule import to_utc
 from ports.schedule_source import ScheduleSource
 
 # Key attributes are storage layout, not part of the schedule contract, so they
@@ -52,33 +53,39 @@ class ScheduleRepository(ScheduleSource):
 
     # -- ScheduleSource ----------------------------------------------------
 
-    def get_schedule_by_room_and_time_range(
+    def find_overlapping(
         self,
         room_id: str,
         start: str,
         end: str,
         schedule_type: str | None = None,
     ) -> list[dict[str, Any]]:
-        """AP15: query GSI4 (schedules by room and time)."""
-        query: dict[str, Any] = {
-            "IndexName": "GSI4",
-            "KeyConditionExpression": (
-                Key("GSI4PK").eq(f"ROOM#{room_id}")
-                & Key("GSI4SK").between(start, end)
-            ),
-        }
+        """
+        AP15: query GSI4 for series that start before `end`, keep those still
+        running at `start`.
+
+        ponytail: reads every earlier series of the room and filters. Fine for a
+        room's few series per term; add a lower bound on GSI4SK if it grows.
+        """
+        condition = Attr("series_end_at").gt(start)
 
         if schedule_type:
-            query["FilterExpression"] = Attr("type").eq(str(schedule_type).upper())
+            condition &= Attr("type").eq(schedule_type)
 
-        return [self._to_dict(item) for item in self._run(query, "querying")]
+        query = {
+            "IndexName": "GSI4",
+            "KeyConditionExpression": (
+                Key("GSI4PK").eq(f"ROOM#{room_id}") & Key("GSI4SK").lt(end)
+            ),
+            "FilterExpression": condition,
+        }
 
-    def save_schedule(self, schedules: list[dict[str, Any]]) -> None:
-        """AP21/AP24: write every occurrence. batch_writer chunks at 25."""
+        return [self._to_dict(item) for item in self._run(query)]
+
+    def save_schedule(self, schedule: dict[str, Any]) -> None:
+        """AP21/AP22: put the whole item -- create, or replace on PUT."""
         try:
-            with self.table.batch_writer() as batch:
-                for schedule in schedules:
-                    batch.put_item(Item=self._to_item(schedule))
+            self.table.put_item(Item=self._to_item(schedule))
 
         except ClientError as exc:
             raise self._upstream(exc, "writing to") from exc
@@ -88,96 +95,47 @@ class ScheduleRepository(ScheduleSource):
         room_id: str,
         schedule_id: str,
     ) -> dict[str, Any] | None:
-        """Fetch a single schedule item."""
-        response = self.table.get_item(
-            Key=self._key(room_id, schedule_id)
-        )
-        item = response.get("Item")
+        """AP13: fetch a single schedule item."""
+        try:
+            item = self.table.get_item(
+                Key=self._key(room_id, schedule_id)
+            ).get("Item")
+
+        except ClientError as exc:
+            raise self._upstream(exc, "reading from") from exc
+
         return self._to_dict(item) if item else None
-
-    def update_schedule(
-        self,
-        schedule: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Update a schedule item and maintain its GSI keys."""
-        key = self._key(
-            schedule["room_id"],
-            schedule["id"],
-        )
-
-        attributes = self._to_item(schedule)
-        attributes.pop("PK", None)
-        attributes.pop("SK", None)
-        attributes.pop("id", None)
-
-        set_parts = []
-        remove_parts = []
-
-        expression_names = {}
-        expression_values = {}
-
-        for index, (name, value) in enumerate(attributes.items()):
-            name_key = f"#attr{index}"
-            value_key = f":value{index}"
-
-            set_parts.append(
-                f"{name_key} = {value_key}"
-            )
-
-            expression_names[name_key] = name
-            expression_values[value_key] = value
-
-        is_course = (
-            schedule["type"] == "COURSE"
-            and schedule.get("course_code")
-        )
-
-        if not is_course:
-            expression_names["#gsi5pk"] = "GSI5PK"
-            expression_names["#gsi5sk"] = "GSI5SK"
-
-            remove_parts = [
-                "#gsi5pk",
-                "#gsi5sk",
-            ]
-
-        update_expression = "SET " + ", ".join(set_parts)
-
-        if remove_parts:
-            update_expression += (
-                " REMOVE " + ", ".join(remove_parts)
-            )
-
-        response = self.table.update_item(
-            Key=key,
-            UpdateExpression=update_expression,
-            ExpressionAttributeNames=expression_names,
-            ExpressionAttributeValues=expression_values,
-            ConditionExpression="attribute_exists(PK)",
-            ReturnValues="ALL_NEW",
-        )
-
-        return self._to_dict(response["Attributes"])
 
     def delete_schedule(
         self,
         room_id: str,
         schedule_id: str,
     ) -> None:
-        """Delete a schedule item."""
-        self.table.delete_item(
-            Key=self._key(room_id, schedule_id),
-            ConditionExpression="attribute_exists(PK)",
-        )
+        """AP23: delete a schedule item."""
+        try:
+            self.table.delete_item(Key=self._key(room_id, schedule_id))
+
+        except ClientError as exc:
+            raise self._upstream(exc, "deleting from") from exc
 
     # -- internals ---------------------------------------------------------
 
-    def _run(self, query: dict[str, Any], action: str) -> list[dict[str, Any]]:
+    def _run(self, query: dict[str, Any]) -> list[dict[str, Any]]:
+        """Every page: a FilterExpression can leave page one short or empty."""
+        items: list[dict[str, Any]] = []
+
         try:
-            return self.table.query(**query).get("Items", [])
+            while True:
+                page = self.table.query(**query)
+                items.extend(page.get("Items", []))
+
+                if "LastEvaluatedKey" not in page:
+                    return items
+
+                query["ExclusiveStartKey"] = page["LastEvaluatedKey"]
 
         except ClientError as exc:
-            raise self._upstream(exc, action) from exc
+            raise self._upstream(exc, "querying") from exc
 
     def _upstream(self, exc: ClientError, action: str) -> UpstreamError:
         error_code = exc.response.get("Error", {}).get("Code")
@@ -190,13 +148,13 @@ class ScheduleRepository(ScheduleSource):
     @staticmethod
     def _to_item(schedule: dict[str, Any]) -> dict[str, Any]:
         """A schedule dict -> a single-table item, keys and all."""
-        sort = f"{schedule['start_at']}#SCHEDULE#{schedule['id']}"
+        # UTC, so string order in the sort key is time order across offsets.
+        sort = f"{to_utc(schedule['start_at'])}#SCHEDULE#{schedule['id']}"
         room = f"ROOM#{schedule['room_id']}"
 
         item = {
             **schedule,
-            "PK": room,
-            "SK": f"SCHEDULE#{schedule['id']}",
+            **ScheduleRepository._key(schedule["room_id"], schedule["id"]),
             "GSI0PK": "SCHEDULE",
             "GSI0SK": schedule["id"],
             "GSI4PK": room,
@@ -214,7 +172,7 @@ class ScheduleRepository(ScheduleSource):
 
     @staticmethod
     def _to_dict(item: dict[str, Any]) -> dict[str, Any]:
-        """A stored item -> the schedule contract, without the key attributes."""
+        """A stored item -> the schedule, without the key attributes."""
         return {
             name: value
             for name, value in item.items()
