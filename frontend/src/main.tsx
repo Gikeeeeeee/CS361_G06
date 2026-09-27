@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 
 // นำเข้าเฉพาะ CSS ของตัวแผนที่
-import './features/homepage/styles/map.css';
+import './features/campus-explorer/components/homepage/styles/map.css';
 
 // เรียกใช้ App ของเพื่อนที่เป็นตัวคุม Routing ทั้งหมด
 import App from './App';
