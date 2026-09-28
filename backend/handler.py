@@ -25,11 +25,14 @@ from errors import (
 )
 from repositories.building_repository import BuildingRepository
 from repositories.ScheduleRepo import ScheduleRepository
+from repositories.opensearch_repository import OpenSearchRepository
+
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService
 from services.room_service import RoomService
 from services.schedule_service import ScheduleService
+from services.search_service import SearchService
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -81,6 +84,12 @@ class Dependencies:
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
+    def ensure_search(self):
+        if self.search is None:
+            self.search = SearchService(
+                OpenSearchRepository()
+            )
+        return self.search
 
 
 # Built once per Lambda container (kept warm across invocations).
@@ -107,6 +116,10 @@ ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
 ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
+
+# V2 Schedule API
+SEARCH = "/api/v2/search"
+
 
 ROUTES = {
     f"GET {BUILDINGS}": Route(
@@ -153,6 +166,16 @@ ROUTES = {
             p["roomId"],
             p["scheduleId"],
         ),
+    ),
+    f"GET {SEARCH}": Route(
+        (),
+        lambda deps, p: deps.ensure_search().search(
+            p["query"],
+            entity_type=p.get("type"),
+            building_id=p.get("buildingId"),
+            page=p.get("page", 1),
+            page_size=p.get("pageSize", 20),
+        ).to_dict(),
     ),
 }
 
@@ -281,6 +304,39 @@ def lambda_handler(event, context):
 
         if missing:
             raise MissingParameters(missing)
+
+        if route_key == f"GET {SEARCH}":
+            query_params = (
+                event.get("queryStringParameters")
+                or {}
+            )
+
+            params["query"] = query_params.get("q")
+
+            if params["query"] is None:
+                raise MissingParameters(["q"])
+
+            params["type"] = query_params.get("type")
+            params["buildingId"] = query_params.get("buildingId")
+            try:
+                params["page"] = int(
+                    query_params.get("page", 1)
+                )
+
+                params["pageSize"] = int(
+                    query_params.get("pageSize", 20)
+                )
+            except ValueError as exc:
+                raise AppError(
+                    "INVALID_PARAMETER"
+                    "page and pageSize must be integers"
+                ) from exc
+        # ---------------------------------------------------------------
+        # PUT request body
+        #
+        # API Gateway HTTP API sends `body` as a JSON string.
+        # Convert it to a Python dict before passing it to the service.
+        # ---------------------------------------------------------------
 
         if method == "PUT":
             body = params.get("body")

@@ -156,3 +156,23 @@ class InvalidSchedule(ValidationError):
 
     def __init__(self, message: str):
         super().__init__(message)
+
+class SearchServiceUnavailable(AppError):
+    status_code = 503
+    code = "SEARCH_SERVICE_UNAVAILABLE"
+
+    def __init__(
+        self,
+        message: str = "Search service is temporarily unavailable.",
+    ):
+        super().__init__(message)
+
+"""
+    ERROR FOR SERACH PARAMETER
+"""
+class InvalidParameter(AppError):
+    status_code = 400
+    code = "INVALID_PARAMETER"
+
+    def __init__(self, message: str):
+        super().__init__(message)

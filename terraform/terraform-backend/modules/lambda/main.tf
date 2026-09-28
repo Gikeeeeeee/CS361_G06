@@ -1,8 +1,38 @@
 # CS361_G06/terraform/backend/modules/lambda/main.tf
 
+resource "terraform_data" "build" {
+  triggers_replace = concat(
+    [
+      filesha256("${var.source_dir}/requirements.txt")
+    ],
+    [
+      for file in sort(fileset(var.source_dir, "**/*.py")) :
+      filesha256("${var.source_dir}/${file}")
+    ]
+  )
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      rm -rf "${path.module}/build"
+      mkdir -p "${path.module}/build"
+
+      pip install \
+        -r "${var.source_dir}/requirements.txt" \
+        -t "${path.module}/build"
+
+      cp -r "${var.source_dir}/." "${path.module}/build/"
+      rm -rf "${path.module}/build/venv"
+      rm -rf "${path.module}/build/.venv"
+      rm -rf "${path.module}/build/__pycache__"
+      rm -rf "${path.module}/build/.pytest_cache"
+      rm -rf "${path.module}/build/tests"
+    EOT
+  }
+}
+
 data "archive_file" "package" {
   type        = "zip"
-  source_dir  = var.source_dir
+  source_dir  = "${path.module}/build"
   output_path = "${path.module}/lambda.zip"
 
   excludes = [
@@ -12,11 +42,16 @@ data "archive_file" "package" {
     "**/__pycache__",
     ".pytest_cache",
     "tests",
+    "requirements.txt",
     "pytest.ini",
     "test_local.py",
     "test_*.py",
     "smoke_local.py",
-    "README.md"
+    "README.md",
+  ]
+
+  depends_on = [
+    terraform_data.build
   ]
 }
 
@@ -125,6 +160,36 @@ resource "aws_iam_role_policy_attachment" "dynamodb_access" {
   policy_arn = aws_iam_policy.dynamodb_access.arn
 }
 
+
+# ---------------------------------------------------------------------------
+# OpenSearch Serverless access
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "opensearch_access" {
+  name = "${var.project_name}-lambda-opensearch-access-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+
+        Resource = var.opensearch_collection_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "opensearch_access" {
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.opensearch_access.arn
+}
+
 # ---------------------------------------------------------------------------
 # Lambda function
 # ---------------------------------------------------------------------------
@@ -140,7 +205,7 @@ resource "aws_lambda_function" "this" {
 
   role = aws_iam_role.this.arn
 
-  timeout     = 10
+  timeout     = 60
   memory_size = 256
 
   environment {
@@ -148,6 +213,9 @@ resource "aws_lambda_function" "this" {
       BUCKET_NAME         = var.bucket_name
       BUILDINGS_FILE      = var.buildings_file
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+
+      OPENSEARCH_ENDPOINT = var.opensearch_endpoint
+      OPENSEARCH_INDEX    = var.opensearch_index
     }
   }
 

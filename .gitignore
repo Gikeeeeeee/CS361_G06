@@ -27,3 +27,6 @@ Claude*
 /docs
 
 tfplan
+
+# Terraform Lambda build artifacts
+terraform/terraform-backend/modules/lambda/build/

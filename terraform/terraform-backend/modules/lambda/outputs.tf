@@ -14,3 +14,8 @@ output "invoke_arn" {
   description = "Lambda invoke ARN used by API Gateway."
   value       = aws_lambda_function.this.invoke_arn
 }
+
+output "lambda_role_arn" {
+  description = "Lambda execution role ARN used by OpenSearch access policy."
+  value       = aws_iam_role.this.arn
+}

@@ -47,6 +47,19 @@ module "storage" {
 }
 
 # ---------------------------------------------------------------------------
+# OpenSearch Serverless
+# ---------------------------------------------------------------------------
+
+module "opensearch" {
+  source = "./modules/opensearch"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  collection_name = "faculty-search"
+}
+
+# ---------------------------------------------------------------------------
 # Lambda
 # ---------------------------------------------------------------------------
 
@@ -64,6 +77,56 @@ module "lambda" {
 
   dynamodb_table_name = module.dynamodb.table_name
   dynamodb_table_arn  = module.dynamodb.table_arn
+
+  opensearch_collection_arn = module.opensearch.collection_arn
+  opensearch_endpoint       = module.opensearch.collection_endpoint
+  opensearch_index          = "university"
+}
+
+# ---------------------------------------------------------------------------
+# OpenSearch access policy
+# ---------------------------------------------------------------------------
+
+resource "aws_opensearchserverless_access_policy" "lambda" {
+  name = "cs361-os-lambda-${var.environment}"
+  type = "data"
+
+  policy = jsonencode([
+    {
+      Rules = [
+        {
+          ResourceType = "index"
+          Resource = [
+            "index/${module.opensearch.collection_name}/*"
+          ]
+          Permission = [
+            "aoss:ReadDocument",
+            "aoss:WriteDocument",
+            "aoss:CreateIndex",
+            "aoss:UpdateIndex",
+            "aoss:DeleteIndex",
+            "aoss:DescribeIndex"
+          ]
+        },
+        {
+          ResourceType = "collection"
+          Resource = [
+            "collection/${module.opensearch.collection_name}"
+          ]
+          Permission = [
+            "aoss:DescribeCollectionItems"
+          ]
+        }
+      ]
+
+      Principal = concat(
+        [
+          module.lambda.lambda_role_arn
+        ],
+        var.opensearch_data_access_principals
+      )
+    }
+  ])
 }
 
 # ---------------------------------------------------------------------------

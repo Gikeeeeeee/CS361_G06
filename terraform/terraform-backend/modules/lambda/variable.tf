@@ -40,3 +40,16 @@ variable "dynamodb_table_arn" {
   description = "Existing DynamoDB table ARN."
   type        = string
 }
+
+variable "opensearch_collection_arn" {
+  type = string
+}
+
+variable "opensearch_endpoint" {
+  type = string
+}
+
+variable "opensearch_index" {
+  type    = string
+  default = "university"
+}

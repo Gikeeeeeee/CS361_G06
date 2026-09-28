@@ -22,3 +22,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "opensearch_data_access_principals" {
+  description = "IAM principals allowed to access OpenSearch Serverless data"
+  type        = list(string)
+  default     = []
+}
