@@ -121,10 +121,12 @@ def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
     document_id = get_document_id(item)
 
     name = item.get("name")
+
     name_th = _localized_text(name, "th")
     name_en = _localized_text(name, "en")
 
     description = item.get("description")
+
     description_th = _localized_text(description, "th")
     description_en = _localized_text(description, "en")
 
@@ -153,6 +155,12 @@ def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
         "type": item.get("type"),
         "course_code": item.get("course_code"),
         "organizer": item.get("organizer"),
+        "start_at": item.get("start_at"),
+        "end_at": item.get("end_at"),
+        "time_zone": item.get("time_zone"),
+        "recurrence_rule": item.get("recurrence_rule"),
+        "room_id": item.get("room_id"),
+        "status": item.get("status"),
 
         # Facility
         "facility_type": (

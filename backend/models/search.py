@@ -15,13 +15,26 @@ class SearchQuery:
 class SearchResult:
     id: str
     type: str
-    title: str
+    title: str = ""
     subtitle: str | None = None
+
+    description: str | None = None
+
     building_id: str | None = None
     building_code: str | None = None
+
     room_id: str | None = None
     room_code: str | None = None
+
     course_code: str | None = None
+    organizer: str | None = None
+
+    start_at: str | None = None
+    end_at: str | None = None
+    time_zone: str | None = None
+    recurrence_rule: str | None = None
+
+    status: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

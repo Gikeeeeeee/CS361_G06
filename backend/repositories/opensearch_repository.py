@@ -97,6 +97,9 @@ class OpenSearchRepository:
 
         filters = []
 
+        # ---------------------------------------------------------
+        # Entity / Schedule Type Filter
+        # ---------------------------------------------------------
         if query.entity_type:
             if query.entity_type in {
                 "building",
@@ -119,6 +122,8 @@ class OpenSearchRepository:
                 "exam",
                 "activity",
             }:
+                # Course / Exam / Activity are all
+                # Schedule entities.
                 filters.append(
                     {
                         "term": {
@@ -127,6 +132,8 @@ class OpenSearchRepository:
                     }
                 )
 
+                # Schedule.type stores:
+                # COURSE / EXAM / ACTIVITY
                 filters.append(
                     {
                         "term": {
@@ -137,15 +144,23 @@ class OpenSearchRepository:
                     }
                 )
 
+        # ---------------------------------------------------------
+        # Building Filter
+        # ---------------------------------------------------------
         if query.building_id:
             filters.append(
                 {
                     "term": {
-                        "building_id.keyword": query.building_id,
+                        "building_id.keyword": (
+                            query.building_id
+                        ),
                     }
                 }
             )
 
+        # ---------------------------------------------------------
+        # OpenSearch Query
+        # ---------------------------------------------------------
         body = {
             "from": (
                 (query.page - 1)
@@ -169,18 +184,23 @@ class OpenSearchRepository:
             },
         }
 
+        # ---------------------------------------------------------
+        # Execute Search
+        # ---------------------------------------------------------
         try:
             response = self.client.search(
                 index=self.index_name,
                 body=body,
             )
-
         except (
             ConnectionError,
             ConnectionTimeout,
         ) as exc:
             raise SearchServiceUnavailable() from exc
 
+        # ---------------------------------------------------------
+        # Total
+        # ---------------------------------------------------------
         total_value = response["hits"]["total"]
 
         total = int(
@@ -189,6 +209,9 @@ class OpenSearchRepository:
             else total_value
         )
 
+        # ---------------------------------------------------------
+        # Map Search Results
+        # ---------------------------------------------------------
         results = []
 
         for hit in response["hits"]["hits"]:
@@ -197,40 +220,109 @@ class OpenSearchRepository:
                 {},
             )
 
+            entity_type = source.get(
+                "entity_type",
+                "",
+            )
+
+            # For Schedule:
+            #
+            # entity_type = SCHEDULE
+            # type        = COURSE / EXAM / ACTIVITY
+            #
+            # API result:
+            # type = COURSE / EXAM / ACTIVITY
+            #
+            # For other entities:
+            #
+            # entity_type = BUILDING / ROOM / FACILITY
+            #
+            # API result:
+            # type = BUILDING / ROOM / FACILITY
+            if entity_type == "SCHEDULE":
+                result_type = source.get(
+                    "type",
+                    "",
+                )
+            else:
+                result_type = entity_type
+
             results.append(
                 SearchResult(
                     id=source.get(
                         "id",
                         hit.get("_id", ""),
                     ),
-                    type=source.get(
-                        "entity_type",
-                        "",
-                    ),
+
+                    # Schedule:
+                    # COURSE / EXAM / ACTIVITY
+                    #
+                    # Other:
+                    # BUILDING / ROOM / FACILITY
+                    type=result_type,
+
                     title=source.get(
                         "title",
                         "",
                     ),
+
                     subtitle=(
                         source.get("course_code")
                         or source.get("room_number")
                         or source.get("code")
                         or source.get("organizer")
                     ),
+
+                    # Common / Schedule
+                    description=source.get(
+                        "description"
+                    ),
+
+                    # Building
                     building_id=source.get(
                         "building_id"
                     ),
+
                     building_code=source.get(
                         "code"
                     ),
+
+                    # Room / Schedule
                     room_id=source.get(
                         "room_id"
                     ),
+
                     room_code=source.get(
                         "room_number"
                     ),
+
+                    # Schedule
                     course_code=source.get(
                         "course_code"
+                    ),
+
+                    organizer=source.get(
+                        "organizer"
+                    ),
+
+                    start_at=source.get(
+                        "start_at"
+                    ),
+
+                    end_at=source.get(
+                        "end_at"
+                    ),
+
+                    time_zone=source.get(
+                        "time_zone"
+                    ),
+
+                    recurrence_rule=source.get(
+                        "recurrence_rule"
+                    ),
+
+                    status=source.get(
+                        "status"
                     ),
                 )
             )
