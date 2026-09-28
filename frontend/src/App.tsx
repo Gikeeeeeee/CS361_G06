@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import RootLayout from './pages/RootLayout';
-import HomePage from './pages/HomePage';
-import SavedPage from './pages/SavedPage';
-import ProfilePage from './pages/ProfilePage';
-import BuildingInfoPage from './pages/BuildingDetailPage';
-import RoomDetailPage from './pages/RoomDetailPage';
-import FacilityDetailPage from './pages/FacilityDetailPage';
+import RootLayout from './features/campus-explorer/pages/RootLayout';
+import HomePage from './features/campus-explorer/pages/HomePage';
+import SavedPage from './features/campus-explorer/pages/SavedPage';
+import ProfilePage from './features/campus-explorer/pages/ProfilePage';
+import BuildingInfoPage from './features/campus-explorer/pages/BuildingDetailPage';
+import RoomDetailPage from './features/campus-explorer/pages/RoomDetailPage';
+import FacilityDetailPage from './features/campus-explorer/pages/FacilityDetailPage';
+import { AdminPlaceholder } from './features/admin/AdminPlaceholder';
 
 function DynamicPageTitle() {
   const location = useLocation();
@@ -46,6 +47,7 @@ function App() {
         <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
         <Route path="rooms/:roomId" element={<RoomDetailPage />} />
         <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
+        <Route path="admin" element={<AdminPlaceholder />} />
       </Routes>
     </BrowserRouter>
   );
