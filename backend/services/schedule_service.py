@@ -1,10 +1,9 @@
 """
-Schedule use cases.
-
-Layer: application. Depends on the ScheduleSource port, never on boto3.
-
-A recurring schedule is ONE stored item carrying its `recurrence_rule`; the
-frontend expands it. The backend expands series only to detect conflicts.
+Schedule service
+- get_room_schedules() list occurrences in a time window
+- create_schedule()    validate, check overlap, store
+- update_schedule()    replace a schedule
+- delete_schedule()    delete a schedule
 """
 
 from datetime import datetime, timezone
@@ -39,15 +38,23 @@ class ScheduleService:
         end: str,
         schedule_type: str | None = None,
     ) -> dict[str, Any]:
-        """AP15: every schedule for a room whose series touches [start, end)."""
+        """AP15: one row per occurrence inside [start, end)."""
         schedule_type = schedule_type.upper() if schedule_type else None
+        window_start, window_end = parse_time(start), parse_time(end)
 
         items = self.source.find_overlapping(
-            room_id, to_utc(start), to_utc(end), schedule_type
+            room_id, to_utc(window_start), to_utc(window_end), schedule_type
         )
         data = sorted(
-            (to_contract(item) for item in items),
-            key=lambda schedule: parse_time(schedule["start_at"]),
+            (
+                {**to_contract(item), "start_at": s.isoformat(), "end_at": e.isoformat()}
+                for item in items
+                for s, e in occurrences(
+                    item["start_at"], item["end_at"], item.get("recurrence_rule")
+                )
+                if overlaps(s, e, window_start, window_end)
+            ),
+            key=lambda row: parse_time(row["start_at"]),
         )
 
         return {
@@ -121,14 +128,8 @@ class ScheduleService:
         schedule: dict[str, Any],
         ignore_id: str | None = None,
     ) -> None:
-        """
-        Raise if any occurrence lands on a CONFIRM booking in the same room.
-
-        One query fetches every series touching the new one's span; both sides
-        are expanded (each capped at MAX_OCCURRENCES) and compared pairwise.
-
-        ponytail: O(n*m) pairwise scan; sort-and-sweep if series grow large.
-        """
+        """Check schedule overlap."""
+        # ponytail: O(n*m) pairwise scan; sort-and-sweep if series grow large.
         mine = occurrences(
             schedule["start_at"], schedule["end_at"], schedule["recurrence_rule"]
         )
@@ -137,7 +138,10 @@ class ScheduleService:
             for item in self.source.find_overlapping(
                 room_id, to_utc(schedule["start_at"]), schedule["series_end_at"]
             )
-            if item.get("status") == "CONFIRM" and item.get("id") != ignore_id
+            if item.get("status") == "CONFIRM"
+            and item.get("id") != ignore_id
+            # An exam may take over a lecture slot (midterm/final week).
+            and {item.get("type"), schedule["type"]} != {"EXAM", "COURSE"}
             for slot in occurrences(
                 item["start_at"], item["end_at"], item.get("recurrence_rule")
             )

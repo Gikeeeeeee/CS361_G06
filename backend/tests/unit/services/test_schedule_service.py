@@ -101,9 +101,27 @@ def test_get_room_schedules_returns_a_series_that_started_before_the_window(
     )
 
     assert result["meta"]["count"] == 1
+    assert result["data"][0]["start_at"] == "2026-10-21T13:00:00+07:00"
+    assert result["data"][0]["end_at"] == "2026-10-21T16:00:00+07:00"
     assert result["data"][0]["recurrence_rule"] == WEEKLY_15
     assert "series_end_at" not in result["data"][0]
     assert "created_at" not in result["data"][0]
+
+
+@pytest.mark.unit
+def test_get_room_schedules_returns_one_row_per_occurrence(empty_source):
+    service = ScheduleService(empty_source)
+    service.create_schedule(ROOM, _course())
+
+    result = service.get_room_schedules(
+        ROOM, "2026-09-16T00:00:00+07:00", "2026-10-07T00:00:00+07:00"
+    )
+
+    assert [row["start_at"][:10] for row in result["data"]] == [
+        "2026-09-16", "2026-09-23", "2026-09-30",
+    ]
+    assert len({row["id"] for row in result["data"]}) == 1
+    assert result["meta"]["count"] == 3
 
 
 @pytest.mark.unit
@@ -166,18 +184,36 @@ def test_create_schedule_rejects_a_clash_in_week_7_of_an_existing_series(
     service = ScheduleService(empty_source)
     service.create_schedule(ROOM, _course())
 
-    # One-off exam on the 7th Wednesday (2026-10-28), inside the lecture.
+    # One-off activity on the 7th Wednesday (2026-10-28), inside the lecture.
     with pytest.raises(ScheduleConflict, match="2026-10-28"):
         service.create_schedule(
             ROOM,
             _payload(
-                type="EXAM",
+                type="ACTIVITY",
                 start_at="2026-10-28T15:00:00+07:00",
                 end_at="2026-10-28T17:00:00+07:00",
             ),
         )
 
     assert len(empty_source.schedules) == 1
+
+
+@pytest.mark.unit
+def test_create_schedule_lets_an_exam_take_over_a_lecture(empty_source):
+    service = ScheduleService(empty_source)
+    service.create_schedule(ROOM, _course())
+
+    # Midterm on the 7th Wednesday, inside the lecture.
+    service.create_schedule(
+        ROOM,
+        _payload(
+            type="EXAM",
+            start_at="2026-10-28T13:00:00+07:00",
+            end_at="2026-10-28T16:00:00+07:00",
+        ),
+    )
+
+    assert len(empty_source.schedules) == 2
 
 
 @pytest.mark.unit

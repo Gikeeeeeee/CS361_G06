@@ -4,10 +4,10 @@ import pytest
 
 from tests.conftest import make_apigw_event
 
-PATH = "/api/v2/rooms/room-uuid-1/schedules"
-GET_KEY = "GET /api/v2/rooms/{roomId}/schedules"
-POST_KEY = "POST /api/v2/rooms/{roomId}/schedules"
-ITEM_KEY = "/api/v2/rooms/{roomId}/schedules/{scheduleId}"
+PATH = "/api/v1/rooms/room-uuid-1/schedules"
+GET_KEY = "GET /api/v1/rooms/{roomId}/schedules"
+POST_KEY = "POST /api/v1/rooms/{roomId}/schedules"
+ITEM_KEY = "/api/v1/rooms/{roomId}/schedules/{scheduleId}"
 SCHEDULE_ID = "550e8400-e29b-41d4-a716-446655440050"
 
 WINDOW = {"start": "2026-09-16T00:00:00+07:00", "end": "2026-09-17T00:00:00+07:00"}

@@ -1,13 +1,3 @@
-"""
-Driven adapter: reads and writes schedules in Amazon DynamoDB.
-
-The only module that knows the single-table layout -- which prefix goes in PK,
-which GSI answers which access pattern. It implements
-`ports.schedule_source.ScheduleSource` and applies no domain rules.
-
-Layer: driven adapter (outbound).
-"""
-
 import os
 from typing import Any
 
@@ -46,6 +36,7 @@ class ScheduleRepository(ScheduleSource):
 
     @staticmethod
     def _key(room_id: str, schedule_id: str) -> dict[str, str]:
+        """Map room and schedule id to PK/SK."""
         return {
             "PK": f"ROOM#{room_id}",
             "SK": f"SCHEDULE#{schedule_id}",
@@ -60,13 +51,8 @@ class ScheduleRepository(ScheduleSource):
         end: str,
         schedule_type: str | None = None,
     ) -> list[dict[str, Any]]:
-        """
-        AP15: query GSI4 for series that start before `end`, keep those still
-        running at `start`.
-
-        ponytail: reads every earlier series of the room and filters. Fine for a
-        room's few series per term; add a lower bound on GSI4SK if it grows.
-        """
+        """Find schedules that intersect the time range."""
+        # ponytail: reads every earlier series of the room; bound GSI4SK if it grows.
         condition = Attr("series_end_at").gt(start)
 
         if schedule_type:
@@ -121,7 +107,7 @@ class ScheduleRepository(ScheduleSource):
     # -- internals ---------------------------------------------------------
 
     def _run(self, query: dict[str, Any]) -> list[dict[str, Any]]:
-        """Every page: a FilterExpression can leave page one short or empty."""
+        """Collect every page of the query."""
         items: list[dict[str, Any]] = []
 
         try:
@@ -138,6 +124,7 @@ class ScheduleRepository(ScheduleSource):
             raise self._upstream(exc, "querying") from exc
 
     def _upstream(self, exc: ClientError, action: str) -> UpstreamError:
+        """Convert an AWS error to our error so AWS details never reach the client."""
         error_code = exc.response.get("Error", {}).get("Code")
 
         return UpstreamError(
@@ -147,8 +134,7 @@ class ScheduleRepository(ScheduleSource):
 
     @staticmethod
     def _to_item(schedule: dict[str, Any]) -> dict[str, Any]:
-        """A schedule dict -> a single-table item, keys and all."""
-        # UTC, so string order in the sort key is time order across offsets.
+        """Schedule dict -> DynamoDB single-table item."""
         sort = f"{to_utc(schedule['start_at'])}#SCHEDULE#{schedule['id']}"
         room = f"ROOM#{schedule['room_id']}"
 
@@ -172,7 +158,7 @@ class ScheduleRepository(ScheduleSource):
 
     @staticmethod
     def _to_dict(item: dict[str, Any]) -> dict[str, Any]:
-        """A stored item -> the schedule, without the key attributes."""
+        """DynamoDB item -> schedule dict, without PK/SK/GSI keys."""
         return {
             name: value
             for name, value in item.items()

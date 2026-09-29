@@ -1,11 +1,11 @@
 """
-Schedule domain rules.
-
-Layer: domain / core. Knows nothing about HTTP or DynamoDB -- the PK/SK/GSI
-layout for a schedule lives in `repositories/`, not here.
-
-A recurring schedule is stored ONCE, with its RFC 5545 `recurrence_rule`. The
-frontend expands it; the backend only expands it to check for conflicts.
+Schedule domain
+- parse_time()  string -> datetime
+- to_utc()      datetime or string -> UTC ISO string for DynamoDB
+- overlaps()    check time overlap
+- occurrences() expand the RRULE
+- validate()    entry point: check and normalize a schedule
+- to_contract() shape the API response
 """
 
 from datetime import datetime, timezone
@@ -22,8 +22,6 @@ STATUSES = {"CONFIRM", "TENTATIVE", "CANCELLED"}
 _REQUIRED = ("type", "title", "start_at", "end_at", "time_zone", "status")
 _OPTIONAL = ("description", "course_code", "organizer", "recurrence_rule")
 
-# The v2 contract. Anything else stored on the item (created_at,
-# series_end_at, ...) never leaves the API.
 CONTRACT_FIELDS = (
     "id",
     "type",
@@ -39,12 +37,11 @@ CONTRACT_FIELDS = (
     "status",
 )
 
-# Bounds the conflict check, which expands every series it compares.
 MAX_OCCURRENCES = 200
 
 
 def parse_time(value: Any) -> datetime:
-    """`"2026-09-16T13:00:00+07:00"` -> an aware datetime."""
+    """String -> datetime, so Python can do time math."""
     try:
         moment = datetime.fromisoformat(value)
     except (TypeError, ValueError) as exc:
@@ -57,10 +54,7 @@ def parse_time(value: Any) -> datetime:
 
 
 def to_utc(value: str | datetime) -> str:
-    """
-    One fixed-width UTC form, so DynamoDB can compare instants as strings:
-    `"2026-09-16T13:00:00+07:00"` -> `"2026-09-16T06:00:00+00:00"`.
-    """
+    """Convert to a UTC string for the DynamoDB sort key."""
     moment = value if isinstance(value, datetime) else parse_time(value)
 
     return moment.astimezone(timezone.utc).isoformat(timespec="seconds")
@@ -72,7 +66,7 @@ def overlaps(
     b_start: datetime,
     b_end: datetime,
 ) -> bool:
-    """True when the half-open intervals [a) and [b) share any instant."""
+    """Check time overlap."""
     return a_start < b_end and b_start < a_end
 
 
@@ -81,10 +75,7 @@ def occurrences(
     end_at: str,
     recurrence_rule: str | None = None,
 ) -> list[tuple[datetime, datetime]]:
-    """
-    `[(start, end), ...]` -- one pair per occurrence, each as long as the
-    first. No rule means the single slot itself.
-    """
+    """Expand the RRULE into (start, end) occurrences."""
     start = parse_time(start_at)
     end = parse_time(end_at)
 
@@ -93,28 +84,21 @@ def occurrences(
 
     rule_text = str(recurrence_rule).upper()
 
-    # A rule with neither COUNT nor UNTIL repeats forever.
+    # Check COUNT or UNTIL so the rule cannot repeat forever.
     if "COUNT=" not in rule_text and "UNTIL=" not in rule_text:
-        raise ValidationError(
-            "recurrence_rule must carry COUNT or UNTIL so the series is finite"
-        )
+        raise ValidationError("recurrence_rule must carry COUNT or UNTIL")
 
     try:
         rule = rrulestr(str(recurrence_rule), dtstart=start)
-        # islice: COUNT=10**9 must fail fast, not expand a billion dates.
         moments = list(islice(rule, MAX_OCCURRENCES + 1))
     except (ValueError, TypeError) as exc:
-        raise ValidationError(
-            f"'{recurrence_rule}' is not a valid RFC 5545 RRULE"
-        ) from exc
+        raise ValidationError(f"'{recurrence_rule}' is not a valid RRULE") from exc
 
     if not moments:
         raise ValidationError(f"'{recurrence_rule}' has no occurrences")
 
     if len(moments) > MAX_OCCURRENCES:
-        raise ValidationError(
-            f"recurrence_rule expands past {MAX_OCCURRENCES} occurrences"
-        )
+        raise ValidationError(f"recurrence_rule expands past {MAX_OCCURRENCES}")
 
     duration = end - start
 
@@ -122,13 +106,7 @@ def occurrences(
 
 
 def validate(payload: Any) -> dict[str, Any]:
-    """
-    Check a POST/PUT body and return the schedule to store.
-
-    Only contract fields are kept, so a caller cannot set its own `id`, `PK`
-    or `created_at`. Adds `series_end_at` (UTC end of the last occurrence),
-    which lets a time-window query find a series that started earlier.
-    """
+    """Validate and normalize a schedule."""
     if not isinstance(payload, dict):
         raise ValidationError("Request body must be a JSON object")
 
@@ -145,9 +123,7 @@ def validate(payload: Any) -> dict[str, Any]:
         raise ValidationError(f"type must be one of: {', '.join(sorted(TYPES))}")
 
     if schedule["status"] not in STATUSES:
-        raise ValidationError(
-            f"status must be one of: {', '.join(sorted(STATUSES))}"
-        )
+        raise ValidationError(f"status must be one of: {', '.join(sorted(STATUSES))}")
 
     if not isinstance(schedule["title"], str) or not schedule["title"].strip():
         raise ValidationError("title must be a non-empty string")
@@ -164,5 +140,5 @@ def validate(payload: Any) -> dict[str, Any]:
 
 
 def to_contract(item: dict[str, Any]) -> dict[str, Any]:
-    """A stored schedule -> exactly the v2 contract fields, missing as null."""
+    """Stored schedule -> API object."""
     return {name: item.get(name) for name in CONTRACT_FIELDS}

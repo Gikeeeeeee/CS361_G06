@@ -105,7 +105,7 @@ BUILDING = f"{BUILDINGS}/{{buildingId}}"
 FLOOR = "/api/v1/floors/{floorId}"
 ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
-ROOM_SCHEDULES = "/api/v2/rooms/{roomId}/schedules"
+ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
 
 ROUTES = {
@@ -254,10 +254,10 @@ def lambda_handler(event, context):
       - GET    /api/v1/floors/{floorId}
       - GET    /api/v1/rooms/{roomId}
       - GET    /api/v1/facilities/{facilityId}
-      - GET    /api/v2/rooms/{roomId}/schedules
-      - POST   /api/v2/rooms/{roomId}/schedules
-      - PUT    /api/v2/rooms/{roomId}/schedules/{scheduleId}
-      - DELETE /api/v2/rooms/{roomId}/schedules/{scheduleId}
+      - GET    /api/v1/rooms/{roomId}/schedules
+      - POST   /api/v1/rooms/{roomId}/schedules
+      - PUT    /api/v1/rooms/{roomId}/schedules/{scheduleId}
+      - DELETE /api/v1/rooms/{roomId}/schedules/{scheduleId}
     """
     method = _method(event)
     path = _path(event)

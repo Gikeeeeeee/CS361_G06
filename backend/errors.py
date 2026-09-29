@@ -113,10 +113,9 @@ class RoomNotFound(NotFoundError):
 
 class ScheduleConflict(AppError):
     """
-    The requested slot is already taken.
-
-    409 is its own status: the request was well-formed (not 400) and the room
-    does exist (not 404) -- only the time is unavailable.
+    - 409 schedule conflict
+    - 400 wrong format
+    - 404 room does not exist
     """
 
     status_code = 409
@@ -141,6 +140,8 @@ class FacilityNotFound(NotFoundError):
         super().__init__(
             f"Facility '{facility_id}' not found"
         )
+
+
 class ScheduleNotFound(NotFoundError):
     code = "SCHEDULE_NOT_FOUND"
 
