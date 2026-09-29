@@ -18,7 +18,6 @@ def make_event():
 
 
 class FakeBuildingSource:
-
     def __init__(self, buildings=None, error=None):
         self.buildings = buildings
         self.error = error
@@ -37,6 +36,8 @@ class FakeBuildingSource:
 
 def invoke_api(buildings=None, error=None):
     source = FakeBuildingSource(buildings, error)
+
+    # ไม่จำเป็นต้องสร้าง ScheduleRepository
     deps = Dependencies(source)
 
     import handler
@@ -149,7 +150,9 @@ def test_get_buildings_empty_list():
 # TC05: Building data source error
 def test_get_buildings_data_source_error():
     result = invoke_api(
-        error=UpstreamError("Building data source is unavailable")
+        error=UpstreamError(
+            "Building data source is unavailable"
+        )
     )
 
     assert result["statusCode"] == 502

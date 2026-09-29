@@ -1,0 +1,33 @@
+from typing import Any, Protocol
+
+
+class ScheduleSource(Protocol):
+    def get_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch a single schedule by room and schedule id."""
+        ...
+
+    def save_schedule(self, schedule: dict[str, Any]) -> None:
+        """Create or fully replace one schedule (a series is one item)."""
+        ...
+
+    def delete_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> None:
+        """Delete a schedule item by room and schedule id."""
+        ...
+
+    def find_overlapping(
+        self,
+        room_id: str,
+        start: str,
+        end: str,
+        schedule_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Check schedule overlap."""
+        ...

@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/main.tf
-
 terraform {
   required_version = ">= 1.5.0"
 
@@ -8,6 +6,7 @@ terraform {
     key    = "terraform/backend/terraform.tfstate"
     region = "us-east-1"
   }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -25,11 +24,19 @@ provider "aws" {
   region = var.aws_region
 }
 
+# ---------------------------------------------------------------------------
+# Existing shared DynamoDB table
+# ---------------------------------------------------------------------------
+
 module "dynamodb" {
   source = "./modules/dynamodb"
 
   table_name = "CS361-G06-rickoroxd-data-dynamodb"
 }
+
+# ---------------------------------------------------------------------------
+# S3 Storage
+# ---------------------------------------------------------------------------
 
 module "storage" {
   source = "./modules/storage"
@@ -38,6 +45,10 @@ module "storage" {
   project_name = var.project_name
   environment  = var.environment
 }
+
+# ---------------------------------------------------------------------------
+# Lambda
+# ---------------------------------------------------------------------------
 
 module "lambda" {
   source = "./modules/lambda"
@@ -54,6 +65,10 @@ module "lambda" {
   dynamodb_table_name = module.dynamodb.table_name
   dynamodb_table_arn  = module.dynamodb.table_arn
 }
+
+# ---------------------------------------------------------------------------
+# API Gateway
+# ---------------------------------------------------------------------------
 
 module "api_gateway" {
   source = "./modules/api_gateway"

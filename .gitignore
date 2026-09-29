@@ -23,4 +23,7 @@ frontend/node_modules/
 CLAUDE*
 Claude*
 
+#Unused Docs
+/docs
+
 tfplan
