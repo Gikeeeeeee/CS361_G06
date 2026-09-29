@@ -8,6 +8,7 @@ import BuildingInfoPage from './features/campus-explorer/pages/BuildingDetailPag
 import RoomDetailPage from './features/campus-explorer/pages/RoomDetailPage';
 import FacilityDetailPage from './features/campus-explorer/pages/FacilityDetailPage';
 import { AdminPlaceholder } from './features/admin/AdminPlaceholder';
+import { AdminLayout } from './features/admin/components/AdminLayout';
 
 function DynamicPageTitle() {
   const location = useLocation();
@@ -47,7 +48,9 @@ function App() {
         <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
         <Route path="rooms/:roomId" element={<RoomDetailPage />} />
         <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
-        <Route path="admin" element={<AdminPlaceholder />} />
+        <Route path="admin" element={<AdminLayout />}>
+          <Route index element={<AdminPlaceholder />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
