@@ -14,6 +14,7 @@ resource "aws_dynamodb_table" "this" {
   stream_enabled   = true
   stream_view_type = "NEW_IMAGE"
 
+  deletion_protection_enabled = true
 
   lifecycle {
     ignore_changes = [
@@ -158,5 +159,6 @@ resource "aws_dynamodb_table" "this" {
     range_key       = "GSI6SK"
     projection_type = "ALL"
   }
+
 
 }
