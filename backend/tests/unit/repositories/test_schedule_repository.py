@@ -1,4 +1,9 @@
+from contextlib import nullcontext
+
 import pytest
+from botocore.exceptions import ClientError
+
+from errors import UpstreamError
 
 from repositories.ScheduleRepo import ScheduleRepository
 
@@ -10,6 +15,7 @@ class _PagedTable:
         self.pages = list(pages)
         self.queries = []
         self.put = None
+        self.puts = []
 
     def query(self, **kwargs):
         self.queries.append(dict(kwargs))
@@ -17,6 +23,10 @@ class _PagedTable:
 
     def put_item(self, Item):
         self.put = Item
+        self.puts.append(Item)
+
+    def batch_writer(self):
+        return nullcontext(self)
 
 
 @pytest.mark.unit
@@ -59,3 +69,26 @@ def test_save_schedule_keys_are_utc_and_one_item():
     assert table.put["GSI5PK"] == "COURSE#CS361"
     assert table.put["start_at"] == "2026-09-16T13:00:00+07:00"  # payload untouched
     assert "description" not in table.put
+
+
+@pytest.mark.unit
+def test_save_schedules_batches_every_item_with_the_same_keys():
+    table = _PagedTable()
+    schedule = {"id": "s1", "room_id": "r1", "type": "COURSE", "start_at": "2026-09-16T13:00:00+07:00"}
+
+    ScheduleRepository(table=table).save_schedules([schedule, {**schedule, "id": "s2"}])
+
+    assert [item["SK"] for item in table.puts] == ["SCHEDULE#s1", "SCHEDULE#s2"]
+    assert table.puts[0]["GSI4SK"] == "2026-09-16T06:00:00+00:00#SCHEDULE#s1"
+
+
+@pytest.mark.unit
+def test_save_schedules_client_error_becomes_upstream_error():
+    class _FailingTable(_PagedTable):
+        def put_item(self, Item):
+            raise ClientError({"Error": {"Code": "ProvisionedThroughputExceededException"}}, "BatchWriteItem")
+
+    schedule = {"id": "s1", "room_id": "r1", "type": "COURSE", "start_at": "2026-09-16T13:00:00+07:00"}
+
+    with pytest.raises(UpstreamError):
+        ScheduleRepository(table=_FailingTable()).save_schedules([schedule])

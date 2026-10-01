@@ -17,12 +17,18 @@ class AppError(Exception):
     status_code = 500
     code = "INTERNAL_ERROR"
 
-    def __init__(self, message: str = "Internal server error"):
+    def __init__(self, message: str = "Internal server error", details: list | None = None):
         super().__init__(message)
         self.message = message
+        self.details = details
 
     def to_dict(self) -> dict:
-        return {"code": self.code, "message": self.message}
+        body = {"code": self.code, "message": self.message}
+
+        if self.details is not None:
+            body["details"] = self.details
+
+        return body
 
 
 # ---------------------------------------------------------------------------
@@ -176,3 +182,84 @@ class InvalidParameter(AppError):
 
     def __init__(self, message: str):
         super().__init__(message)
+
+# ---------------------------------------------------------------------------
+# CSV schedule import
+# ---------------------------------------------------------------------------
+
+
+def _span(start, end) -> str:
+    return f"{start:%Y-%m-%d %H:%M}\u2013{end:%H:%M}"
+
+
+class CsvNotUtf8(ValidationError):
+    def __init__(self):
+        super().__init__(
+            'File is not UTF-8. In Excel use Save As \u2192 "CSV UTF-8 (Comma delimited)".'
+        )
+
+
+class CsvEmpty(ValidationError):
+    def __init__(self):
+        super().__init__("File has no data rows.")
+
+
+class CsvMissingColumns(ValidationError):
+    def __init__(self, names):
+        super().__init__(
+            f"Missing column(s): {', '.join(names)}. "
+            "Download the template for the full header."
+        )
+
+
+class CsvTooManyRows(ValidationError):
+    def __init__(self, count: int, limit: int):
+        super().__init__(
+            f"File has {count} rows; the limit is {limit}. Split it into smaller files."
+        )
+
+
+class CsvTooManyOccurrences(ValidationError):
+    def __init__(self, count: int, limit: int):
+        super().__init__(
+            f"File expands to {count} bookings; the limit is {limit}. "
+            "Split it into smaller files."
+        )
+
+
+class RoomTypeNotAllowed(ValidationError):
+    def __init__(self, room: str, room_type, allowed):
+        rule = (
+            f"only allows {', '.join(sorted(allowed))}" if allowed else "cannot be booked"
+        )
+        super().__init__(f"Room '{room}' ({room_type}) {rule}.")
+
+
+class RowOverlap(ValidationError):
+    def __init__(self, other_row: int, start, end):
+        super().__init__(f"Overlaps row {other_row} ({_span(start, end)}).")
+
+
+class BookingConflict(ValidationError):
+    def __init__(self, title, start, end):
+        super().__init__(f"Overlaps existing booking '{title}' ({_span(start, end)}).")
+
+
+class ImportRejected(ValidationError):
+    def __init__(self, details: list):
+        super().__init__(
+            f"File rejected: {len(details)} row(s) have problems. Nothing was imported.",
+            details,
+        )
+
+
+class ImportConflict(AppError):
+    status_code = 409
+    code = "SCHEDULE_CONFLICT"
+
+    def __init__(self, details: list):
+        super().__init__(
+            f"File rejected: {len(details)} row(s) overlap other bookings. "
+            "Nothing was imported.",
+            details,
+        )

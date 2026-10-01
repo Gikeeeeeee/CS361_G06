@@ -76,6 +76,16 @@ class ScheduleRepository(ScheduleSource):
         except ClientError as exc:
             raise self._upstream(exc, "writing to") from exc
 
+    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
+        """CSV import: batch_writer sends 25 items per call and retries leftovers."""
+        try:
+            with self.table.batch_writer() as batch:
+                for schedule in schedules:
+                    batch.put_item(Item=self._to_item(schedule))
+
+        except ClientError as exc:
+            raise self._upstream(exc, "writing to") from exc
+
     def get_schedule(
         self,
         room_id: str,

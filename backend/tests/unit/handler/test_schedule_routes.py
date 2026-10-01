@@ -210,3 +210,63 @@ def test_delete_schedule_returns_deleted(invoke_handler, schedule_source):
     assert result["statusCode"] == 200
     assert json.loads(result["body"]) == "deleted"
     assert schedule_source.schedules == []
+
+
+# -- POST /api/v1/schedules/imports --------------------------------------------
+
+IMPORT_KEY = "POST /api/v1/schedules/imports"
+CSV = (
+    "building,room,type,title,start_at,end_at,course_code,organizer,recurrence_rule\n"
+    "LC4,201,COURSE,CS361,2026-10-05T09:00:00+07:00,2026-10-05T12:00:00+07:00,CS361,Dr. A,\n"
+)
+
+
+def _import(body=CSV, query=None, base64_encoded=False):
+    event = make_apigw_event(
+        method="POST", path="/api/v1/schedules/imports", route_key=IMPORT_KEY,
+        query=query, body=body,
+    )
+    event["isBase64Encoded"] = base64_encoded
+    return event
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_import_dry_run_reads_the_raw_csv(invoke_handler):
+    result = invoke_handler(_import(query={"dry_run": "true"}))
+
+    assert result["statusCode"] == 200
+    assert json.loads(result["body"])["rows"][0]["room"] == "201"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+@pytest.mark.parametrize("query", [None, {"dry_run": "false"}])
+def test_import_without_dry_run_creates(invoke_handler, query):
+    import base64
+
+    event = _import(base64.b64encode(CSV.encode()).decode(), query, base64_encoded=True)
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 201
+    assert json.loads(result["body"]) == {"created": 1}
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_import_row_errors_carry_details(invoke_handler):
+    result = invoke_handler(_import(CSV.replace("COURSE", "PARTY")))
+
+    assert result["statusCode"] == 400
+    error = json.loads(result["body"])["error"]
+    assert error["code"] == "VALIDATION_ERROR"
+    assert error["details"][0]["row"] == 2
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_import_file_errors_have_no_details(invoke_handler):
+    result = invoke_handler(_import("building,room\n"))
+
+    assert result["statusCode"] == 400
+    assert "details" not in json.loads(result["body"])["error"]
