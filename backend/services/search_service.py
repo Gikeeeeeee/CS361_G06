@@ -10,6 +10,7 @@ ALLOWED_TYPES = {
     "schedule",
     "exam",
     "activity",
+    "facility",
 }
 
 

@@ -49,27 +49,6 @@ def _first(item: dict[str, Any], *keys: str) -> Any:
 
 
 def get_entity_type(item: dict[str, Any]) -> str:
-    """
-    Resolve the main entity type from the DynamoDB item.
-
-    GSI0PK represents the entity category:
-        BUILDING
-        FLOOR
-        ROOM
-        FACILITY
-        SCHEDULE
-
-    Example:
-        GSI0PK = "ROOM"
-        type   = "CLASSROOM"
-
-    The entity_type should be "ROOM", not "CLASSROOM".
-
-    Schedule records may not have GSI0PK.
-    In that case, GSI6PK = "TYPE#<schedule_type>"
-    indicates that the item is a SCHEDULE.
-    """
-
     value = item.get("GSI0PK")
 
     if value:

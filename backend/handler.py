@@ -118,7 +118,7 @@ ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
 
 # V2 Schedule API
-SEARCH = "/api/v2/search"
+SEARCH = "/api/v1/search"
 
 
 ROUTES = {

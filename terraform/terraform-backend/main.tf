@@ -77,6 +77,7 @@ module "lambda" {
 
   dynamodb_table_name = module.dynamodb.table_name
   dynamodb_table_arn  = module.dynamodb.table_arn
+  dynamodb_stream_arn = module.dynamodb.stream_arn
 
   opensearch_collection_arn = module.opensearch.collection_arn
   opensearch_endpoint       = module.opensearch.collection_endpoint
@@ -121,7 +122,8 @@ resource "aws_opensearchserverless_access_policy" "lambda" {
 
       Principal = concat(
         [
-          module.lambda.lambda_role_arn
+          module.lambda.lambda_role_arn,
+          module.lambda.indexer_role_arn
         ],
         var.opensearch_data_access_principals
       )

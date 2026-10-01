@@ -53,3 +53,7 @@ variable "opensearch_index" {
   type    = string
   default = "university"
 }
+variable "dynamodb_stream_arn" {
+  description = "DynamoDB Stream ARN used by the indexer Lambda."
+  type        = string
+}

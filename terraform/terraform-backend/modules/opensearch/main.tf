@@ -1,3 +1,62 @@
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnet" "lambda" {
+  id = "subnet-0212ce078587bd0d8"
+}
+
+resource "aws_security_group" "private_access" {
+  name        = "${var.project_name}-private-access-${var.environment}"
+  description = "Private access for Lambda and OpenSearch Serverless"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "HTTPS inside VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+
+    cidr_blocks = [
+      data.aws_vpc.default.cidr_block
+    ]
+  }
+
+  egress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+
+    cidr_blocks = [
+      "0.0.0.0/0"
+    ]
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# OpenSearch Serverless VPC endpoint
+# ---------------------------------------------------------------------------
+
+resource "aws_opensearchserverless_vpc_endpoint" "this" {
+  name = "${var.collection_name}-${var.environment}"
+
+  vpc_id = data.aws_vpc.default.id
+
+  subnet_ids = [
+    data.aws_subnet.lambda.id
+  ]
+
+  security_group_ids = [
+    aws_security_group.private_access.id
+  ]
+}
+
 # ---------------------------------------------------------------------------
 # Encryption policy
 # ---------------------------------------------------------------------------
@@ -30,7 +89,7 @@ resource "aws_opensearchserverless_security_policy" "network" {
 
   policy = jsonencode([
     {
-      Description = "Public access for development"
+      Description = "Private access through VPC endpoint"
 
       Rules = [
         {
@@ -47,7 +106,11 @@ resource "aws_opensearchserverless_security_policy" "network" {
         }
       ]
 
-      AllowFromPublic = true
+      AllowFromPublic = false
+
+      SourceVPCEs = [
+        aws_opensearchserverless_vpc_endpoint.this.id
+      ]
     }
   ])
 }
@@ -90,7 +153,8 @@ resource "aws_opensearchserverless_collection" "this" {
 
   depends_on = [
     aws_opensearchserverless_security_policy.encryption,
-    aws_opensearchserverless_security_policy.network
+    aws_opensearchserverless_security_policy.network,
+    aws_opensearchserverless_vpc_endpoint.this
   ]
 
   tags = {

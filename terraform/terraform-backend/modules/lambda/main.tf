@@ -225,3 +225,142 @@ resource "aws_lambda_function" "this" {
     ManagedBy   = "Terraform"
   }
 }
+
+# ---------------------------------------------------------------------------
+# Indexer Lambda execution role
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_role" "indexer" {
+  name = "${var.project_name}-indexer-lambda-exec-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_basic_execution" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# ---------------------------------------------------------------------------
+# DynamoDB Stream read access
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "indexer_stream_read" {
+  name = "${var.project_name}-indexer-stream-read-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams"
+        ]
+
+        Resource = var.dynamodb_stream_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_stream_read" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = aws_iam_policy.indexer_stream_read.arn
+}
+
+# ---------------------------------------------------------------------------
+# OpenSearch access for Indexer
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "indexer_opensearch_access" {
+  name = "${var.project_name}-indexer-opensearch-access-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+
+        Resource = var.opensearch_collection_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_opensearch_access" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = aws_iam_policy.indexer_opensearch_access.arn
+}
+
+# ---------------------------------------------------------------------------
+# Indexer Lambda
+# ---------------------------------------------------------------------------
+
+resource "aws_lambda_function" "indexer" {
+  function_name = "${var.project_name}-indexer-${var.environment}"
+
+  filename         = data.archive_file.package.output_path
+  source_code_hash = data.archive_file.package.output_base64sha256
+
+  runtime = "python3.12"
+  handler = "indexer.handler.lambda_handler"
+
+  role = aws_iam_role.indexer.arn
+
+  timeout     = 60
+  memory_size = 256
+
+  environment {
+    variables = {
+      OPENSEARCH_ENDPOINT = var.opensearch_endpoint
+      OPENSEARCH_INDEX    = var.opensearch_index
+    }
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# DynamoDB Stream -> Indexer Lambda
+# ---------------------------------------------------------------------------
+
+resource "aws_lambda_event_source_mapping" "indexer" {
+  event_source_arn  = var.dynamodb_stream_arn
+  function_name     = aws_lambda_function.indexer.arn
+  starting_position = "LATEST"
+
+  batch_size                         = 100
+  maximum_batching_window_in_seconds = 5
+  enabled                            = false
+
+  depends_on = [
+    aws_iam_role_policy_attachment.indexer_stream_read
+  ]
+}

@@ -116,7 +116,6 @@ def create_index(client: OpenSearch) -> None:
             },
             "mappings": {
                 "properties": {
-
                     "id": {
                         "type": "text",
                         "fields": {
@@ -126,7 +125,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "entity_type": {
                         "type": "text",
                         "fields": {
@@ -136,7 +134,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "title": {
                         "type": "text",
                         "fields": {
@@ -146,7 +143,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "title_th": {
                         "type": "text",
                         "analyzer": "thai_analyzer",
@@ -157,7 +153,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "title_en": {
                         "type": "text",
                         "fields": {
@@ -167,7 +162,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "code": {
                         "type": "text",
                         "fields": {
@@ -177,7 +171,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "room_number": {
                         "type": "text",
                         "fields": {
@@ -187,7 +180,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "type": {
                         "type": "text",
                         "fields": {
@@ -197,7 +189,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "course_code": {
                         "type": "text",
                         "fields": {
@@ -207,7 +198,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "organizer": {
                         "type": "text",
                         "fields": {
@@ -217,7 +207,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "facility_type": {
                         "type": "text",
                         "fields": {
@@ -227,7 +216,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "description": {
                         "type": "text",
                         "fields": {
@@ -237,7 +225,6 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "description_th": {
                         "type": "text",
                         "analyzer": "thai_analyzer",
@@ -248,9 +235,9 @@ def create_index(client: OpenSearch) -> None:
                             }
                         },
                     },
-
                     "description_en": {
                         "type": "text",
+                        "analyzer": "thai_analyzer",
                         "fields": {
                             "keyword": {
                                 "type": "keyword",
@@ -300,35 +287,37 @@ def scan_dynamodb() -> Iterator[dict[str, Any]]:
 
 def build_actions(
     items: Iterator[dict[str, Any]],
-) -> Iterator[dict[str, Any]]:
+) -> list[dict[str, Any]]:
+    """
+    Convert every DynamoDB item into an OpenSearch bulk action.
+
+    Any mapping or validation error stops the reindex immediately.
+    No invalid record is silently skipped.
+    """
+
+    actions: list[dict[str, Any]] = []
 
     for raw_item in items:
-        try:
-            # DynamoDB AttributeValue
-            # -> normal Python values
-            item = deserialize_item(raw_item)
+        item = deserialize_item(raw_item)
+        document = to_search_document(item)
 
-            document = to_search_document(item)
+        document_id = document.get("id")
 
-            document_id = document.get("id")
+        if not document_id:
+            raise ValueError(
+                "Document has no id."
+            )
 
-            if not document_id:
-                print(
-                    "SKIP: document has no id"
-                )
-                continue
-
-            yield {
+        actions.append(
+            {
                 "_op_type": "index",
                 "_index": OPENSEARCH_INDEX,
                 "_id": str(document_id),
                 "_source": document,
             }
+        )
 
-        except Exception as exc:
-            print(
-                f"ERROR: failed to map item: {exc}"
-            )
+    return actions
 
 
 def main() -> int:
@@ -346,23 +335,80 @@ def main() -> int:
         f"OpenSearch index : {OPENSEARCH_INDEX}"
     )
 
-    client = create_opensearch_client()
-
-    print("Checking OpenSearch access...")
-
     try:
-        if client.indices.exists(index=OPENSEARCH_INDEX):
+        client = create_opensearch_client()
+
+        print(
+            "Checking OpenSearch access..."
+        )
+
+        if client.indices.exists(
+            index=OPENSEARCH_INDEX
+        ):
             print(
-                f"OpenSearch index exists: {OPENSEARCH_INDEX}"
+                f"OpenSearch index exists: "
+                f"{OPENSEARCH_INDEX}"
             )
         else:
+            create_index(client)
+
+        # Phase 1: Read + validate + map
+        print(
+            "Scanning DynamoDB and preparing documents..."
+        )
+
+        actions = build_actions(
+            scan_dynamodb()
+        )
+
+        print(
+            f"Documents prepared : {len(actions)}"
+        )
+
+        # Phase 2: Bulk index
+        print(
+            "Indexing documents..."
+        )
+
+        success, errors = bulk(
+            client,
+            actions,
+            chunk_size=100,
+            raise_on_error=True,
+            stats_only=False,
+        )
+
+        if errors:
             print(
-                f"OpenSearch index does not exist: {OPENSEARCH_INDEX}"
+                "=== Reindex failed ==="
             )
+
+            print(
+                f"Documents indexed : {success}"
+            )
+
+            print(
+                f"Documents failed  : {len(errors)}"
+            )
+
+            for error in errors[:10]:
+                print(error)
+
+            return 1
+
+        print(
+            "\n=== Reindex finished ==="
+        )
+
+        print(
+            f"Documents indexed : {success}"
+        )
+
+        return 0
 
     except Exception as exc:
         print(
-            "ERROR: Cannot access OpenSearch."
+            "\n=== Reindex failed ==="
         )
 
         print(
@@ -370,61 +416,6 @@ def main() -> int:
         )
 
         return 1
-
-    # Create index if it does not exist.
-    create_index(client)
-
-    total = 0
-
-    def actions() -> Iterator[dict[str, Any]]:
-        nonlocal total
-
-        for action in build_actions(
-            scan_dynamodb()
-        ):
-            total += 1
-            yield action
-
-    print(
-        "Scanning DynamoDB and indexing documents..."
-    )
-
-    success, errors = bulk(
-        client,
-        actions(),
-        chunk_size=100,
-        raise_on_error=False,
-        stats_only=False,
-    )
-
-    failed = len(errors)
-
-    print("\n=== Reindex finished ===")
-
-    print(
-        f"Documents processed : {total}"
-    )
-
-    print(
-        f"Documents indexed   : {success}"
-    )
-
-    print(
-        f"Documents failed    : {failed}"
-    )
-
-    if errors:
-        print("\n=== Errors ===")
-
-        for error in errors[:10]:
-            print(error)
-
-        if len(errors) > 10:
-            print(
-                f"... and {len(errors) - 10} more errors"
-            )
-
-    return 1 if failed else 0
 
 
 if __name__ == "__main__":

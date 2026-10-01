@@ -129,22 +129,6 @@ resource "aws_lambda_permission" "api_gateway" {
 
   source_arn = "${aws_apigatewayv2_api.this.execution_arn}/*/*"
 }
-
-resource "aws_apigatewayv2_route" "put_schedule" {
-  api_id = aws_apigatewayv2_api.this.id
-
-  route_key = "PUT /api/v2/rooms/{roomId}/schedules/{scheduleId}"
-
-  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-}
-
-resource "aws_apigatewayv2_route" "delete_schedule" {
-  api_id = aws_apigatewayv2_api.this.id
-
-  route_key = "DELETE /api/v2/rooms/{roomId}/schedules/{scheduleId}"
-
-  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-}
 resource "aws_apigatewayv2_route" "search" {
   api_id = aws_apigatewayv2_api.this.id
 
