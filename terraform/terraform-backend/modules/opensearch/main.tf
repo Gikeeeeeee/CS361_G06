@@ -2,9 +2,6 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_subnet" "lambda" {
-  id = "subnet-0212ce078587bd0d8"
-}
 
 resource "aws_security_group" "private_access" {
   name        = "${var.project_name}-private-access-${var.environment}"
@@ -46,11 +43,8 @@ resource "aws_security_group" "private_access" {
 resource "aws_opensearchserverless_vpc_endpoint" "this" {
   name = "${var.collection_name}-${var.environment}"
 
-  vpc_id = data.aws_vpc.default.id
-
-  subnet_ids = [
-    data.aws_subnet.lambda.id
-  ]
+  vpc_id     = data.aws_vpc.default.id
+  subnet_ids = var.subnet_ids
 
   security_group_ids = [
     aws_security_group.private_access.id

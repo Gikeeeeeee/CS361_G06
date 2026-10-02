@@ -14,9 +14,11 @@ resource "aws_dynamodb_table" "this" {
   stream_enabled   = true
   stream_view_type = "NEW_IMAGE"
 
+
   deletion_protection_enabled = true
 
   lifecycle {
+    prevent_destroy = true
     ignore_changes = [
       server_side_encryption,
       tags,

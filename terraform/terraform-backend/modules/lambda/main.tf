@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/modules/lambda/main.tf
-
 resource "terraform_data" "build" {
   triggers_replace = concat(
     [
@@ -21,6 +19,7 @@ resource "terraform_data" "build" {
         -t "${path.module}/build"
 
       cp -r "${var.source_dir}/." "${path.module}/build/"
+
       rm -rf "${path.module}/build/venv"
       rm -rf "${path.module}/build/.venv"
       rm -rf "${path.module}/build/__pycache__"
@@ -81,6 +80,15 @@ resource "aws_iam_role" "this" {
 resource "aws_iam_role_policy_attachment" "basic_execution" {
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# ---------------------------------------------------------------------------
+# Lambda VPC execution permissions
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_role_policy_attachment" "vpc_execution" {
+  role       = aws_iam_role.this.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # ---------------------------------------------------------------------------
@@ -160,7 +168,6 @@ resource "aws_iam_role_policy_attachment" "dynamodb_access" {
   policy_arn = aws_iam_policy.dynamodb_access.arn
 }
 
-
 # ---------------------------------------------------------------------------
 # OpenSearch Serverless access
 # ---------------------------------------------------------------------------
@@ -191,7 +198,7 @@ resource "aws_iam_role_policy_attachment" "opensearch_access" {
 }
 
 # ---------------------------------------------------------------------------
-# Lambda function
+# API Lambda
 # ---------------------------------------------------------------------------
 
 resource "aws_lambda_function" "this" {
@@ -207,6 +214,14 @@ resource "aws_lambda_function" "this" {
 
   timeout     = 60
   memory_size = 256
+
+  vpc_config {
+    subnet_ids = var.lambda_subnet_ids
+
+    security_group_ids = [
+      var.lambda_security_group_id
+    ]
+  }
 
   environment {
     variables = {
@@ -252,6 +267,11 @@ resource "aws_iam_role" "indexer" {
 resource "aws_iam_role_policy_attachment" "indexer_basic_execution" {
   role       = aws_iam_role.indexer.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_vpc_execution" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # ---------------------------------------------------------------------------
@@ -333,6 +353,14 @@ resource "aws_lambda_function" "indexer" {
   timeout     = 60
   memory_size = 256
 
+  vpc_config {
+    subnet_ids = var.lambda_subnet_ids
+
+    security_group_ids = [
+      var.lambda_security_group_id
+    ]
+  }
+
   environment {
     variables = {
       OPENSEARCH_ENDPOINT = var.opensearch_endpoint
@@ -358,9 +386,11 @@ resource "aws_lambda_event_source_mapping" "indexer" {
 
   batch_size                         = 100
   maximum_batching_window_in_seconds = 5
-  enabled                            = false
+  enabled                            = true
 
   depends_on = [
-    aws_iam_role_policy_attachment.indexer_stream_read
+    aws_iam_role_policy_attachment.indexer_stream_read,
+    aws_iam_role_policy_attachment.indexer_opensearch_access,
+    aws_iam_role_policy_attachment.indexer_vpc_execution
   ]
 }

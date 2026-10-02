@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/variables.tf
-
 variable "aws_region" {
   description = "AWS region where backend resources are deployed."
   type        = string
@@ -23,8 +21,27 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "opensearch_data_access_principals" {
-  description = "IAM principals allowed to access OpenSearch Serverless data"
-  type        = list(string)
-  default     = []
+variable "dynamodb_table_name" {
+  description = "Shared DynamoDB table."
+  type        = string
+  default     = "CS361-G06-rickoroxd-data-dynamodb"
+}
+
+variable "lambda_subnet_id" {
+  description = "Subnet used by API and Indexer Lambda."
+  type        = string
+
+  default = "subnet-0212ce078587bd0d8"
+}
+
+variable "opensearch_collection_name" {
+  description = "Shared OpenSearch Serverless collection."
+  type        = string
+
+  default = "faculty-search"
+}
+
+variable "opensearch_index" {
+  description = "OpenSearch index owned by this developer."
+  type        = string
 }

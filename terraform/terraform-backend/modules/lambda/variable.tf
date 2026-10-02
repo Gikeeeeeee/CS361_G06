@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/modules/lambda/variables.tf
-
 variable "project_name" {
   description = "Project name."
   type        = string
@@ -41,19 +39,37 @@ variable "dynamodb_table_arn" {
   type        = string
 }
 
+variable "dynamodb_stream_arn" {
+  description = "DynamoDB Stream ARN used by the indexer Lambda."
+  type        = string
+}
+
 variable "opensearch_collection_arn" {
-  type = string
+  description = "OpenSearch Serverless collection ARN."
+  type        = string
 }
 
 variable "opensearch_endpoint" {
-  type = string
+  description = "OpenSearch Serverless collection endpoint."
+  type        = string
 }
 
 variable "opensearch_index" {
-  type    = string
-  default = "university"
+  description = "OpenSearch index name."
+  type        = string
+  default     = "university"
 }
-variable "dynamodb_stream_arn" {
-  description = "DynamoDB Stream ARN used by the indexer Lambda."
+
+# ---------------------------------------------------------------------------
+# Lambda VPC configuration
+# ---------------------------------------------------------------------------
+
+variable "lambda_subnet_ids" {
+  description = "Subnets used by the API and indexer Lambda functions."
+  type        = list(string)
+}
+
+variable "lambda_security_group_id" {
+  description = "Security group attached to the API and indexer Lambda functions."
   type        = string
 }

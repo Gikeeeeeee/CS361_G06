@@ -1,4 +1,4 @@
 variable "table_name" {
-  description = "Name of the existing DynamoDB table."
+  description = "DynamoDB table name."
   type        = string
 }
