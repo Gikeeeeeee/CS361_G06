@@ -66,6 +66,7 @@ class Dependencies:
             if schedule_source is not None
             else None
         )
+        self.search = None
 
     @property
     def schedules(self) -> ScheduleService:

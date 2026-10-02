@@ -27,13 +27,6 @@ variable "dynamodb_table_name" {
   default     = "CS361-G06-rickoroxd-data-dynamodb"
 }
 
-variable "lambda_subnet_id" {
-  description = "Subnet used by API and Indexer Lambda."
-  type        = string
-
-  default = "subnet-0212ce078587bd0d8"
-}
-
 variable "opensearch_collection_name" {
   description = "Shared OpenSearch Serverless collection."
   type        = string

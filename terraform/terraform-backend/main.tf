@@ -27,14 +27,6 @@ data "aws_vpc" "default" {
 }
 
 # ---------------------------------------------------------------------------
-# Lambda subnet
-# ---------------------------------------------------------------------------
-
-data "aws_subnet" "lambda" {
-  id = var.lambda_subnet_id
-}
-
-# ---------------------------------------------------------------------------
 # S3 Storage
 #
 # Previously: modules/storage/main.tf
@@ -185,9 +177,6 @@ module "opensearch" {
   environment     = var.environment
   collection_name = var.opensearch_collection_name
 
-  subnet_ids = [
-    data.aws_subnet.lambda.id
-  ]
 }
 
 # ---------------------------------------------------------------------------
