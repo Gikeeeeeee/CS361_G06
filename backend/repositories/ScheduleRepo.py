@@ -77,7 +77,14 @@ class ScheduleRepository(ScheduleSource):
             raise self._upstream(exc, "writing to") from exc
 
     def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
-        """CSV import: batch_writer sends 25 items per call and retries leftovers."""
+        """CSV import: batch_writer sends 25 items per call and retries leftovers.
+
+        NOTE: BatchWriteItem is NOT transactional. The service rejects the whole
+        file before writing, but if DynamoDB fails mid-write, the chunks already
+        sent stay saved. Accepted for now: TransactWriteItems caps at 100 actions
+        (a file can expand to 2000) and would also mean reworking US1/US2 CRUD.
+        If partial imports ever become a real problem, switch to TransactWriteItems.
+        """
         try:
             with self.table.batch_writer() as batch:
                 for schedule in schedules:

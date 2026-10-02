@@ -212,6 +212,14 @@ class CsvMissingColumns(ValidationError):
         )
 
 
+class CsvWrongCellCount(ValidationError):
+    def __init__(self, count: int, expected: int):
+        super().__init__(
+            f"Row has {count} cell(s) but the header has {expected}. "
+            "Check for a missing or extra comma."
+        )
+
+
 class CsvTooManyRows(ValidationError):
     def __init__(self, count: int, limit: int):
         super().__init__(

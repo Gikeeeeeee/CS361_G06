@@ -154,6 +154,18 @@ def test_every_bad_row_is_reported_and_nothing_is_written(service, store):
     assert store.schedules == []
 
 
+def test_rows_with_missing_or_extra_cells_are_rejected(service, store):
+    data = _csv(_row(), "LC4,COURSE", _row(day="2026-10-06") + ",extra")
+
+    with pytest.raises(ImportRejected) as exc_info:
+        service.import_csv(data, dry_run=False)
+
+    reasons = _reasons(exc_info)
+    assert set(reasons) == {3, 4}
+    assert "2 cell(s)" in reasons[3] and "10 cell(s)" in reasons[4]
+    assert store.schedules == []
+
+
 def test_row_number_survives_a_multiline_cell(service):
     data = _csv(_row(title='"Line 1\nLine 2"'), _row(type="PARTY", day="2026-10-06"))
 

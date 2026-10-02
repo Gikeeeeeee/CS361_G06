@@ -1,5 +1,7 @@
 """
-Schedule CSV import: every row is saved, or none.
+Schedule CSV import: every row is validated before anything is saved, or the
+whole file is rejected. The write itself is not transactional (see
+ScheduleRepository.save_schedules).
 - import_csv()  parse, validate, check rooms and overlaps, then preview or save
 """
 

@@ -22,6 +22,8 @@ from errors import (
     CsvMissingColumns,
     CsvNotUtf8,
     CsvTooManyRows,
+    CsvWrongCellCount,
+    ImportRejected,
     MissingParameters,
     RoomTypeNotAllowed,
     ValidationError,
@@ -208,16 +210,32 @@ def parse_csv(data: bytes) -> list[tuple[int, dict[str, str | None]]]:
     if missing:
         raise CsvMissingColumns(missing)
 
-    rows = [
-        (number, {name: cell.strip() or None for name, cell in zip(header, cells)})
-        for number, cells in enumerate(lines, start=2)
-        if any(cell.strip() for cell in cells)
-    ]
+    rows, misaligned = [], []
+
+    for number, cells in enumerate(lines, start=2):
+        if not any(cell.strip() for cell in cells):
+            continue
+
+        row = {name: cell.strip() or None for name, cell in zip(header, cells)}
+        rows.append((number, row))
+
+        # zip() silently drops extra cells / leaves columns out, and a stray
+        # comma shifts every value after it, so reject the row outright.
+        if len(cells) != len(header):
+            misaligned.append({
+                "row": number,
+                "building": row.get("building"),
+                "room": row.get("room"),
+                "reason": CsvWrongCellCount(len(cells), len(header)).message,
+            })
 
     if not rows:
         raise CsvEmpty()
 
     if len(rows) > MAX_IMPORT_ROWS:
         raise CsvTooManyRows(len(rows), MAX_IMPORT_ROWS)
+
+    if misaligned:
+        raise ImportRejected(misaligned)
 
     return rows
