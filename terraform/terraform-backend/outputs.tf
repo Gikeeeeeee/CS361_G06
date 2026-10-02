@@ -1,13 +1,11 @@
-# CS361_G06/terraform/backend/outputs.tf
-
 output "bucket_name" {
   description = "Building-data S3 bucket."
-  value       = module.storage.bucket_name
+  value       = aws_s3_bucket.building_data.bucket
 }
 
 output "bucket_arn" {
   description = "Building-data S3 bucket ARN."
-  value       = module.storage.bucket_arn
+  value       = aws_s3_bucket.building_data.arn
 }
 
 output "lambda_function_name" {
@@ -22,12 +20,12 @@ output "indexer_lambda_function_name" {
 
 output "api_endpoint" {
   description = "API Gateway HTTP API endpoint."
-  value       = module.api_gateway.api_endpoint
+  value       = aws_apigatewayv2_api.this.api_endpoint
 }
 
 output "buildings_url" {
   description = "GET /api/v1/buildings endpoint."
-  value       = "${module.api_gateway.api_endpoint}/api/v1/buildings"
+  value       = "${aws_apigatewayv2_api.this.api_endpoint}/api/v1/buildings"
 }
 
 output "opensearch_collection_name" {

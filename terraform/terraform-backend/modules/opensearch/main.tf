@@ -2,7 +2,6 @@ data "aws_vpc" "default" {
   default = true
 }
 
-
 resource "aws_security_group" "private_access" {
   name        = "${var.project_name}-private-access-${var.environment}"
   description = "Private access for Lambda and OpenSearch Serverless"
@@ -36,10 +35,6 @@ resource "aws_security_group" "private_access" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# OpenSearch Serverless VPC endpoint
-# ---------------------------------------------------------------------------
-
 resource "aws_opensearchserverless_vpc_endpoint" "this" {
   name = "${var.collection_name}-${var.environment}"
 
@@ -51,10 +46,6 @@ resource "aws_opensearchserverless_vpc_endpoint" "this" {
   ]
 }
 
-# ---------------------------------------------------------------------------
-# Encryption policy
-# ---------------------------------------------------------------------------
-
 resource "aws_opensearchserverless_security_policy" "encryption" {
   name = "cs361-os-enc-${var.environment}"
   type = "encryption"
@@ -63,6 +54,7 @@ resource "aws_opensearchserverless_security_policy" "encryption" {
     Rules = [
       {
         ResourceType = "collection"
+
         Resource = [
           "collection/${var.collection_name}"
         ]
@@ -73,17 +65,13 @@ resource "aws_opensearchserverless_security_policy" "encryption" {
   })
 }
 
-# ---------------------------------------------------------------------------
-# Network policy
-# ---------------------------------------------------------------------------
-
 resource "aws_opensearchserverless_security_policy" "network" {
   name = "cs361-os-net-${var.environment}"
   type = "network"
 
   policy = jsonencode([
     {
-      Description = "Private access through VPC endpoint"
+      Description = "Public access for OpenSearch"
 
       Rules = [
         {
@@ -100,18 +88,10 @@ resource "aws_opensearchserverless_security_policy" "network" {
         }
       ]
 
-      AllowFromPublic = false
-
-      SourceVPCEs = [
-        aws_opensearchserverless_vpc_endpoint.this.id
-      ]
+      AllowFromPublic = true
     }
   ])
 }
-
-# ---------------------------------------------------------------------------
-# OpenSearch Serverless collection group
-# ---------------------------------------------------------------------------
 
 resource "aws_opensearchserverless_collection_group" "this" {
   name             = "${var.collection_name}-group"
@@ -133,10 +113,6 @@ resource "aws_opensearchserverless_collection_group" "this" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# OpenSearch Serverless collection
-# ---------------------------------------------------------------------------
-
 resource "aws_opensearchserverless_collection" "this" {
   name = var.collection_name
   type = "SEARCH"
@@ -156,4 +132,33 @@ resource "aws_opensearchserverless_collection" "this" {
     Environment = var.environment
     ManagedBy   = "Terraform"
   }
+}
+
+output "collection_arn" {
+  value = aws_opensearchserverless_collection.this.arn
+}
+
+output "collection_endpoint" {
+  value = aws_opensearchserverless_collection.this.collection_endpoint
+}
+
+output "collection_name" {
+  value = aws_opensearchserverless_collection.this.name
+}
+
+variable "project_name" {
+  type = string
+}
+
+variable "environment" {
+  type = string
+}
+
+variable "collection_name" {
+  type = string
+}
+
+variable "subnet_ids" {
+  description = "Subnets used by the OpenSearch Serverless VPC endpoint."
+  type        = list(string)
 }

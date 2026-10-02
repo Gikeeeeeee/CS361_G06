@@ -55,7 +55,7 @@ data "archive_file" "package" {
 }
 
 # ---------------------------------------------------------------------------
-# Lambda execution role
+# API Lambda execution role
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_role" "this" {
@@ -82,14 +82,7 @@ resource "aws_iam_role_policy_attachment" "basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# ---------------------------------------------------------------------------
-# Lambda VPC execution permissions
-# ---------------------------------------------------------------------------
 
-resource "aws_iam_role_policy_attachment" "vpc_execution" {
-  role       = aws_iam_role.this.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-}
 
 # ---------------------------------------------------------------------------
 # S3 read access
@@ -215,14 +208,6 @@ resource "aws_lambda_function" "this" {
   timeout     = 60
   memory_size = 256
 
-  vpc_config {
-    subnet_ids = var.lambda_subnet_ids
-
-    security_group_ids = [
-      var.lambda_security_group_id
-    ]
-  }
-
   environment {
     variables = {
       BUCKET_NAME         = var.bucket_name
@@ -267,11 +252,6 @@ resource "aws_iam_role" "indexer" {
 resource "aws_iam_role_policy_attachment" "indexer_basic_execution" {
   role       = aws_iam_role.indexer.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy_attachment" "indexer_vpc_execution" {
-  role       = aws_iam_role.indexer.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 # ---------------------------------------------------------------------------
@@ -353,14 +333,6 @@ resource "aws_lambda_function" "indexer" {
   timeout     = 60
   memory_size = 256
 
-  vpc_config {
-    subnet_ids = var.lambda_subnet_ids
-
-    security_group_ids = [
-      var.lambda_security_group_id
-    ]
-  }
-
   environment {
     variables = {
       OPENSEARCH_ENDPOINT = var.opensearch_endpoint
@@ -390,7 +362,107 @@ resource "aws_lambda_event_source_mapping" "indexer" {
 
   depends_on = [
     aws_iam_role_policy_attachment.indexer_stream_read,
-    aws_iam_role_policy_attachment.indexer_opensearch_access,
-    aws_iam_role_policy_attachment.indexer_vpc_execution
+    aws_iam_role_policy_attachment.indexer_opensearch_access
   ]
+}
+
+# ---------------------------------------------------------------------------
+# Module outputs
+# ---------------------------------------------------------------------------
+
+output "function_name" {
+  description = "API Lambda function name."
+  value       = aws_lambda_function.this.function_name
+}
+
+output "function_arn" {
+  description = "API Lambda function ARN."
+  value       = aws_lambda_function.this.arn
+}
+
+output "invoke_arn" {
+  description = "Lambda invoke ARN used by API Gateway."
+  value       = aws_lambda_function.this.invoke_arn
+}
+
+output "lambda_role_arn" {
+  description = "API Lambda execution role ARN."
+  value       = aws_iam_role.this.arn
+}
+
+output "indexer_function_name" {
+  description = "Indexer Lambda function name."
+  value       = aws_lambda_function.indexer.function_name
+}
+
+output "indexer_function_arn" {
+  description = "Indexer Lambda function ARN."
+  value       = aws_lambda_function.indexer.arn
+}
+
+output "indexer_role_arn" {
+  description = "Indexer Lambda execution role ARN."
+  value       = aws_iam_role.indexer.arn
+}
+
+variable "project_name" {
+  description = "Project name."
+  type        = string
+}
+
+variable "environment" {
+  description = "Deployment environment."
+  type        = string
+}
+
+variable "source_dir" {
+  description = "Directory containing the Lambda source code."
+  type        = string
+}
+
+variable "bucket_name" {
+  description = "Building-data S3 bucket name."
+  type        = string
+}
+
+variable "bucket_arn" {
+  description = "Building-data S3 bucket ARN."
+  type        = string
+}
+
+variable "buildings_file" {
+  description = "S3 key for the building index."
+  type        = string
+  default     = "building-index.json"
+}
+
+variable "dynamodb_table_name" {
+  description = "Existing DynamoDB table name."
+  type        = string
+}
+
+variable "dynamodb_table_arn" {
+  description = "Existing DynamoDB table ARN."
+  type        = string
+}
+
+variable "dynamodb_stream_arn" {
+  description = "DynamoDB Stream ARN used by the indexer Lambda."
+  type        = string
+}
+
+variable "opensearch_collection_arn" {
+  description = "OpenSearch Serverless collection ARN."
+  type        = string
+}
+
+variable "opensearch_endpoint" {
+  description = "OpenSearch Serverless collection endpoint."
+  type        = string
+}
+
+variable "opensearch_index" {
+  description = "OpenSearch index name."
+  type        = string
+  default     = "university"
 }
