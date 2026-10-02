@@ -14,6 +14,10 @@ class ScheduleSource(Protocol):
         """Create or fully replace one schedule (a series is one item)."""
         ...
 
+    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
+        """Create many schedules in bulk (CSV import)."""
+        ...
+
     def delete_schedule(
         self,
         room_id: str,

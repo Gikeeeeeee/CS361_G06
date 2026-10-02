@@ -100,6 +100,9 @@ class FakeScheduleSource:
             self.schedules.remove(existing)
         self.schedules.append(schedule)
 
+    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
+        self.schedules.extend(schedules)
+
     def get_schedule(
         self,
         room_id: str,
@@ -223,7 +226,23 @@ def sample_building_lc4_raw() -> dict[str, Any]:
                         "latitude": 14.07261,
                         "longitude": 100.60772,
                         "image_key": "image/room/LAB.webp",
-                    }
+                    },
+                    {
+                        "id": "lc4-room-uuid-2",
+                        "room_number": "205",
+                        "name": {"th": None, "en": "Office 205"},
+                        "type": "OFFICE",
+                        "latitude": 14.07262,
+                        "longitude": 100.60773,
+                    },
+                    {
+                        "id": "lc4-room-uuid-3",
+                        "room_number": "R2",
+                        "name": {"th": None, "en": "Restroom"},
+                        "type": "RESTROOM",
+                        "latitude": 14.07262,
+                        "longitude": 100.60773,
+                    },
                 ],
                 "facilities": [],
             }

@@ -117,6 +117,14 @@ resource "aws_apigatewayv2_route" "search" {
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "post_schedule_imports" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "POST /api/v1/schedules/imports"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "default" {
   api_id = aws_apigatewayv2_api.this.id
 
