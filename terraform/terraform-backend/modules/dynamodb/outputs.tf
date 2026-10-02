@@ -1,9 +1,15 @@
+# CS361_G06/terraform/backend/modules/dynamodb/outputs.tf
 output "table_name" {
-  description = "Existing DynamoDB table name."
-  value       = data.aws_dynamodb_table.this.name
+  description = "DynamoDB table name."
+  value       = aws_dynamodb_table.this.name
 }
 
 output "table_arn" {
-  description = "Existing DynamoDB table ARN."
-  value       = data.aws_dynamodb_table.this.arn
+  description = "DynamoDB table ARN."
+  value       = aws_dynamodb_table.this.arn
+}
+
+output "stream_arn" {
+  description = "DynamoDB Stream ARN."
+  value       = aws_dynamodb_table.this.stream_arn
 }
