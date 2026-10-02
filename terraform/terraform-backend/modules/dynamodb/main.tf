@@ -1,3 +1,5 @@
+# CS361_G06/terraform/backend/modules/dynamodb/main.tf
+
 # Existing shared DynamoDB table managed by Terraform.
 # The table already exists in AWS and must be imported into Terraform state.
 
@@ -157,24 +159,4 @@ resource "aws_dynamodb_table" "this" {
     range_key       = "GSI6SK"
     projection_type = "ALL"
   }
-}
-
-output "table_name" {
-  description = "DynamoDB table name."
-  value       = aws_dynamodb_table.this.name
-}
-
-output "table_arn" {
-  description = "DynamoDB table ARN."
-  value       = aws_dynamodb_table.this.arn
-}
-
-output "stream_arn" {
-  description = "DynamoDB Stream ARN."
-  value       = aws_dynamodb_table.this.stream_arn
-}
-
-variable "table_name" {
-  description = "DynamoDB table name."
-  type        = string
 }

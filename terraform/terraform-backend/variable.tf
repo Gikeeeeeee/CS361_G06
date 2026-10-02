@@ -30,11 +30,10 @@ variable "dynamodb_table_name" {
 variable "opensearch_collection_name" {
   description = "Shared OpenSearch Serverless collection."
   type        = string
-
-  default = "faculty-search"
+  default     = "faculty-search"
 }
 
 variable "opensearch_index" {
-  description = "OpenSearch index owned by this developer."
+  description = "OpenSearch index used by this deployment."
   type        = string
 }

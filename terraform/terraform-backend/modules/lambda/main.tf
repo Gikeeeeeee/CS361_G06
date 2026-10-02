@@ -54,9 +54,9 @@ data "archive_file" "package" {
   ]
 }
 
-# ---------------------------------------------------------------------------
-# API Lambda execution role
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# API Lambda
+# ===========================================================================
 
 resource "aws_iam_role" "this" {
   name = "${var.project_name}-lambda-exec-${var.environment}"
@@ -81,8 +81,6 @@ resource "aws_iam_role_policy_attachment" "basic_execution" {
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
-
-
 
 # ---------------------------------------------------------------------------
 # S3 read access
@@ -162,7 +160,7 @@ resource "aws_iam_role_policy_attachment" "dynamodb_access" {
 }
 
 # ---------------------------------------------------------------------------
-# OpenSearch Serverless access
+# OpenSearch access
 # ---------------------------------------------------------------------------
 
 resource "aws_iam_policy" "opensearch_access" {
@@ -189,10 +187,6 @@ resource "aws_iam_role_policy_attachment" "opensearch_access" {
   role       = aws_iam_role.this.name
   policy_arn = aws_iam_policy.opensearch_access.arn
 }
-
-# ---------------------------------------------------------------------------
-# API Lambda
-# ---------------------------------------------------------------------------
 
 resource "aws_lambda_function" "this" {
   function_name = "${var.project_name}-building-api-${var.environment}"
@@ -226,9 +220,9 @@ resource "aws_lambda_function" "this" {
   }
 }
 
-# ---------------------------------------------------------------------------
-# Indexer Lambda execution role
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# Indexer Lambda
+# ===========================================================================
 
 resource "aws_iam_role" "indexer" {
   name = "${var.project_name}-indexer-lambda-exec-${var.environment}"
@@ -315,10 +309,6 @@ resource "aws_iam_role_policy_attachment" "indexer_opensearch_access" {
   policy_arn = aws_iam_policy.indexer_opensearch_access.arn
 }
 
-# ---------------------------------------------------------------------------
-# Indexer Lambda
-# ---------------------------------------------------------------------------
-
 resource "aws_lambda_function" "indexer" {
   function_name = "${var.project_name}-indexer-${var.environment}"
 
@@ -367,102 +357,49 @@ resource "aws_lambda_event_source_mapping" "indexer" {
 }
 
 # ---------------------------------------------------------------------------
-# Module outputs
+# OpenSearch Serverless Data Access Policy
 # ---------------------------------------------------------------------------
 
-output "function_name" {
-  description = "API Lambda function name."
-  value       = aws_lambda_function.this.function_name
-}
+resource "aws_opensearchserverless_access_policy" "lambda" {
+  name = "cs361-os-lambda-${var.environment}"
+  type = "data"
 
-output "function_arn" {
-  description = "API Lambda function ARN."
-  value       = aws_lambda_function.this.arn
-}
+  policy = jsonencode([
+    {
+      Rules = [
+        {
+          ResourceType = "collection"
 
-output "invoke_arn" {
-  description = "Lambda invoke ARN used by API Gateway."
-  value       = aws_lambda_function.this.invoke_arn
-}
+          Resource = [
+            "collection/${var.opensearch_collection_name}"
+          ]
 
-output "lambda_role_arn" {
-  description = "API Lambda execution role ARN."
-  value       = aws_iam_role.this.arn
-}
+          Permission = [
+            "aoss:DescribeCollectionItems"
+          ]
+        },
+        {
+          ResourceType = "index"
 
-output "indexer_function_name" {
-  description = "Indexer Lambda function name."
-  value       = aws_lambda_function.indexer.function_name
-}
+          Resource = [
+            "index/${var.opensearch_collection_name}/${var.opensearch_index}"
+          ]
 
-output "indexer_function_arn" {
-  description = "Indexer Lambda function ARN."
-  value       = aws_lambda_function.indexer.arn
-}
+          Permission = [
+            "aoss:CreateIndex",
+            "aoss:DeleteIndex",
+            "aoss:UpdateIndex",
+            "aoss:DescribeIndex",
+            "aoss:ReadDocument",
+            "aoss:WriteDocument"
+          ]
+        }
+      ]
 
-output "indexer_role_arn" {
-  description = "Indexer Lambda execution role ARN."
-  value       = aws_iam_role.indexer.arn
-}
-
-variable "project_name" {
-  description = "Project name."
-  type        = string
-}
-
-variable "environment" {
-  description = "Deployment environment."
-  type        = string
-}
-
-variable "source_dir" {
-  description = "Directory containing the Lambda source code."
-  type        = string
-}
-
-variable "bucket_name" {
-  description = "Building-data S3 bucket name."
-  type        = string
-}
-
-variable "bucket_arn" {
-  description = "Building-data S3 bucket ARN."
-  type        = string
-}
-
-variable "buildings_file" {
-  description = "S3 key for the building index."
-  type        = string
-  default     = "building-index.json"
-}
-
-variable "dynamodb_table_name" {
-  description = "Existing DynamoDB table name."
-  type        = string
-}
-
-variable "dynamodb_table_arn" {
-  description = "Existing DynamoDB table ARN."
-  type        = string
-}
-
-variable "dynamodb_stream_arn" {
-  description = "DynamoDB Stream ARN used by the indexer Lambda."
-  type        = string
-}
-
-variable "opensearch_collection_arn" {
-  description = "OpenSearch Serverless collection ARN."
-  type        = string
-}
-
-variable "opensearch_endpoint" {
-  description = "OpenSearch Serverless collection endpoint."
-  type        = string
-}
-
-variable "opensearch_index" {
-  description = "OpenSearch index name."
-  type        = string
-  default     = "university"
+      Principal = [
+        aws_iam_role.this.arn,
+        aws_iam_role.indexer.arn
+      ]
+    }
+  ])
 }

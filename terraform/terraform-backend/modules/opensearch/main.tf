@@ -1,3 +1,5 @@
+# modules/opensearch/main.tf
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -87,28 +89,4 @@ resource "aws_opensearchserverless_collection" "this" {
     Environment = var.environment
     ManagedBy   = "Terraform"
   }
-}
-
-output "collection_arn" {
-  value = aws_opensearchserverless_collection.this.arn
-}
-
-output "collection_endpoint" {
-  value = aws_opensearchserverless_collection.this.collection_endpoint
-}
-
-output "collection_name" {
-  value = aws_opensearchserverless_collection.this.name
-}
-
-variable "project_name" {
-  type = string
-}
-
-variable "environment" {
-  type = string
-}
-
-variable "collection_name" {
-  type = string
 }
