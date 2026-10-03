@@ -10,6 +10,7 @@ and its service method). See backend/README.md.
 Layer: driving adapter (inbound) + composition root.
 """
 
+import base64
 import json
 import logging
 import re
@@ -25,11 +26,15 @@ from errors import (
 )
 from repositories.building_repository import BuildingRepository
 from repositories.ScheduleRepo import ScheduleRepository
+from repositories.opensearch_repository import OpenSearchRepository
+
 from services.building_service import BuildingService
 from services.facility_service import FacilityService
 from services.floor_service import FloorService
 from services.room_service import RoomService
+from services.schedule_import_service import ScheduleImportService
 from services.schedule_service import ScheduleService
+from services.search_service import SearchService
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -63,6 +68,7 @@ class Dependencies:
             if schedule_source is not None
             else None
         )
+        self.search = None
 
     @property
     def schedules(self) -> ScheduleService:
@@ -81,6 +87,16 @@ class Dependencies:
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
+    def ensure_search(self):
+        if self.search is None:
+            self.search = SearchService(
+                OpenSearchRepository()
+            )
+        return self.search
+
+    @property
+    def schedule_imports(self) -> ScheduleImportService:
+        return ScheduleImportService(self.buildings.source, self.schedules.source)
 
 
 # Built once per Lambda container (kept warm across invocations).
@@ -107,6 +123,16 @@ ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
 ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
+SCHEDULE_IMPORTS = "POST /api/v1/schedules/imports"
+
+
+def _dry_run(params: dict) -> bool:
+    return params.get("dry_run") == "true"
+
+
+# V2 Schedule API
+SEARCH = "/api/v1/search"
+
 
 ROUTES = {
     f"GET {BUILDINGS}": Route(
@@ -154,6 +180,20 @@ ROUTES = {
             p["scheduleId"],
         ),
     ),
+    f"GET {SEARCH}": Route(
+        (),
+        lambda deps, p: deps.ensure_search().search(
+            p["query"],
+            entity_type=p.get("type"),
+            building_id=p.get("buildingId"),
+            page=p.get("page", 1),
+            page_size=p.get("pageSize", 20),
+        ).to_dict(),
+    ),
+    SCHEDULE_IMPORTS: Route(
+        ("body",),
+        lambda deps, p: deps.schedule_imports.import_csv(p["body"], _dry_run(p)),
+    ),
 }
 
 
@@ -189,6 +229,45 @@ def _path(event: dict) -> str:
     return event.get("rawPath") or event.get("path") or ""
 
 
+def _raw_body(event: dict) -> bytes:
+    """Body as bytes, base64-decoded when API Gateway encoded it."""
+    body = event["body"]
+
+    return base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+
+
+def _json_body(body) -> dict:
+    if isinstance(body, dict):
+        return body
+
+    if not isinstance(body, str):
+        raise ValidationError("Request body must be a JSON object")
+
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise ValidationError("Request body is not valid JSON") from exc
+
+
+def _route_key(event: dict, method: str, path: str, params: dict) -> str | None:
+    """Prefer API Gateway's routeKey; fall back to matching the path."""
+    route_key = event.get("routeKey")
+
+    if route_key in ROUTES:
+        return route_key
+
+    for pattern_method, pattern, key in _PATTERNS:
+        match = pattern_method == method and pattern.search(path)
+
+        if match:
+            for name, value in match.groupdict().items():
+                params.setdefault(name, value)
+
+            return key
+
+    return None
+
+
 def _resolve(
     event: dict,
     method: str,
@@ -207,37 +286,17 @@ def _resolve(
     }
 
     params.update(event.get("queryStringParameters") or {})
+    route_key = _route_key(event, method, path, params)
 
+    # Route first: the CSV import body is raw bytes, not JSON.
     if event.get("body"):
-        body = event["body"]
-        if isinstance(body, dict):
-            params["body"] = body
-        elif isinstance(body, str):
-            try:
-                params["body"] = json.loads(body)
-            except json.JSONDecodeError as exc:
-                raise ValidationError("Request body is not valid JSON") from exc
-        else:
-            raise ValidationError("Request body must be a JSON object")
+        params["body"] = (
+            _raw_body(event)
+            if route_key == SCHEDULE_IMPORTS
+            else _json_body(event["body"])
+        )
 
-    route_key = event.get("routeKey")
-
-    if route_key in ROUTES:
-        return route_key, params
-
-    for pattern_method, pattern, key in _PATTERNS:
-        if pattern_method != method:
-            continue
-
-        match = pattern.search(path)
-
-        if match:
-            for name, value in match.groupdict().items():
-                params.setdefault(name, value)
-
-            return key, params
-
-    return None, params
+    return route_key, params
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +317,7 @@ def lambda_handler(event, context):
       - POST   /api/v1/rooms/{roomId}/schedules
       - PUT    /api/v1/rooms/{roomId}/schedules/{scheduleId}
       - DELETE /api/v1/rooms/{roomId}/schedules/{scheduleId}
+      - POST   /api/v1/schedules/imports[?dry_run=true]
     """
     method = _method(event)
     path = _path(event)
@@ -282,6 +342,39 @@ def lambda_handler(event, context):
         if missing:
             raise MissingParameters(missing)
 
+        if route_key == f"GET {SEARCH}":
+            query_params = (
+                event.get("queryStringParameters")
+                or {}
+            )
+
+            params["query"] = query_params.get("q")
+
+            if params["query"] is None:
+                raise MissingParameters(["q"])
+
+            params["type"] = query_params.get("type")
+            params["buildingId"] = query_params.get("buildingId")
+            try:
+                params["page"] = int(
+                    query_params.get("page", 1)
+                )
+
+                params["pageSize"] = int(
+                    query_params.get("pageSize", 20)
+                )
+            except ValueError as exc:
+                raise AppError(
+                    "INVALID_PARAMETER"
+                    "page and pageSize must be integers"
+                ) from exc
+        # ---------------------------------------------------------------
+        # PUT request body
+        #
+        # API Gateway HTTP API sends `body` as a JSON string.
+        # Convert it to a Python dict before passing it to the service.
+        # ---------------------------------------------------------------
+
         if method == "PUT":
             body = params.get("body")
             if body is None:
@@ -295,8 +388,10 @@ def lambda_handler(event, context):
                 raise InvalidSchedule("Request body must be a JSON object")
             params["body"] = body
 
+        preview = route_key == SCHEDULE_IMPORTS and _dry_run(params)
+
         return response.ok(
-            route.action(DEPS, params), 201 if method == "POST" else 200
+            route.action(DEPS, params), 201 if method == "POST" and not preview else 200
         )
 
     except AppError as exc:

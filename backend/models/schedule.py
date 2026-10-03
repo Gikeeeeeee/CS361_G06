@@ -6,15 +6,28 @@ Schedule domain
 - occurrences() expand the RRULE
 - validate()    entry point: check and normalize a schedule
 - to_contract() shape the API response
+- parse_csv()   CSV bytes -> numbered rows (bulk import)
 """
 
+import csv
+import io
 from datetime import datetime, timezone
 from itertools import islice
 from typing import Any
 
 from dateutil.rrule import rrulestr
 
-from errors import MissingParameters, ValidationError
+from errors import (
+    CsvEmpty,
+    CsvMissingColumns,
+    CsvNotUtf8,
+    CsvTooManyRows,
+    CsvWrongCellCount,
+    ImportRejected,
+    MissingParameters,
+    RoomTypeNotAllowed,
+    ValidationError,
+)
 
 TYPES = {"COURSE", "EXAM", "ACTIVITY"}
 STATUSES = {"CONFIRM", "TENTATIVE", "CANCELLED"}
@@ -38,6 +51,29 @@ CONTRACT_FIELDS = (
 )
 
 MAX_OCCURRENCES = 200
+
+CSV_HEADER = (
+    "building",
+    "room",
+    "type",
+    "title",
+    "start_at",
+    "end_at",
+    "course_code",
+    "organizer",
+    "recurrence_rule",
+)
+MAX_IMPORT_ROWS = 300
+MAX_IMPORT_OCCURRENCES = 2000
+
+# Room type -> schedule types it may hold. Any other room type cannot be booked.
+ROOM_TYPE_RULES = {
+    "CLASSROOM": TYPES,
+    "LAB": TYPES,
+    "OFFICE": {"ACTIVITY"},
+    "MEETING_ROOM": {"ACTIVITY"},
+    "COMMON_ROOM": {"ACTIVITY"},
+}
 
 
 def parse_time(value: Any) -> datetime:
@@ -142,3 +178,64 @@ def validate(payload: Any) -> dict[str, Any]:
 def to_contract(item: dict[str, Any]) -> dict[str, Any]:
     """Stored schedule -> API object."""
     return {name: item.get(name) for name in CONTRACT_FIELDS}
+
+
+def can_share(a_type: str | None, b_type: str | None) -> bool:
+    """An exam may take over a lecture slot (midterm/final week)."""
+    return {a_type, b_type} == {"EXAM", "COURSE"}
+
+
+def check_room_type(room: str, room_type: str | None, schedule_type: str) -> None:
+    """Raise unless this room type may hold this schedule type."""
+    allowed = ROOM_TYPE_RULES.get(room_type, set())
+
+    if schedule_type not in allowed:
+        raise RoomTypeNotAllowed(room, room_type, allowed)
+
+
+def parse_csv(data: bytes) -> list[tuple[int, dict[str, str | None]]]:
+    """CSV bytes -> [(Excel row number, row)]. Cells stripped, blank rows skipped."""
+    try:
+        lines = csv.reader(io.StringIO(data.decode("utf-8-sig")))
+    except UnicodeDecodeError as exc:
+        raise CsvNotUtf8() from exc
+
+    header = [name.strip() for name in next(lines, [])]
+
+    if not header:
+        raise CsvEmpty()
+
+    missing = [name for name in CSV_HEADER if name not in header]
+
+    if missing:
+        raise CsvMissingColumns(missing)
+
+    rows, misaligned = [], []
+
+    for number, cells in enumerate(lines, start=2):
+        if not any(cell.strip() for cell in cells):
+            continue
+
+        row = {name: cell.strip() or None for name, cell in zip(header, cells)}
+        rows.append((number, row))
+
+        # zip() silently drops extra cells / leaves columns out, and a stray
+        # comma shifts every value after it, so reject the row outright.
+        if len(cells) != len(header):
+            misaligned.append({
+                "row": number,
+                "building": row.get("building"),
+                "room": row.get("room"),
+                "reason": CsvWrongCellCount(len(cells), len(header)).message,
+            })
+
+    if not rows:
+        raise CsvEmpty()
+
+    if len(rows) > MAX_IMPORT_ROWS:
+        raise CsvTooManyRows(len(rows), MAX_IMPORT_ROWS)
+
+    if misaligned:
+        raise ImportRejected(misaligned)
+
+    return rows

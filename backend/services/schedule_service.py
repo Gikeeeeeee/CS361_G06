@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from errors import ScheduleConflict, ScheduleNotFound
 from models.schedule import (
+    can_share,
     occurrences,
     overlaps,
     parse_time,
@@ -24,6 +25,19 @@ from ports.schedule_source import ScheduleSource
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def new_item(schedule: dict[str, Any], room_id: str) -> dict[str, Any]:
+    """A validated schedule -> a new stored item."""
+    now = _now()
+
+    return {
+        **schedule,
+        "id": str(uuid4()),
+        "room_id": room_id,
+        "created_at": now,
+        "updated_at": now,
+    }
 
 
 class ScheduleService:
@@ -67,16 +81,7 @@ class ScheduleService:
         schedule = validate(payload)
         self._reject_conflicts(room_id, schedule)
 
-        now = _now()
-        self.source.save_schedule(
-            {
-                **schedule,
-                "id": str(uuid4()),
-                "room_id": room_id,
-                "created_at": now,
-                "updated_at": now,
-            }
-        )
+        self.source.save_schedule(new_item(schedule, room_id))
 
         return "created"
 
@@ -140,8 +145,7 @@ class ScheduleService:
             )
             if item.get("status") == "CONFIRM"
             and item.get("id") != ignore_id
-            # An exam may take over a lecture slot (midterm/final week).
-            and {item.get("type"), schedule["type"]} != {"EXAM", "COURSE"}
+            and not can_share(item.get("type"), schedule["type"])
             for slot in occurrences(
                 item["start_at"], item["end_at"], item.get("recurrence_rule")
             )

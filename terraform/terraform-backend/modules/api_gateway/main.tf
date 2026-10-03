@@ -77,7 +77,6 @@ resource "aws_apigatewayv2_route" "get_facility" {
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
-# Route keys below must match backend/handler.py ROUTES byte for byte.
 resource "aws_apigatewayv2_route" "get_room_schedules" {
   api_id = aws_apigatewayv2_api.this.id
 
@@ -106,6 +105,22 @@ resource "aws_apigatewayv2_route" "delete_schedule" {
   api_id = aws_apigatewayv2_api.this.id
 
   route_key = "DELETE /api/v1/rooms/{roomId}/schedules/{scheduleId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "search" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/search"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_schedule_imports" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "POST /api/v1/schedules/imports"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }

@@ -1,8 +1,37 @@
-# CS361_G06/terraform/backend/modules/lambda/main.tf
+resource "terraform_data" "build" {
+  triggers_replace = concat(
+    [
+      filesha256("${var.source_dir}/requirements.txt")
+    ],
+    [
+      for file in sort(fileset(var.source_dir, "**/*.py")) :
+      filesha256("${var.source_dir}/${file}")
+    ]
+  )
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      rm -rf "${path.module}/build"
+      mkdir -p "${path.module}/build"
+
+      pip install \
+        -r "${var.source_dir}/requirements.txt" \
+        -t "${path.module}/build"
+
+      cp -r "${var.source_dir}/." "${path.module}/build/"
+
+      rm -rf "${path.module}/build/venv"
+      rm -rf "${path.module}/build/.venv"
+      rm -rf "${path.module}/build/__pycache__"
+      rm -rf "${path.module}/build/.pytest_cache"
+      rm -rf "${path.module}/build/tests"
+    EOT
+  }
+}
 
 data "archive_file" "package" {
   type        = "zip"
-  source_dir  = var.source_dir
+  source_dir  = "${path.module}/build"
   output_path = "${path.module}/lambda.zip"
 
   excludes = [
@@ -12,17 +41,22 @@ data "archive_file" "package" {
     "**/__pycache__",
     ".pytest_cache",
     "tests",
+    "requirements.txt",
     "pytest.ini",
     "test_local.py",
     "test_*.py",
     "smoke_local.py",
-    "README.md"
+    "README.md",
+  ]
+
+  depends_on = [
+    terraform_data.build
   ]
 }
 
-# ---------------------------------------------------------------------------
-# Lambda execution role
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# API Lambda
+# ===========================================================================
 
 resource "aws_iam_role" "this" {
   name = "${var.project_name}-lambda-exec-${var.environment}"
@@ -126,8 +160,33 @@ resource "aws_iam_role_policy_attachment" "dynamodb_access" {
 }
 
 # ---------------------------------------------------------------------------
-# Lambda function
+# OpenSearch access
 # ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "opensearch_access" {
+  name = "${var.project_name}-lambda-opensearch-access-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+
+        Resource = var.opensearch_collection_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "opensearch_access" {
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.opensearch_access.arn
+}
 
 resource "aws_lambda_function" "this" {
   function_name = "${var.project_name}-building-api-${var.environment}"
@@ -140,7 +199,7 @@ resource "aws_lambda_function" "this" {
 
   role = aws_iam_role.this.arn
 
-  timeout     = 10
+  timeout     = 60
   memory_size = 256
 
   environment {
@@ -148,6 +207,9 @@ resource "aws_lambda_function" "this" {
       BUCKET_NAME         = var.bucket_name
       BUILDINGS_FILE      = var.buildings_file
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+
+      OPENSEARCH_ENDPOINT = var.opensearch_endpoint
+      OPENSEARCH_INDEX    = var.opensearch_index
     }
   }
 
@@ -156,4 +218,188 @@ resource "aws_lambda_function" "this" {
     Environment = var.environment
     ManagedBy   = "Terraform"
   }
+}
+
+# ===========================================================================
+# Indexer Lambda
+# ===========================================================================
+
+resource "aws_iam_role" "indexer" {
+  name = "${var.project_name}-indexer-lambda-exec-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_basic_execution" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# ---------------------------------------------------------------------------
+# DynamoDB Stream read access
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "indexer_stream_read" {
+  name = "${var.project_name}-indexer-stream-read-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:DescribeStream",
+          "dynamodb:ListStreams"
+        ]
+
+        Resource = var.dynamodb_stream_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_stream_read" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = aws_iam_policy.indexer_stream_read.arn
+}
+
+# ---------------------------------------------------------------------------
+# OpenSearch access for Indexer
+# ---------------------------------------------------------------------------
+
+resource "aws_iam_policy" "indexer_opensearch_access" {
+  name = "${var.project_name}-indexer-opensearch-access-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+
+        Resource = var.opensearch_collection_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "indexer_opensearch_access" {
+  role       = aws_iam_role.indexer.name
+  policy_arn = aws_iam_policy.indexer_opensearch_access.arn
+}
+
+resource "aws_lambda_function" "indexer" {
+  function_name = "${var.project_name}-indexer-${var.environment}"
+
+  filename         = data.archive_file.package.output_path
+  source_code_hash = data.archive_file.package.output_base64sha256
+
+  runtime = "python3.12"
+  handler = "indexer.handler.lambda_handler"
+
+  role = aws_iam_role.indexer.arn
+
+  timeout     = 60
+  memory_size = 256
+
+  environment {
+    variables = {
+      OPENSEARCH_ENDPOINT = var.opensearch_endpoint
+      OPENSEARCH_INDEX    = var.opensearch_index
+    }
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# DynamoDB Stream -> Indexer Lambda
+# ---------------------------------------------------------------------------
+
+resource "aws_lambda_event_source_mapping" "indexer" {
+  event_source_arn  = var.dynamodb_stream_arn
+  function_name     = aws_lambda_function.indexer.arn
+  starting_position = "LATEST"
+
+  batch_size                         = 100
+  maximum_batching_window_in_seconds = 5
+  enabled                            = true
+
+  depends_on = [
+    aws_iam_role_policy_attachment.indexer_stream_read,
+    aws_iam_role_policy_attachment.indexer_opensearch_access
+  ]
+}
+
+# ---------------------------------------------------------------------------
+# OpenSearch Serverless Data Access Policy
+# ---------------------------------------------------------------------------
+
+resource "aws_opensearchserverless_access_policy" "lambda" {
+  name = "cs361-os-lambda-${var.environment}"
+  type = "data"
+
+  policy = jsonencode([
+    {
+      Rules = [
+        {
+          ResourceType = "collection"
+
+          Resource = [
+            "collection/${var.opensearch_collection_name}"
+          ]
+
+          Permission = [
+            "aoss:DescribeCollectionItems"
+          ]
+        },
+        {
+          ResourceType = "index"
+
+          Resource = [
+            "index/${var.opensearch_collection_name}/${var.opensearch_index}"
+          ]
+
+          Permission = [
+            "aoss:CreateIndex",
+            "aoss:DeleteIndex",
+            "aoss:UpdateIndex",
+            "aoss:DescribeIndex",
+            "aoss:ReadDocument",
+            "aoss:WriteDocument"
+          ]
+        }
+      ]
+
+      Principal = [
+        aws_iam_role.this.arn,
+        aws_iam_role.indexer.arn
+      ]
+    }
+  ])
 }

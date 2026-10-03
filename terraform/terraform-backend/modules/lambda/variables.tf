@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/modules/lambda/variables.tf
-
 variable "project_name" {
   description = "Project name."
   type        = string
@@ -38,5 +36,31 @@ variable "dynamodb_table_name" {
 
 variable "dynamodb_table_arn" {
   description = "Existing DynamoDB table ARN."
+  type        = string
+}
+
+variable "dynamodb_stream_arn" {
+  description = "DynamoDB Stream ARN used by the indexer Lambda."
+  type        = string
+}
+
+variable "opensearch_collection_arn" {
+  description = "OpenSearch Serverless collection ARN."
+  type        = string
+}
+
+variable "opensearch_endpoint" {
+  description = "OpenSearch Serverless collection endpoint."
+  type        = string
+}
+
+variable "opensearch_index" {
+  description = "OpenSearch index name."
+  type        = string
+  default     = "university"
+}
+
+variable "opensearch_collection_name" {
+  description = "OpenSearch Serverless collection name."
   type        = string
 }
