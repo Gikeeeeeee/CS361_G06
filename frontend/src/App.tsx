@@ -9,6 +9,9 @@ import RoomDetailPage from './features/campus-explorer/pages/RoomDetailPage';
 import FacilityDetailPage from './features/campus-explorer/pages/FacilityDetailPage';
 import { AdminPlaceholder } from './features/admin/AdminPlaceholder';
 import { AdminLayout } from './features/admin/components/AdminLayout';
+
+// Imports ของเราและของเพื่อนทั้งหมด (อยู่ครบ)
+import AddSchedulePage from './features/admin-add-schedule/AddSchedulePage';
 import { AdminSchedulePage } from './features/admin-schedule/pages/AdminSchedulePage';
 import { ScheduleManagePage } from './features/admin-schedule/pages/ScheduleManagePage';
 import { BuildingsPage } from './features/admin-buildings/pages/BuildingsPage';
@@ -54,10 +57,13 @@ function App() {
         <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
         <Route path="rooms/:roomId" element={<RoomDetailPage />} />
         <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
+        
+        {/* ส่วนของ Admin: รวมของทุกคนไว้ครบถ้วน */}
         <Route path="admin" element={<AdminLayout />}>
           <Route index element={<AdminPlaceholder />} />
           <Route path="schedules" element={<ScheduleManagePage />} />
           <Route path="schedules/manage" element={<AdminSchedulePage />} />
+          <Route path="add-schedule" element={<AddSchedulePage />} />
           <Route path="buildings" element={<BuildingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
