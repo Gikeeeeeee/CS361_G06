@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, CheckCircle2, AlertCircle } from 'lucide-react';
-import { importSchedulesCSV } from '../../../features/admin/services/scheduleService';
+import { importSchedulesCSV } from '../services/scheduleService';
 
 export default function CsvImportForm() {
   const [file, setFile] = useState<File | null>(null);
