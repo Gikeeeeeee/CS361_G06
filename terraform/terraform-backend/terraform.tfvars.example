@@ -1,7 +1,7 @@
-# CS361_G06/terraform/backend/terraform.tfvars
-
 aws_region  = "us-east-1"
-bucket_name = "cs361-g06-building-data-team-dev"
+bucket_name = "cs361-g06-building-data-yourname-dev"
 
-project_name = "CS361-G06-meammi"
-environment  = "dev"
+project_name          = "CS361-G06-yourname"
+environment           = "dev"
+dynamodb_table_name   = "CS361-G06-yourname-data-dynamodb"
+opensearch_index      = "university-yourname"
