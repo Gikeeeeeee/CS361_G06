@@ -17,7 +17,7 @@ export function AdminSidebar() {
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {adminNavConfig.map((item) => {
-          const isActive = location.pathname === item.path || (item.path !== '/admin' && location.pathname.startsWith(item.path));
+          const isActive = location.pathname === item.path;
           const Icon = item.icon;
           
           return (
