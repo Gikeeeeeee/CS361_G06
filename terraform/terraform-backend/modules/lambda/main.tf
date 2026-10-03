@@ -11,21 +11,25 @@ resource "terraform_data" "build" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      rm -rf "${path.module}/build"
-      mkdir -p "${path.module}/build"
+    set -e
+    rm -rf "${path.module}/build"
+    mkdir -p "${path.module}/build"
 
-      pip install \
-        -r "${var.source_dir}/requirements.txt" \
-        -t "${path.module}/build"
+    docker run --rm --platform linux/amd64 \
+      --entrypoint /bin/sh \
+      -v "${abspath(var.source_dir)}:/src:ro" \
+      -v "${abspath("${path.module}/build")}:/out" \
+      public.ecr.aws/lambda/python:3.12 \
+      -c 'python -m pip install -r /src/requirements.txt -t /out'
 
-      cp -r "${var.source_dir}/." "${path.module}/build/"
-
-      rm -rf "${path.module}/build/venv"
-      rm -rf "${path.module}/build/.venv"
-      rm -rf "${path.module}/build/__pycache__"
-      rm -rf "${path.module}/build/.pytest_cache"
-      rm -rf "${path.module}/build/tests"
-    EOT
+    cp -r "${var.source_dir}/." "${path.module}/build/"
+    rm -rf "${path.module}/build/env"
+    rm -rf "${path.module}/build/venv"
+    rm -rf "${path.module}/build/.venv"
+    rm -rf "${path.module}/build/__pycache__"
+    rm -rf "${path.module}/build/.pytest_cache"
+    rm -rf "${path.module}/build/tests"
+  EOT
   }
 }
 
