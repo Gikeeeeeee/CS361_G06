@@ -1,6 +1,6 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'https://4ftyaebcg0.execute-api.us-east-1.amazonaws.com/api/v1';
+  'https://w5irvlq5mg.execute-api.us-east-1.amazonaws.com/api/v1';
 
 export class ApiError extends Error {
   status: number;
