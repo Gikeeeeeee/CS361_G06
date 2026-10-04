@@ -1,3 +1,6 @@
+import base64
+import binascii
+import json
 import os
 from typing import Any
 
@@ -5,7 +8,7 @@ import boto3
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from errors import UpstreamError
+from errors import InvalidParameter, UpstreamError
 from models.schedule import to_utc
 from ports.schedule_source import ScheduleSource
 
@@ -43,6 +46,31 @@ class ScheduleRepository(ScheduleSource):
         }
 
     # -- ScheduleSource ----------------------------------------------------
+
+    def list_schedules(
+        self,
+        limit: int,
+        next_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """List one page of schedule series from GSI0."""
+        query = {
+            "IndexName": "GSI0",
+            "KeyConditionExpression": Key("GSI0PK").eq("SCHEDULE"),
+            "Limit": limit,
+        }
+        if next_token:
+            query["ExclusiveStartKey"] = self._decode_token(next_token)
+
+        try:
+            page = self.table.query(**query)
+        except ClientError as exc:
+            raise self._upstream(exc, "querying") from exc
+
+        key = page.get("LastEvaluatedKey")
+        return (
+            [self._to_dict(item) for item in page.get("Items", [])],
+            self._encode_token(key) if key else None,
+        )
 
     def find_overlapping(
         self,
@@ -139,6 +167,24 @@ class ScheduleRepository(ScheduleSource):
 
         except ClientError as exc:
             raise self._upstream(exc, "querying") from exc
+
+    @staticmethod
+    def _encode_token(key: dict[str, Any]) -> str:
+        return base64.urlsafe_b64encode(
+            json.dumps(key, separators=(",", ":")).encode("utf-8")
+        ).decode("ascii")
+
+    @staticmethod
+    def _decode_token(token: str) -> dict[str, Any]:
+        try:
+            key = json.loads(base64.urlsafe_b64decode(token).decode("utf-8"))
+        except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
+            raise InvalidParameter("Invalid nextToken.") from exc
+
+        if not isinstance(key, dict) or not key:
+            raise InvalidParameter("Invalid nextToken.")
+
+        return key
 
     def _upstream(self, exc: ClientError, action: str) -> UpstreamError:
         """Convert an AWS error to our error so AWS details never reach the client."""

@@ -3,7 +3,7 @@ from contextlib import nullcontext
 import pytest
 from botocore.exceptions import ClientError
 
-from errors import UpstreamError
+from errors import InvalidParameter, UpstreamError
 
 from repositories.ScheduleRepo import ScheduleRepository
 
@@ -27,6 +27,46 @@ class _PagedTable:
 
     def batch_writer(self):
         return nullcontext(self)
+
+
+@pytest.mark.unit
+def test_list_schedules_queries_gsi0_for_one_page_and_encodes_cursor():
+    table = _PagedTable([
+        {
+            "Items": [{"id": "s1", "PK": "room", "GSI0PK": "SCHEDULE"}],
+            "LastEvaluatedKey": {"PK": "room", "SK": "SCHEDULE#s1"},
+        }
+    ])
+
+    items, next_token = ScheduleRepository(table=table).list_schedules(2)
+
+    assert items == [{"id": "s1"}]
+    assert next_token
+    assert table.queries[0]["IndexName"] == "GSI0"
+    assert table.queries[0]["Limit"] == 2
+    assert table.queries[0].get("ExclusiveStartKey") is None
+
+
+@pytest.mark.unit
+def test_list_schedules_decodes_cursor_and_returns_none_on_final_page():
+    key = {"PK": "room", "SK": "SCHEDULE#s1"}
+    table = _PagedTable([{"Items": [{"id": "s2"}]}])
+
+    items, next_token = ScheduleRepository(table=table).list_schedules(
+        2, ScheduleRepository._encode_token(key)
+    )
+
+    assert items == [{"id": "s2"}]
+    assert next_token is None
+    assert table.queries[0]["ExclusiveStartKey"] == key
+
+
+@pytest.mark.unit
+def test_list_schedules_rejects_invalid_cursor():
+    with pytest.raises(InvalidParameter) as exc_info:
+        ScheduleRepository(table=_PagedTable()).list_schedules(2, "bad-token")
+
+    assert exc_info.value.code == "INVALID_PARAMETER"
 
 
 @pytest.mark.unit
