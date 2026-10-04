@@ -1,4 +1,4 @@
-export type ScheduleType = 'COURSE' | 'EXAM' | 'EVENT';
+export type ScheduleType = 'COURSE' | 'EXAM' | 'ACTIVITY';
 export type ScheduleStatus = 'CONFIRM' | 'CANCELLED';
 
 export interface ScheduleItem {

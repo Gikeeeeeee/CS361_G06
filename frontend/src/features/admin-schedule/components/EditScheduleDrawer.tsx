@@ -3,14 +3,15 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import { X, Loader2 } from 'lucide-react';
-import type { ScheduleItem } from '../types/schedule.types';
+import type { ScheduleItem, ScheduleStatus } from '../types/schedule.types';
 import { CascadingRoomSelector } from './CascadingRoomSelector';
+import { facilityCache } from '../services/facilityCache';
 
 interface EditScheduleDrawerProps {
   isOpen: boolean;
   schedule: ScheduleItem | null;
   onClose: () => void;
-  onApply: (updatedSchedule: ScheduleItem) => void;
+  onApply: (updatedSchedule: ScheduleItem) => Promise<void>;
 }
 
 const WEEKDAYS = [
@@ -47,7 +48,7 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
   const [type, setType] = useState<'Course' | 'Activity' | 'Exam'>('Course');
   const [title, setTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
-  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [status, setStatus] = useState<ScheduleStatus>('CONFIRM');
   const [organizer, setOrganizer] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -56,27 +57,68 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
   // Room State
   const [selectedRoomId, setSelectedRoomId] = useState<string>('');
 
+  // Submit & Feedback states
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Confirmation modal states
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<ScheduleItem | null>(null);
+  const [resolvedRoomName, setResolvedRoomName] = useState('');
+
+  // Handle Escape key for modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isConfirming) {
+        setIsConfirming(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isConfirming]);
+
+  // Resolve human-readable room name
+  useEffect(() => {
+    if (selectedRoomId) {
+      if (facilityCache.roomMeta.has(selectedRoomId)) {
+        const meta = facilityCache.roomMeta.get(selectedRoomId)!;
+        setResolvedRoomName(`${meta.buildingCode || 'Bldg'} • Floor ${facilityCache.floorsMeta.get(meta.floorId)?.floor_number || '1'} • ${meta.roomNumber} ${meta.nameEn}`.trim());
+      } else {
+        facilityCache.getRoom(selectedRoomId).then(room => {
+          if (room) {
+            setResolvedRoomName(`${room.building?.code || 'Bldg'} • Floor ${room.floor?.floor_number || '1'} • ${room.room_number} ${room.name?.en || ''}`.trim());
+          }
+        });
+      }
+    }
+  }, [selectedRoomId]);
+
   // Recurrence state
   const [isWeekly, setIsWeekly] = useState(true);
   const [selectedDays, setSelectedDays] = useState<string[]>(['MO']);
   const [repeatWeeks, setRepeatWeeks] = useState(16);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
+  useEffect(() => {
+    if (!isOpen) {
+      setIsConfirming(false);
+      setPendingPayload(null);
+      setIsSubmitting(false);
+      setErrorMessage('');
+    }
+  }, [isOpen]);
   useEffect(() => {
     if (schedule) {
-      setType(schedule.type === 'EVENT' ? 'Activity' : schedule.type === 'EXAM' ? 'Exam' : 'Course');
+      setType(schedule.type === 'ACTIVITY' ? 'Activity' : schedule.type === 'EXAM' ? 'Exam' : 'Course');
       setTitle(schedule.title || '');
       setCourseCode(schedule.course_code || '');
-      setStatus(schedule.status === 'CONFIRM' ? 'Active' : 'Inactive');
+      setStatus(schedule.status || 'CONFIRM');
       setOrganizer(schedule.organizer || '');
       setDescription(schedule.description || '');
-      
+
       try {
         setStartDate(new Date(schedule.start_at));
       } catch { setStartDate(null); }
-      
+
       try {
         setEndDate(new Date(schedule.end_at));
       } catch { setEndDate(null); }
@@ -160,24 +202,24 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
+    // removed setIsSubmitting(true)
 
     const recurrenceRule =
       isWeekly && selectedDays.length > 0
         ? `FREQ=WEEKLY;BYDAY=${selectedDays.join(',')};COUNT=${repeatWeeks}`
         : null;
 
-    const backendStatus: 'CONFIRM' | 'CANCELLED' = status === 'Active' ? 'CONFIRM' : 'CANCELLED';
-    const backendType: 'COURSE' | 'EXAM' | 'EVENT' = type === 'Activity' ? 'EVENT' : (type.toUpperCase() as any);
+    // Status is directly from state
+    const backendType: 'COURSE' | 'EXAM' | 'ACTIVITY' = type === 'Activity' ? 'ACTIVITY' : (type.toUpperCase() as any);
 
     const payload: ScheduleItem = {
-      ...schedule,
+      ...schedule!,
       type: backendType,
       title: title.trim(),
       start_at: formatIsoWithTimezone(startDate),
       end_at: formatIsoWithTimezone(endDate),
       time_zone: 'Asia/Bangkok',
-      status: backendStatus,
+      status: status,
       course_code: courseCode.trim() || null,
       organizer: organizer.trim() || '',
       description: description.trim() || '',
@@ -185,18 +227,32 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
       room_id: selectedRoomId,
     };
 
-    onApply(payload);
-    setIsSubmitting(false); // Normally parent handles this but we just reset here
+    setPendingPayload(payload);
+    setIsConfirming(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!pendingPayload) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+    try {
+      await onApply(pendingPayload);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to apply changes');
+      setIsConfirming(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <>
-      <div 
-        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40"
+      <div
+        className="fixed inset-0 bg-slate-900/40 z-40 transition-opacity duration-300"
         onClick={onClose}
       />
       <div
-        className={`fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl border-l border-slate-200 transform transition-transform duration-300 z-50 flex flex-col translate-x-0 overflow-hidden`}
+        className={`fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl border-l border-slate-200 transform-gpu will-change-transform transition-transform duration-300 ease-in-out z-50 flex flex-col translate-x-0 overflow-hidden`}
       >
         <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50 sticky top-0 z-10">
           <div>
@@ -292,11 +348,12 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
               <label className="text-sm font-medium text-slate-700">Status</label>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
+                onChange={(e) => setStatus(e.target.value as ScheduleStatus)}
                 className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
               >
-                <option value="Active">Confirmed</option>
-                <option value="Inactive">Pending</option>
+                <option value="CONFIRM">Confirmed</option>
+                <option value="PENDING">Pending</option>
+                <option value="CANCELLED">Cancelled</option>
               </select>
             </div>
 
@@ -348,8 +405,8 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
                               type="button"
                               onClick={() => toggleDay(day.key)}
                               className={`flex-1 min-w-[3rem] py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${isSelected
-                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                                 }`}
                             >
                               {day.label}
@@ -410,6 +467,68 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
           </button>
         </div>
       </div>
+
+      {isConfirming && pendingPayload && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Schedule Changes</h3>
+              <p className="text-sm text-slate-500 mt-1">Please review the details below before saving.</p>
+            </div>
+            <div className="p-5 space-y-4 text-sm text-slate-700">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Title:</span>
+                <span className="col-span-2 font-semibold text-slate-900">
+                  {pendingPayload.course_code ? `${pendingPayload.course_code} - ` : ''}{pendingPayload.title}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Type:</span>
+                <span className="col-span-2 capitalize">{pendingPayload.type.toLowerCase()}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Location:</span>
+                <span className="col-span-2">{resolvedRoomName || pendingPayload.room_id}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Time:</span>
+                <span className="col-span-2">
+                  {new Date(pendingPayload.start_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })},{' '}
+                  {new Date(pendingPayload.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
+                  {new Date(pendingPayload.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Organizer:</span>
+                <span className="col-span-2">{pendingPayload.organizer || '—'}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Status:</span>
+                <span className="col-span-2 capitalize">{pendingPayload.status.toLowerCase()}</span>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setIsConfirming(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Back to Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Confirm & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

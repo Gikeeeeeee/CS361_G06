@@ -28,7 +28,7 @@ export interface RoomOption {
  */
 export async function createManualSchedule(roomId: string, data: CreateSchedulePayload) {
   try {
-    const endpoint = `/rooms/${roomId}/schedules`;
+    const endpoint = `/api/v1/rooms/${roomId}/schedules`;
     const response = await apiClient.post(endpoint, data);
     return { status: 201, body: response };
   } catch (error: any) {

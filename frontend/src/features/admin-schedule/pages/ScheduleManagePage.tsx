@@ -65,7 +65,7 @@ export const ScheduleManagePage: React.FC = () => {
       setEditingSchedule(null);
     } catch (err: any) {
       console.error('Failed to update schedule', err);
-      alert('Failed to update schedule: ' + err.message);
+      throw err;
     }
   };
 
@@ -115,7 +115,7 @@ export const ScheduleManagePage: React.FC = () => {
 
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
           {loading && !nextToken && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}

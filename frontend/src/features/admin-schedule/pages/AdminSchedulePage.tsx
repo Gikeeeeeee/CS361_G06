@@ -85,7 +85,7 @@ export const AdminSchedulePage: React.FC = () => {
       setEditingSchedule(null);
     } catch (err: any) {
       console.error('Failed to update schedule', err);
-      alert('Failed to update schedule: ' + err.message);
+      throw err;
     }
   };
 
@@ -122,7 +122,7 @@ export const AdminSchedulePage: React.FC = () => {
     return rawSchedules.filter(schedule => {
       // 1. Filter by Type
       if (activeTab !== 'All') {
-        const typeMap: Record<string, string> = { Courses: 'COURSE', Exams: 'EXAM', Events: 'EVENT' };
+        const typeMap: Record<string, string> = { Courses: 'COURSE', Exams: 'EXAM', Activities: 'ACTIVITY' };
         if (schedule.type !== typeMap[activeTab]) return false;
       }
 
@@ -134,9 +134,9 @@ export const AdminSchedulePage: React.FC = () => {
       // 3. Filter by Search Query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesCode = schedule.course_code?.toLowerCase().includes(query);
-        const matchesTitle = schedule.title.toLowerCase().includes(query);
-        const matchesOrganizer = schedule.organizer.toLowerCase().includes(query);
+        const matchesCode = (schedule.course_code || '').toLowerCase().includes(query);
+        const matchesTitle = (schedule.title || '').toLowerCase().includes(query);
+        const matchesOrganizer = (schedule.organizer || '').toLowerCase().includes(query);
         if (!matchesCode && !matchesTitle && !matchesOrganizer) return false;
       }
       return true;
@@ -176,7 +176,7 @@ export const AdminSchedulePage: React.FC = () => {
 
         <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 mb-4 gap-4">
           <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-            {['All', 'Courses', 'Exams', 'Events'].map((tab) => (
+            {['All', 'Courses', 'Exams', 'Activities'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -206,7 +206,7 @@ export const AdminSchedulePage: React.FC = () => {
 
         <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
           {loading && !nextToken && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}

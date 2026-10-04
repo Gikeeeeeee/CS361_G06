@@ -320,8 +320,8 @@ export default function ManualEntryForm() {
                           type="button"
                           onClick={() => toggleDay(day.key)}
                           className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
                         >
                           {day.label}

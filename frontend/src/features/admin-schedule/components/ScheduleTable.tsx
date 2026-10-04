@@ -67,21 +67,22 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">COURSE</span>;
       case 'EXAM':
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-600 border border-pink-100">EXAM</span>;
-      case 'EVENT':
-        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">EVENT</span>;
+      case 'ACTIVITY':
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-600 border border-violet-100">ACTIVITY</span>;
       default:
         return null;
     }
   };
 
   const getStatusPill = (status: string) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case 'CONFIRM':
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-emerald-600 border border-green-100">Confirmed</span>;
       case 'CANCELLED':
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-100">Cancelled</span>;
+      case 'PENDING':
       default:
-        return null;
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">Pending</span>;
     }
   };
 
