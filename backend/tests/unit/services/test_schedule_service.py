@@ -71,6 +71,19 @@ def test_get_room_schedules_matches_the_v2_contract(schedule_source):
 
 
 @pytest.mark.unit
+def test_get_schedules_returns_one_contract_object_per_series(empty_source):
+    service = ScheduleService(empty_source)
+    service.create_schedule(ROOM, _course())
+
+    result = service.get_schedules()
+
+    assert result["meta"]["count"] == 1
+    assert result["meta"]["next_token"] is None
+    assert len(result["data"]) == 1
+    assert result["data"][0]["recurrence_rule"] == WEEKLY_15
+
+
+@pytest.mark.unit
 def test_get_room_schedules_meta_type_is_null_without_a_filter(schedule_source):
     result = ScheduleService(schedule_source).get_room_schedules(
         ROOM, "2026-10-01T00:00:00+07:00", "2026-10-02T00:00:00+07:00", ""

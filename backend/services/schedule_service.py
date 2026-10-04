@@ -45,6 +45,20 @@ class ScheduleService:
     def __init__(self, source: ScheduleSource):
         self.source = source
 
+    def get_schedules(
+        self,
+        limit: int = 20,
+        next_token: str | None = None,
+    ) -> dict[str, Any]:
+        """List stored schedule series without expanding recurrence."""
+        items, next_token = self.source.list_schedules(limit, next_token)
+        data = [to_contract(item) for item in items]
+
+        return {
+            "data": data,
+            "meta": {"count": len(data), "next_token": next_token},
+        }
+
     def get_room_schedules(
         self,
         room_id: str,

@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 import os
 from typing import Any
@@ -75,6 +77,30 @@ class FakeScheduleSource:
         else:
             self.schedules = list(schedules or [])
         self.deleted_schedule = None
+
+    def list_schedules(
+        self,
+        limit: int,
+        next_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        try:
+            start = (
+                json.loads(base64.urlsafe_b64decode(next_token).decode())["index"]
+                if next_token else 0
+            )
+        except (binascii.Error, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
+            from errors import InvalidParameter
+
+            raise InvalidParameter("Invalid nextToken.") from exc
+
+        page = self.schedules[start:start + limit]
+        end = start + len(page)
+        token = (
+            base64.urlsafe_b64encode(json.dumps({"index": end}).encode()).decode()
+            if end < len(self.schedules)
+            else None
+        )
+        return page, token
 
     def find_overlapping(
         self,

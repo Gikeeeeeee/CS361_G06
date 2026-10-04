@@ -19,6 +19,7 @@ from collections import namedtuple
 import response
 from errors import (
     AppError,
+    InvalidParameter,
     InvalidSchedule,
     MissingParameters,
     RouteNotFound,
@@ -123,6 +124,7 @@ ROOM = "/api/v1/rooms/{roomId}"
 FACILITY = "/api/v1/facilities/{facilityId}"
 ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
+SCHEDULES = "/api/v1/schedules"
 SCHEDULE_IMPORTS = "POST /api/v1/schedules/imports"
 
 
@@ -159,6 +161,12 @@ ROUTES = {
         ("roomId", "start", "end"),
         lambda deps, p: deps.ensure_schedules().get_room_schedules(
             p["roomId"], p["start"], p["end"], p.get("type")
+        ),
+    ),
+    f"GET {SCHEDULES}": Route(
+        (),
+        lambda deps, p: deps.ensure_schedules().get_schedules(
+            p["pageSize"], p.get("nextToken")
         ),
     ),
     f"POST {ROOM_SCHEDULES}": Route(
@@ -368,6 +376,15 @@ def lambda_handler(event, context):
                     "INVALID_PARAMETER"
                     "page and pageSize must be integers"
                 ) from exc
+
+        if route_key == f"GET {SCHEDULES}":
+            try:
+                params["pageSize"] = int(params.get("pageSize", 20))
+            except (TypeError, ValueError) as exc:
+                raise InvalidParameter("pageSize must be an integer between 1 and 100.") from exc
+
+            if not 1 <= params["pageSize"] <= 100:
+                raise InvalidParameter("pageSize must be an integer between 1 and 100.")
         # ---------------------------------------------------------------
         # PUT request body
         #

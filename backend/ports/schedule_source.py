@@ -2,6 +2,14 @@ from typing import Any, Protocol
 
 
 class ScheduleSource(Protocol):
+    def list_schedules(
+        self,
+        limit: int,
+        next_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """List schedule series using opaque pagination."""
+        ...
+
     def get_schedule(
         self,
         room_id: str,

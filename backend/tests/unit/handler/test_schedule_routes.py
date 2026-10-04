@@ -11,6 +11,8 @@ ITEM_KEY = "/api/v1/rooms/{roomId}/schedules/{scheduleId}"
 SCHEDULE_ID = "550e8400-e29b-41d4-a716-446655440050"
 
 WINDOW = {"start": "2026-09-16T00:00:00+07:00", "end": "2026-09-17T00:00:00+07:00"}
+ALL_PATH = "/api/v1/schedules"
+ALL_KEY = "GET /api/v1/schedules"
 
 BODY = {
     "type": "ACTIVITY",
@@ -43,7 +45,43 @@ def _post(body=None):
     )
 
 
+def _get_all(query=None):
+    return make_apigw_event(
+        method="GET", path=ALL_PATH, route_key=ALL_KEY, query=query
+    )
+
+
 # -- GET ---------------------------------------------------------------------
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_all_schedules_uses_default_page_size(invoke_handler):
+    result = invoke_handler(_get_all())
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["meta"] == {"count": 1, "next_token": None}
+    assert len(body["data"]) == 1
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+@pytest.mark.parametrize("query", [{"pageSize": "abc"}, {"pageSize": "101"}])
+def test_get_all_schedules_rejects_invalid_page_size(invoke_handler, query):
+    result = invoke_handler(_get_all(query))
+
+    assert result["statusCode"] == 400
+    assert json.loads(result["body"])["error"]["code"] == "INVALID_PARAMETER"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_all_schedules_rejects_invalid_next_token(invoke_handler):
+    result = invoke_handler(_get_all({"nextToken": "bad-token"}))
+
+    assert result["statusCode"] == 400
+    assert json.loads(result["body"])["error"]["code"] == "INVALID_PARAMETER"
 
 
 @pytest.mark.unit
