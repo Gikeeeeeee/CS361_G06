@@ -51,7 +51,7 @@ export const ScheduleManagePage: React.FC = () => {
 
   const handleApplyChanges = async (updatedSchedule: ScheduleItem) => {
     try {
-      await scheduleApi.updateSchedule(updatedSchedule.room_id, updatedSchedule.id, updatedSchedule);
+      await scheduleApi.updateSchedule(updatedSchedule.id, updatedSchedule);
       // Update local state
       setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
       setEditingSchedule(null);
@@ -68,7 +68,7 @@ export const ScheduleManagePage: React.FC = () => {
   const confirmDelete = async () => {
     if (deletingSchedule) {
       try {
-        await scheduleApi.deleteSchedule(deletingSchedule.room_id, deletingSchedule.id);
+        await scheduleApi.deleteSchedule(deletingSchedule.id);
         setSchedules((prev) => prev.filter((s) => s.id !== deletingSchedule.id));
         setDeletingSchedule(null);
       } catch (err: any) {

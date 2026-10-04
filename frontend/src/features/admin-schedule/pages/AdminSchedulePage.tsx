@@ -7,7 +7,8 @@ import { EditScheduleDrawer } from '../components/EditScheduleDrawer';
 import { useFacilitySelector } from '../hooks/useFacilitySelector';
 
 export const AdminSchedulePage: React.FC = () => {
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [rawSchedules, setRawSchedules] = useState<ScheduleItem[]>([]);
+  const [nextToken, setNextToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,22 +33,17 @@ export const AdminSchedulePage: React.FC = () => {
     loadingRooms,
   } = useFacilitySelector();
 
-  const fetchSchedules = async () => {
-    if (!selectedRoomId) {
-      setSchedules([]);
-      return;
-    }
-    
+  const fetchSchedules = async (token?: string) => {
     setLoading(true);
     setError(null);
     try {
-      let type: string | undefined = undefined;
-      if (activeTab === 'Courses') type = 'COURSE';
-      if (activeTab === 'Exams') type = 'EXAM';
-      if (activeTab === 'Events') type = 'EVENT';
-
-      const response = await scheduleApi.getSchedulesByRoom(selectedRoomId, { type });
-      setSchedules(response.data);
+      const response = await scheduleApi.getAllSchedules(token);
+      if (token) {
+        setRawSchedules(prev => [...prev, ...response.data]);
+      } else {
+        setRawSchedules(response.data);
+      }
+      setNextToken(response.next_token);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch schedules');
     } finally {
@@ -57,7 +53,7 @@ export const AdminSchedulePage: React.FC = () => {
 
   useEffect(() => {
     fetchSchedules();
-  }, [selectedRoomId, activeTab]);
+  }, []);
 
   const handleEditClick = (schedule: ScheduleItem) => {
     setEditingSchedule(schedule);
@@ -69,8 +65,8 @@ export const AdminSchedulePage: React.FC = () => {
 
   const handleApplyChanges = async (updatedSchedule: ScheduleItem) => {
     try {
-      await scheduleApi.updateSchedule(updatedSchedule.room_id, updatedSchedule.id, updatedSchedule);
-      await fetchSchedules(); // Refresh the list
+      await scheduleApi.updateSchedule(updatedSchedule.id, updatedSchedule);
+      setRawSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s));
       setEditingSchedule(null);
     } catch (err: any) {
       console.error('Failed to update schedule', err);
@@ -85,8 +81,8 @@ export const AdminSchedulePage: React.FC = () => {
   const confirmDelete = async () => {
     if (deletingSchedule) {
       try {
-        await scheduleApi.deleteSchedule(deletingSchedule.room_id, deletingSchedule.id);
-        await fetchSchedules(); // Refresh the list
+        await scheduleApi.deleteSchedule(deletingSchedule.id);
+        setRawSchedules(prev => prev.filter(s => s.id !== deletingSchedule.id));
         setDeletingSchedule(null);
       } catch (err: any) {
         console.error('Failed to delete schedule', err);
@@ -108,7 +104,18 @@ export const AdminSchedulePage: React.FC = () => {
   }, [rooms]);
 
   const filteredSchedules = useMemo(() => {
-    return schedules.filter(schedule => {
+    return rawSchedules.filter(schedule => {
+      // 1. Filter by Type
+      if (activeTab !== 'All') {
+        const typeMap: Record<string, string> = { Courses: 'COURSE', Exams: 'EXAM', Events: 'EVENT' };
+        if (schedule.type !== typeMap[activeTab]) return false;
+      }
+
+      // 2. Filter by Room
+      if (selectedRoomId && schedule.room_id !== selectedRoomId) {
+        return false;
+      }
+
       // 3. Filter by Search Query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -119,7 +126,7 @@ export const AdminSchedulePage: React.FC = () => {
       }
       return true;
     });
-  }, [schedules, searchQuery]);
+  }, [rawSchedules, activeTab, selectedRoomId, searchQuery]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 w-full relative overflow-hidden">
@@ -181,7 +188,7 @@ export const AdminSchedulePage: React.FC = () => {
         )}
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
-          {loading && (
+          {loading && !nextToken && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
@@ -192,6 +199,17 @@ export const AdminSchedulePage: React.FC = () => {
             onDelete={handleDeleteClick}
             roomMap={roomMap}
           />
+          {nextToken && (
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-center">
+              <button
+                onClick={() => fetchSchedules(nextToken)}
+                disabled={loading}
+                className="px-6 py-2 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-hover text-sm font-medium disabled:opacity-50"
+              >
+                {loading ? 'Loading...' : 'Load More'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

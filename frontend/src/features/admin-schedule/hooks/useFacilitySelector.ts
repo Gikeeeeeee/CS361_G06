@@ -24,9 +24,6 @@ export const useFacilitySelector = () => {
       try {
         const { buildings } = await scheduleApi.getBuildings();
         setBuildings(buildings);
-        if (buildings.length > 0) {
-          setSelectedBuildingId(buildings[0].id);
-        }
       } catch (err: any) {
         setError(err.message || 'Failed to fetch buildings');
       } finally {
@@ -50,11 +47,6 @@ export const useFacilitySelector = () => {
       try {
         const { floors } = await scheduleApi.getBuildingFloors(selectedBuildingId);
         setFloors(floors);
-        if (floors.length > 0) {
-          setSelectedFloorId(floors[0].id);
-        } else {
-          setSelectedFloorId('');
-        }
       } catch (err: any) {
         setError(err.message || 'Failed to fetch floors');
         setFloors([]);
@@ -81,11 +73,6 @@ export const useFacilitySelector = () => {
       try {
         const { rooms } = await scheduleApi.getFloorRooms(selectedFloorId);
         setRooms(rooms);
-        if (rooms.length > 0) {
-          setSelectedRoomId(rooms[0].id);
-        } else {
-          setSelectedRoomId('');
-        }
       } catch (err: any) {
         setError(err.message || 'Failed to fetch rooms');
         setRooms([]);

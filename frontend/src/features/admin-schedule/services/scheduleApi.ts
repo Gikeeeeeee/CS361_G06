@@ -77,8 +77,9 @@ export const scheduleApi = {
     roomId: string,
     params?: { start?: string; end?: string; type?: string }
   ): Promise<FetchSchedulesResponse> => {
-    const url = new URL(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules`);
+    const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
     
+    url.searchParams.append('roomId', roomId);
     if (params?.start) url.searchParams.append('start', params.start);
     if (params?.end) url.searchParams.append('end', params.end);
     if (params?.type) url.searchParams.append('type', params.type);
@@ -90,7 +91,7 @@ export const scheduleApi = {
     return response.json();
   },
 
-  updateSchedule: async (roomId: string, scheduleId: string, data: Partial<ScheduleItem>): Promise<string> => {
+  updateSchedule: async (scheduleId: string, data: Partial<ScheduleItem>): Promise<string> => {
     const payload = {
       type: data.type,
       title: data.title,
@@ -104,7 +105,7 @@ export const scheduleApi = {
       status: data.status,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/schedules/${scheduleId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -123,8 +124,8 @@ export const scheduleApi = {
     return response.text();
   },
 
-  deleteSchedule: async (roomId: string, scheduleId: string): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
+  deleteSchedule: async (scheduleId: string): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/schedules/${scheduleId}`, {
       method: 'DELETE',
     });
 
