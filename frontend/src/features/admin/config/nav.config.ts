@@ -1,5 +1,4 @@
-import { LayoutDashboard, CalendarDays, CalendarCog, Building2, Settings } from 'lucide-react';
-
+import { LayoutDashboard, CalendarDays, CalendarCog, PlusCircle, Building2, Settings } from 'lucide-react';
 export interface NavItem {
   label: string;
   path: string;
@@ -7,7 +6,6 @@ export interface NavItem {
   badge?: string;
   children?: NavItem[];
 }
-
 export const adminNavConfig: NavItem[] = [
   {
     label: 'Dashboard',
@@ -23,6 +21,11 @@ export const adminNavConfig: NavItem[] = [
     label: 'Manage Schedules',
     path: '/admin/schedules/manage',
     icon: CalendarCog,
+  },
+  {
+    label: 'Add Schedule',
+    path: '/admin/add-schedule',
+    icon: PlusCircle,
   },
   {
     label: 'Buildings',
