@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, CheckCircle2, AlertCircle } from 'lucide-react';
-import { importSchedulesCSV } from '../services/scheduleService';
+import { UploadCloud, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { importSchedulesCSV } from '../services/csvScheduleService';
 
 export default function CsvImportForm() {
   const [file, setFile] = useState<File | null>(null);
@@ -50,7 +50,7 @@ export default function CsvImportForm() {
       setErrorDetails(body.error.details);
       setImportStatus('error');
     } else {
-      setErrorMessage(body.error?.message ?? "ระบบขัดข้อง ลองใหม่อีกครั้ง");
+      setErrorMessage(body.error?.message ?? "System error. Please try again.");
       setImportStatus('error');
     }
     setIsLoading(false);
@@ -65,14 +65,14 @@ export default function CsvImportForm() {
     
     if (status === 201) {
       setImportStatus('success');
-      setErrorMessage(`นำเข้าสำเร็จ ${body.created || previewData.length} รายการ`);
+      setErrorMessage(`Successfully imported ${body.created || previewData.length} schedules.`);
       setFile(null);
     } else if (body.error?.details) {
       setErrorMessage(body.error.message);
       setErrorDetails(body.error.details);
       setImportStatus('error');
     } else {
-      setErrorMessage(body.error?.message ?? "ระบบขัดข้อง ลองใหม่อีกครั้ง");
+      setErrorMessage(body.error?.message ?? "System error. Please try again.");
       setImportStatus('error');
     }
     setIsLoading(false);
@@ -82,40 +82,75 @@ export default function CsvImportForm() {
   return (
     <div className="bg-[#f8fafc] border border-slate-200 rounded-xl p-8 shadow-sm min-h-[400px] flex flex-col">
       {importStatus === 'success' && (
-        <div className="mb-6 bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-2 border border-green-200">
-          <CheckCircle2 className="w-5 h-5" />
-          <span className="font-medium">{errorMessage}</span>
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-white border border-green-200 rounded-xl">
+          <CheckCircle2 className="w-14 h-14 text-green-500 mb-3" />
+          <h3 className="text-lg font-semibold text-slate-800 mb-1">Import Completed</h3>
+          <p className="text-slate-600 mb-6 text-sm">{errorMessage}</p>
+          <button
+            type="button"
+            onClick={resetImportState}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 px-6 rounded-lg shadow-sm transition-colors"
+          >
+            Import Another CSV
+          </button>
         </div>
       )}
 
       {importStatus === 'error' && (
-        <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-5 h-5" />
-            <span className="font-medium">{errorMessage}</span>
-          </div>
-          {errorDetails.length > 0 && (
-            <div className="mt-4 bg-white rounded border border-red-100 overflow-x-auto max-h-60 overflow-y-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-red-50 border-b border-red-100 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2">Row</th>
-                    <th className="px-4 py-2">Building</th>
-                    <th className="px-4 py-2">Room</th>
-                    <th className="px-4 py-2">Problem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorDetails.map((err, idx) => (
-                    <tr key={idx} className="border-b border-slate-50 last:border-0">
-                      <td className="px-4 py-2 font-medium">{err.row}</td>
-                      <td className="px-4 py-2">{err.building || '-'}</td>
-                      <td className="px-4 py-2">{err.room || '-'}</td>
-                      <td className="px-4 py-2 text-red-600">{err.reason}</td>
+        <div className="space-y-4">
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium">{errorMessage}</span>
+            </div>
+            {errorDetails.length > 0 && (
+              <div className="mt-4 bg-white rounded border border-red-100 overflow-x-auto max-h-60 overflow-y-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-red-50 border-b border-red-100 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2">Row</th>
+                      <th className="px-4 py-2">Building</th>
+                      <th className="px-4 py-2">Room</th>
+                      <th className="px-4 py-2">Problem</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {errorDetails.map((err, idx) => (
+                      <tr key={idx} className="border-b border-slate-50 last:border-0">
+                        <td className="px-4 py-2 font-medium">{err.row}</td>
+                        <td className="px-4 py-2">{err.building || '-'}</td>
+                        <td className="px-4 py-2">{err.room || '-'}</td>
+                        <td className="px-4 py-2 text-red-600">{err.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {file && (
+            <div className="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-lg shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-500">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-800">{file.name}</p>
+                  <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(2)} KB</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setFile(null);
+                  resetImportState();
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 font-medium px-3.5 py-1.5 rounded-lg transition-colors"
+              >
+                Remove file
+              </button>
             </div>
           )}
         </div>
@@ -156,7 +191,7 @@ export default function CsvImportForm() {
         </div>
       )}
 
-      {(importStatus === 'idle' || importStatus === 'error') && (
+      {importStatus === 'idle' && (
         <div 
             className={`relative border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center text-center transition-colors flex-1 ${
               file ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:border-blue-400 bg-white'
@@ -171,7 +206,11 @@ export default function CsvImportForm() {
               <p className="text-slate-800 font-medium mb-1">Selected File: {file.name}</p>
               <p className="text-slate-500 text-sm mb-4">{(file.size / 1024).toFixed(2)} KB</p>
               <button 
-                onClick={() => setFile(null)}
+                type="button"
+                onClick={() => {
+                  setFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
                 className="text-sm text-red-500 hover:text-red-700 font-medium"
               >
                 Remove file
@@ -196,6 +235,7 @@ export default function CsvImportForm() {
           />
           {!file && (
             <button 
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               aria-label="Upload file"
@@ -204,17 +244,11 @@ export default function CsvImportForm() {
         </div>
       )}
 
-      <div className="mt-8 flex justify-center">
-        {importStatus === 'preview' ? (
-           <button 
-            onClick={handleConfirmImport}
-            disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-8 rounded-lg shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Importing...' : 'Confirm Import All'}
-          </button>
-        ) : (
+      {/* Action Buttons */}
+      {importStatus === 'idle' && (
+        <div className="mt-8 flex justify-center">
           <button 
+            type="button"
             onClick={handlePreview}
             disabled={!file || isLoading}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-8 rounded-lg shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -222,8 +256,21 @@ export default function CsvImportForm() {
             <UploadCloud className="w-5 h-5" />
             {isLoading ? 'Processing...' : 'Upload & Preview'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {importStatus === 'preview' && (
+        <div className="mt-8 flex justify-center">
+          <button 
+            type="button"
+            onClick={handleConfirmImport}
+            disabled={isLoading}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-8 rounded-lg shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Importing...' : 'Confirm Import All'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
