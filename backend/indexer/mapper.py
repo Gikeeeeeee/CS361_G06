@@ -156,7 +156,8 @@ def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
             or item.get("room_name")
             or item.get("building_name")
         ),
-
+        "name_th": name_th,
+        "name_en": name_en,
         "title_th": name_th,
         "title_en": name_en,
 

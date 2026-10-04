@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "terraform_data" "build" {
   triggers_replace = concat(
     [
@@ -406,7 +408,8 @@ resource "aws_opensearchserverless_access_policy" "lambda" {
 
       Principal = [
         aws_iam_role.this.arn,
-        aws_iam_role.indexer.arn
+        aws_iam_role.indexer.arn,
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/terraform-deployer"
       ]
     }
   ])

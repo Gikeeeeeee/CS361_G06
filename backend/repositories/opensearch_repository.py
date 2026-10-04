@@ -15,6 +15,7 @@ from models.search import SearchQuery, SearchResult
 
 
 class OpenSearchRepository:
+
     def __init__(
         self,
         endpoint: str | None = None,
@@ -22,6 +23,7 @@ class OpenSearchRepository:
         index_name: str | None = None,
         region: str | None = None,
     ) -> None:
+
         endpoint = (
             endpoint
             or os.environ["OPENSEARCH_ENDPOINT"]
@@ -85,10 +87,13 @@ class OpenSearchRepository:
         self,
         query: SearchQuery,
     ) -> tuple[int, list[SearchResult]]:
+
         fields = [
             "code^10",
             "room_number^10",
             "course_code^10",
+            "name_en^6",
+            "name_th^6",
             "title^6",
             "title_en^5",
             "title_th^5",
@@ -104,6 +109,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
 
         if query.entity_type:
+
             if query.entity_type in {
                 "building",
                 "room",
@@ -224,6 +230,7 @@ class OpenSearchRepository:
         results = []
 
         for hit in response["hits"]["hits"]:
+
             source = hit.get(
                 "_source",
                 {},
@@ -271,6 +278,15 @@ class OpenSearchRepository:
                         "",
                     ),
 
+                    # Localized names
+                    name_th=source.get(
+                        "name_th"
+                    ),
+
+                    name_en=source.get(
+                        "name_en"
+                    ),
+
                     subtitle=(
                         source.get("course_code")
                         or source.get("room_number")
@@ -288,7 +304,6 @@ class OpenSearchRepository:
                         "building_id"
                     ),
 
-                    # FIX:
                     # Use the explicit indexed building_code
                     # instead of the entity's own "code".
                     building_code=source.get(
