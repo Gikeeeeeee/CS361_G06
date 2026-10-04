@@ -35,6 +35,20 @@ export interface Room {
 }
 
 export const scheduleApi = {
+  getAllSchedules: async (nextToken?: string): Promise<import('../types/schedule.types').GlobalScheduleResponse> => {
+    const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
+    
+    if (nextToken) {
+      url.searchParams.append('nextToken', nextToken);
+    }
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error(`Failed to fetch all schedules: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
   getBuildings: async (): Promise<{ buildings: Building[] }> => {
     const response = await fetch(`${API_BASE_URL}/api/v1/buildings`);
     if (!response.ok) {
