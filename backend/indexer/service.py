@@ -27,13 +27,11 @@ class IndexerService:
             index_name
             or os.getenv("OPENSEARCH_INDEX", "university")
         )
-
         self.client = client or self._create_client()
 
     @staticmethod
     def _create_client() -> OpenSearch:
         endpoint = os.environ["OPENSEARCH_ENDPOINT"]
-
         endpoint = (
             endpoint
             .replace("https://", "")
@@ -41,17 +39,11 @@ class IndexerService:
             .rstrip("/")
         )
 
-        region = os.getenv(
-            "AWS_REGION",
-            "us-east-1",
-        )
+        region = os.getenv("AWS_REGION", "us-east-1")
 
         credentials = boto3.Session().get_credentials()
-
         if credentials is None:
-            raise RuntimeError(
-                "AWS credentials are unavailable."
-            )
+            raise RuntimeError("AWS credentials are unavailable.")
 
         auth = AWSV4SignerAuth(
             credentials,
@@ -79,49 +71,57 @@ class IndexerService:
         self,
         image: dict[str, Any],
     ) -> None:
-        """
-        Convert a DynamoDB Stream image into an
-        OpenSearch document and index it.
-        """
-
         document = map_stream_image(image)
         document_id = document["id"]
 
-        self.client.index(
+        response = self.client.index(
             index=self.index_name,
             id=document_id,
             body=document,
-            refresh="wait_for",
+            # OpenSearch Serverless does not support
+            # refresh="wait_for".
+            refresh=False,
+        )
+
+        print(
+            "Indexed document: "
+            f"id={document_id}, "
+            f"result={response.get('result')}"
         )
 
     def delete_record(
         self,
         keys: dict[str, Any],
     ) -> None:
-        """
-        Delete an OpenSearch document when the
-        corresponding DynamoDB item is removed.
-        """
-
         document_id = get_deleted_document_id(keys)
 
         try:
-            self.client.delete(
+            response = self.client.delete(
                 index=self.index_name,
                 id=document_id,
                 refresh=False,
             )
 
+            print(
+                "Deleted document: "
+                f"id={document_id}, "
+                f"result={response.get('result')}"
+            )
+
         except Exception as exc:
-            # OpenSearch can return a not-found error if
-            # the document is already missing.
-            # That should not break the DynamoDB stream.
+            # OpenSearch can return a not-found error if the
+            # document is already missing. That should not
+            # break DynamoDB Stream processing.
             error_info = getattr(exc, "info", {})
 
             if (
                 isinstance(error_info, dict)
                 and error_info.get("result") == "not_found"
             ):
+                print(
+                    "Document already missing: "
+                    f"id={document_id}"
+                )
                 return
 
             raise
@@ -130,10 +130,6 @@ class IndexerService:
         self,
         record: dict[str, Any],
     ) -> None:
-        """
-        Process a single DynamoDB Stream record.
-        """
-
         event_name = record.get("eventName")
 
         if event_name in {"INSERT", "MODIFY"}:
@@ -153,9 +149,7 @@ class IndexerService:
             keys = dynamodb.get("Keys")
 
             if not keys:
-                raise ValueError(
-                    "REMOVE record has no Keys."
-                )
+                raise ValueError("REMOVE record has no Keys.")
 
             self.delete_record(keys)
             return
@@ -171,11 +165,12 @@ class IndexerService:
         self,
         event: dict[str, Any],
     ) -> None:
-        """
-        Process all DynamoDB Stream records in one Lambda event.
-        """
-
         records = event.get("Records", [])
+
+        print(
+            "Processing DynamoDB Stream batch: "
+            f"{len(records)} record(s)"
+        )
 
         for record in records:
             self.process_record(record)
