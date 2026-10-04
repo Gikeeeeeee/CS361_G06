@@ -33,6 +33,7 @@ class IndexerService:
     @staticmethod
     def _create_client() -> OpenSearch:
         endpoint = os.environ["OPENSEARCH_ENDPOINT"]
+
         endpoint = (
             endpoint
             .replace("https://", "")
@@ -74,19 +75,34 @@ class IndexerService:
             retry_on_timeout=True,
         )
 
-    def index_record(self, image: dict[str, Any]) -> None:
-        document = map_stream_image(image)
+    def index_record(
+        self,
+        image: dict[str, Any],
+    ) -> None:
+        """
+        Convert a DynamoDB Stream image into an
+        OpenSearch document and index it.
+        """
 
+        document = map_stream_image(image)
         document_id = document["id"]
 
         self.client.index(
             index=self.index_name,
             id=document_id,
             body=document,
-            refresh=False,
+            refresh="wait_for",
         )
 
-    def delete_record(self, keys: dict[str, Any]) -> None:
+    def delete_record(
+        self,
+        keys: dict[str, Any],
+    ) -> None:
+        """
+        Delete an OpenSearch document when the
+        corresponding DynamoDB item is removed.
+        """
+
         document_id = get_deleted_document_id(keys)
 
         try:
@@ -95,9 +111,11 @@ class IndexerService:
                 id=document_id,
                 refresh=False,
             )
+
         except Exception as exc:
-            # OpenSearch can return a not-found error if the projection
-            # is already missing. That should not break the stream.
+            # OpenSearch can return a not-found error if
+            # the document is already missing.
+            # That should not break the DynamoDB stream.
             error_info = getattr(exc, "info", {})
 
             if (
@@ -108,7 +126,14 @@ class IndexerService:
 
             raise
 
-    def process_record(self, record: dict[str, Any]) -> None:
+    def process_record(
+        self,
+        record: dict[str, Any],
+    ) -> None:
+        """
+        Process a single DynamoDB Stream record.
+        """
+
         event_name = record.get("eventName")
 
         if event_name in {"INSERT", "MODIFY"}:
@@ -138,7 +163,7 @@ class IndexerService:
         # Ignore events we do not currently support.
         if event_name:
             print(
-                f"Ignoring unsupported DynamoDB event: "
+                "Ignoring unsupported DynamoDB event: "
                 f"{event_name}"
             )
 
@@ -146,6 +171,10 @@ class IndexerService:
         self,
         event: dict[str, Any],
     ) -> None:
+        """
+        Process all DynamoDB Stream records in one Lambda event.
+        """
+
         records = event.get("Records", [])
 
         for record in records:

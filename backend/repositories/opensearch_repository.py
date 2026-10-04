@@ -1,11 +1,13 @@
 import os
 
 import boto3
+
 from opensearchpy import (
     AWSV4SignerAuth,
     OpenSearch,
     RequestsHttpConnection,
 )
+
 from opensearchpy.exceptions import ConnectionError, ConnectionTimeout
 
 from errors import SearchServiceUnavailable
@@ -100,6 +102,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Entity / Schedule Type Filter
         # ---------------------------------------------------------
+
         if query.entity_type:
             if query.entity_type in {
                 "building",
@@ -147,6 +150,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Building Filter
         # ---------------------------------------------------------
+
         if query.building_id:
             filters.append(
                 {
@@ -161,6 +165,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # OpenSearch Query
         # ---------------------------------------------------------
+
         body = {
             "from": (
                 (query.page - 1)
@@ -187,11 +192,13 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Execute Search
         # ---------------------------------------------------------
+
         try:
             response = self.client.search(
                 index=self.index_name,
                 body=body,
             )
+
         except (
             ConnectionError,
             ConnectionTimeout,
@@ -201,6 +208,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Total
         # ---------------------------------------------------------
+
         total_value = response["hits"]["total"]
 
         total = int(
@@ -212,6 +220,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Map Search Results
         # ---------------------------------------------------------
+
         results = []
 
         for hit in response["hits"]["hits"]:
@@ -239,6 +248,7 @@ class OpenSearchRepository:
             #
             # API result:
             # type = BUILDING / ROOM / FACILITY
+
             if entity_type == "SCHEDULE":
                 result_type = source.get(
                     "type",
@@ -254,11 +264,6 @@ class OpenSearchRepository:
                         hit.get("_id", ""),
                     ),
 
-                    # Schedule:
-                    # COURSE / EXAM / ACTIVITY
-                    #
-                    # Other:
-                    # BUILDING / ROOM / FACILITY
                     type=result_type,
 
                     title=source.get(
@@ -283,8 +288,11 @@ class OpenSearchRepository:
                         "building_id"
                     ),
 
+                    # FIX:
+                    # Use the explicit indexed building_code
+                    # instead of the entity's own "code".
                     building_code=source.get(
-                        "code"
+                        "building_code"
                     ),
 
                     # Room / Schedule
