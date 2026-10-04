@@ -5,12 +5,23 @@ import { ScheduleTable } from '../components/ScheduleTable';
 import { ScheduleFilters } from '../components/ScheduleFilters';
 import { EditScheduleDrawer } from '../components/EditScheduleDrawer';
 import { useFacilitySelector } from '../hooks/useFacilitySelector';
+import { useSchedulePagination } from '../hooks/useSchedulePagination';
+import { PaginationBar } from '../components/PaginationBar';
 
 export const AdminSchedulePage: React.FC = () => {
   const [rawSchedules, setRawSchedules] = useState<ScheduleItem[]>([]);
-  const [nextToken, setNextToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    tokenHistory,
+    currentToken,
+    nextToken,
+    setNextToken,
+    resetPagination,
+    handleNextPage,
+    handlePrevPage,
+  } = useSchedulePagination();
 
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItem | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<ScheduleItem | null>(null);
@@ -33,17 +44,13 @@ export const AdminSchedulePage: React.FC = () => {
     loadingRooms,
   } = useFacilitySelector();
 
-  const fetchSchedules = async (token?: string) => {
+  const fetchSchedules = async (token: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await scheduleApi.getAllSchedules(token);
-      if (token) {
-        setRawSchedules(prev => [...prev, ...response.data]);
-      } else {
-        setRawSchedules(response.data);
-      }
-      setNextToken(response.next_token);
+      const response = await scheduleApi.getAllSchedules(token ?? undefined);
+      setRawSchedules(response.data);
+      setNextToken(response.meta?.next_token ?? null);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch schedules');
     } finally {
@@ -52,8 +59,16 @@ export const AdminSchedulePage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSchedules();
-  }, []);
+    fetchSchedules(currentToken);
+  }, [currentToken]);
+
+  const handleRefresh = React.useCallback(() => {
+    if (currentToken === null && tokenHistory.length === 0) {
+      fetchSchedules(null);
+    } else {
+      resetPagination();
+    }
+  }, [currentToken, tokenHistory.length, resetPagination]);
 
   const handleEditClick = (schedule: ScheduleItem) => {
     setEditingSchedule(schedule);
@@ -66,7 +81,7 @@ export const AdminSchedulePage: React.FC = () => {
   const handleApplyChanges = async (updatedSchedule: ScheduleItem) => {
     try {
       await scheduleApi.updateSchedule(updatedSchedule.id, updatedSchedule);
-      setRawSchedules(prev => prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s));
+      handleRefresh();
       setEditingSchedule(null);
     } catch (err: any) {
       console.error('Failed to update schedule', err);
@@ -82,7 +97,7 @@ export const AdminSchedulePage: React.FC = () => {
     if (deletingSchedule) {
       try {
         await scheduleApi.deleteSchedule(deletingSchedule.id);
-        setRawSchedules(prev => prev.filter(s => s.id !== deletingSchedule.id));
+        handleRefresh();
         setDeletingSchedule(null);
       } catch (err: any) {
         console.error('Failed to delete schedule', err);
@@ -98,7 +113,7 @@ export const AdminSchedulePage: React.FC = () => {
   const roomMap = useMemo(() => {
     const map: Record<string, string> = {};
     rooms.forEach(room => {
-      map[room.id] = room.name.en;
+      map[room.id] = `${room.room_number} - ${room.name.en}`;
     });
     return map;
   }, [rooms]);
@@ -129,9 +144,9 @@ export const AdminSchedulePage: React.FC = () => {
   }, [rawSchedules, activeTab, selectedRoomId, searchQuery]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 w-full relative overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-6 pb-24 lg:p-8">
-        <div className="mb-6">
+    <div className="flex flex-col h-screen bg-slate-50 w-full relative overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 p-6 lg:p-8">
+        <div className="flex-shrink-0 mb-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
             Campus Schedule
           </h1>
@@ -140,24 +155,26 @@ export const AdminSchedulePage: React.FC = () => {
           </p>
         </div>
 
-        <ScheduleFilters 
-          buildings={buildings}
-          floors={floors}
-          rooms={rooms}
-          selectedBuildingId={selectedBuildingId}
-          onBuildingChange={setSelectedBuildingId}
-          selectedFloorId={selectedFloorId}
-          onFloorChange={setSelectedFloorId}
-          selectedRoomId={selectedRoomId}
-          onRoomChange={setSelectedRoomId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          loadingBuildings={loadingBuildings}
-          loadingFloors={loadingFloors}
-          loadingRooms={loadingRooms}
-        />
+        <div className="flex-shrink-0">
+          <ScheduleFilters 
+            buildings={buildings}
+            floors={floors}
+            rooms={rooms}
+            selectedBuildingId={selectedBuildingId}
+            onBuildingChange={setSelectedBuildingId}
+            selectedFloorId={selectedFloorId}
+            onFloorChange={setSelectedFloorId}
+            selectedRoomId={selectedRoomId}
+            onRoomChange={setSelectedRoomId}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            loadingBuildings={loadingBuildings}
+            loadingFloors={loadingFloors}
+            loadingRooms={loadingRooms}
+          />
+        </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 mb-4 gap-4">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 mb-4 gap-4">
           <div className="flex bg-white rounded-lg border border-slate-200 p-1">
             {['All', 'Courses', 'Exams', 'Events'].map((tab) => (
               <button
@@ -182,34 +199,35 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <div className="flex-shrink-0 mb-4 p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
           {loading && !nextToken && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
-          <ScheduleTable
-            schedules={filteredSchedules}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-            roomMap={roomMap}
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ScheduleTable
+              schedules={filteredSchedules}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+              roomMap={roomMap}
+            />
+          </div>
+          <div className="flex-shrink-0">
+            <PaginationBar
+            currentPage={tokenHistory.length + 1}
+            hasNext={!!nextToken}
+            hasPrev={tokenHistory.length > 0}
+            onNext={handleNextPage}
+            onPrev={handlePrevPage}
+            isLoading={loading}
           />
-          {nextToken && (
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-center">
-              <button
-                onClick={() => fetchSchedules(nextToken)}
-                disabled={loading}
-                className="px-6 py-2 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-hover text-sm font-medium disabled:opacity-50"
-              >
-                {loading ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

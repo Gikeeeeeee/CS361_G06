@@ -27,7 +27,10 @@ export interface ScheduleResponse {
 
 export interface GlobalScheduleResponse {
   data: ScheduleItem[];
-  next_token: string | null;
+  meta?: {
+    count: number;
+    next_token: string | null;
+  };
 }
 
 export interface UpdateSchedulePayload {

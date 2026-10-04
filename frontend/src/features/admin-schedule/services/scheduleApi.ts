@@ -73,6 +73,14 @@ export const scheduleApi = {
     return response.json();
   },
 
+  getRoom: async (roomId: string): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch room: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
   getSchedulesByRoom: async (
     roomId: string,
     params?: { start?: string; end?: string; type?: string }

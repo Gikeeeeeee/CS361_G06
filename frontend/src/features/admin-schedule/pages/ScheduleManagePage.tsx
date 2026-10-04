@@ -3,27 +3,34 @@ import { scheduleApi } from '../services/scheduleApi';
 import type { ScheduleItem } from '../types/schedule.types';
 import { ScheduleTable } from '../components/ScheduleTable';
 import { EditScheduleDrawer } from '../components/EditScheduleDrawer';
+import { useSchedulePagination } from '../hooks/useSchedulePagination';
+import { PaginationBar } from '../components/PaginationBar';
 
 export const ScheduleManagePage: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [nextToken, setNextToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    tokenHistory,
+    currentToken,
+    nextToken,
+    setNextToken,
+    resetPagination,
+    handleNextPage,
+    handlePrevPage,
+  } = useSchedulePagination();
 
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItem | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<ScheduleItem | null>(null);
 
-  const fetchSchedules = async (token?: string) => {
+  const fetchSchedules = async (token: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await scheduleApi.getAllSchedules(token);
-      if (token) {
-        setSchedules((prev) => [...prev, ...response.data]);
-      } else {
-        setSchedules(response.data);
-      }
-      setNextToken(response.next_token);
+      const response = await scheduleApi.getAllSchedules(token ?? undefined);
+      setSchedules(response.data);
+      setNextToken(response.meta?.next_token ?? null);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch schedules');
     } finally {
@@ -32,14 +39,16 @@ export const ScheduleManagePage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSchedules();
-  }, []);
+    fetchSchedules(currentToken);
+  }, [currentToken]);
 
-  const handleLoadMore = () => {
-    if (nextToken) {
-      fetchSchedules(nextToken);
+  const handleRefresh = React.useCallback(() => {
+    if (currentToken === null && tokenHistory.length === 0) {
+      fetchSchedules(null);
+    } else {
+      resetPagination();
     }
-  };
+  }, [currentToken, tokenHistory.length, resetPagination]);
 
   const handleEditClick = (schedule: ScheduleItem) => {
     setEditingSchedule(schedule);
@@ -52,8 +61,7 @@ export const ScheduleManagePage: React.FC = () => {
   const handleApplyChanges = async (updatedSchedule: ScheduleItem) => {
     try {
       await scheduleApi.updateSchedule(updatedSchedule.id, updatedSchedule);
-      // Update local state
-      setSchedules((prev) => prev.map((s) => (s.id === updatedSchedule.id ? updatedSchedule : s)));
+      handleRefresh();
       setEditingSchedule(null);
     } catch (err: any) {
       console.error('Failed to update schedule', err);
@@ -69,7 +77,7 @@ export const ScheduleManagePage: React.FC = () => {
     if (deletingSchedule) {
       try {
         await scheduleApi.deleteSchedule(deletingSchedule.id);
-        setSchedules((prev) => prev.filter((s) => s.id !== deletingSchedule.id));
+        handleRefresh();
         setDeletingSchedule(null);
       } catch (err: any) {
         console.error('Failed to delete schedule', err);
@@ -83,50 +91,51 @@ export const ScheduleManagePage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 w-full relative overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-6 pb-24 lg:p-8">
-        <div className="mb-6 flex justify-between items-end">
+    <div className="flex flex-col h-screen bg-slate-50 w-full relative overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 p-6 lg:p-8">
+        <div className="flex-shrink-0 mb-6 flex justify-between items-end">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-2">Manage Schedules</h1>
             <p className="text-slate-500">Edit, reassign, and manage existing campus schedules globally.</p>
           </div>
           <button
-            onClick={() => fetchSchedules()}
+            onClick={handleRefresh}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg shadow-sm hover:bg-slate-50 text-sm font-medium"
             disabled={loading}
           >
-            {loading && !nextToken ? 'Refreshing...' : 'Refresh'}
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
+          <div className="flex-shrink-0 mb-4 p-4 bg-red-50 text-red-600 rounded-lg border border-red-200">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
           {loading && !nextToken && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 backdrop-blur-sm">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
-          <ScheduleTable
-            schedules={schedules}
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ScheduleTable
+              schedules={schedules}
+              onEdit={handleEditClick}
+              onDelete={handleDeleteClick}
+            />
+          </div>
+          <div className="flex-shrink-0">
+            <PaginationBar
+            currentPage={tokenHistory.length + 1}
+            hasNext={!!nextToken}
+            hasPrev={tokenHistory.length > 0}
+            onNext={handleNextPage}
+            onPrev={handlePrevPage}
+            isLoading={loading}
           />
-          {nextToken && (
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-center">
-              <button
-                onClick={handleLoadMore}
-                disabled={loading}
-                className="px-6 py-2 bg-primary text-white rounded-lg shadow-sm hover:bg-primary-hover text-sm font-medium disabled:opacity-50"
-              >
-                {loading ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

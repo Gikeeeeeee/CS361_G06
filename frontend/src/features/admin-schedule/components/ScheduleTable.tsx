@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
+import { scheduleApi } from '../services/scheduleApi';
 import type { ScheduleItem } from '../types/schedule.types';
 
 interface ScheduleTableProps {
@@ -9,14 +10,54 @@ interface ScheduleTableProps {
   roomMap?: Record<string, string>;
 }
 
+const roomFetchCache: Record<string, Promise<any>> = {};
+
+const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> = ({ roomId, roomMap }) => {
+  const [label, setLabel] = useState<string | null>(roomMap[roomId] || null);
+
+  useEffect(() => {
+    if (roomMap[roomId]) {
+      setLabel(roomMap[roomId]);
+      return;
+    }
+    
+    let isMounted = true;
+    
+    if (!roomFetchCache[roomId]) {
+      roomFetchCache[roomId] = scheduleApi.getRoom(roomId);
+    }
+
+    roomFetchCache[roomId]
+      .then(room => {
+        if (isMounted && room) {
+          const buildingCode = room.building?.code ? `${room.building.code} - ` : '';
+          const name = room.name?.en || '';
+          setLabel(`${buildingCode}${room.room_number} ${name}`.trim());
+        }
+      })
+      .catch(() => {
+        // fallback to UUID behavior implicitly since label will remain null
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roomId, roomMap]);
+
+  const display = label || (roomId.length > 15 ? `${roomId.slice(0, 8)}...` : roomId);
+  const fullTitle = label || roomId;
+
+  return (
+    <span 
+      className="inline-block max-w-[200px] truncate text-sm font-medium text-slate-900"
+      title={fullTitle}
+    >
+      {display}
+    </span>
+  );
+};
+
 export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit, onDelete, roomMap = {} }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  const totalPages = Math.ceil(schedules.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const visibleSchedules = schedules.slice(startIndex, startIndex + itemsPerPage);
-
   const getTypePill = (type: string) => {
     switch (type) {
       case 'COURSE':
@@ -62,20 +103,11 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
     }
   };
 
-  // Reset page if schedules change and current page is out of bounds
-  React.useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    } else if (totalPages === 0) {
-      setCurrentPage(1);
-    }
-  }, [schedules.length, totalPages, currentPage]);
-
   return (
-    <div className="w-full overflow-x-auto flex flex-col min-h-[400px]">
-      <div className="flex-1">
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-auto">
         <table className="w-full text-left text-sm whitespace-nowrap">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">TYPE</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">CODE</th>
@@ -87,8 +119,8 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {visibleSchedules.length > 0 ? (
-              visibleSchedules.map((schedule) => (
+            {schedules.length > 0 ? (
+              schedules.map((schedule) => (
                 <tr key={schedule.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">{getTypePill(schedule.type)}</td>
                   <td className="px-4 py-3 font-semibold text-slate-900">{schedule.course_code || '—'}</td>
@@ -96,7 +128,9 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
                     <div className="font-medium text-slate-900">{schedule.title}</div>
                     <div className="text-xs text-slate-500">{schedule.organizer}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{roomMap[schedule.room_id] || schedule.room_id}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    <RoomLabel roomId={schedule.room_id} roomMap={roomMap} />
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{formatTimePattern(schedule)}</td>
                   <td className="px-4 py-3">{getStatusPill(schedule.status)}</td>
                   <td className="px-4 py-3 text-right">
@@ -127,39 +161,8 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 mt-auto">
-        <span className="text-xs text-slate-500">
-          Showing {schedules.length === 0 ? 0 : startIndex + 1} to {Math.min(startIndex + itemsPerPage, schedules.length)} of {schedules.length} entries
-        </span>
-        <div className="flex gap-1">
-          <button 
-            className="px-3 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-          >
-            Previous
-          </button>
-          {Array.from({ length: totalPages }).map((_, idx) => (
-            <button
-              key={idx}
-              className={`px-3 py-1 border rounded-md text-xs ${
-                currentPage === idx + 1
-                  ? 'border-primary bg-primary text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-              onClick={() => setCurrentPage(idx + 1)}
-            >
-              {idx + 1}
-            </button>
-          ))}
-          <button 
-            className="px-3 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50"
-            disabled={currentPage === totalPages || totalPages === 0}
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </button>
-        </div>
+      <div className="flex-shrink-0 px-4 py-3 border-t border-slate-200 bg-slate-50/50 mt-auto text-xs text-slate-500">
+        Showing {schedules.length} entries
       </div>
     </div>
   );
