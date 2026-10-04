@@ -99,7 +99,7 @@ export const scheduleApi = {
     return response.json();
   },
 
-  updateSchedule: async (scheduleId: string, data: Partial<ScheduleItem>): Promise<string> => {
+  updateSchedule: async (roomId: string, scheduleId: string, data: Partial<ScheduleItem>): Promise<string> => {
     const payload = {
       type: data.type,
       title: data.title,
@@ -113,7 +113,7 @@ export const scheduleApi = {
       status: data.status,
     };
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/schedules/${scheduleId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -132,8 +132,8 @@ export const scheduleApi = {
     return response.text();
   },
 
-  deleteSchedule: async (scheduleId: string): Promise<string> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/schedules/${scheduleId}`, {
+  deleteSchedule: async (roomId: string, scheduleId: string): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'DELETE',
     });
 

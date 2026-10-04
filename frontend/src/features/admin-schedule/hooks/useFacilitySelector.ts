@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { scheduleApi } from '../services/scheduleApi';
+import { facilityCache } from '../services/facilityCache';
 import type { Building, Floor, Room } from '../services/scheduleApi';
 
 export const useFacilitySelector = () => {
@@ -22,7 +22,7 @@ export const useFacilitySelector = () => {
       setLoadingBuildings(true);
       setError(null);
       try {
-        const { buildings } = await scheduleApi.getBuildings();
+        const { buildings } = await facilityCache.getBuildings();
         setBuildings(buildings);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch buildings');
@@ -45,7 +45,7 @@ export const useFacilitySelector = () => {
       setLoadingFloors(true);
       setError(null);
       try {
-        const { floors } = await scheduleApi.getBuildingFloors(selectedBuildingId);
+        const { floors } = await facilityCache.getBuildingFloors(selectedBuildingId);
         setFloors(floors);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch floors');
@@ -71,7 +71,7 @@ export const useFacilitySelector = () => {
       setLoadingRooms(true);
       setError(null);
       try {
-        const { rooms } = await scheduleApi.getFloorRooms(selectedFloorId);
+        const { rooms } = await facilityCache.getFloorRooms(selectedFloorId);
         setRooms(rooms);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch rooms');

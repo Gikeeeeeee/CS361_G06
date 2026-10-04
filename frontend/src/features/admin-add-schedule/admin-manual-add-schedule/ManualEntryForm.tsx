@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import {
   createManualSchedule,
-  getAvailableRooms,
   type CreateSchedulePayload,
-  type RoomOption,
 } from '../services/manualScheduleService';
+import { CascadingRoomSelector } from '../../admin-schedule/components/CascadingRoomSelector';
 
 const WEEKDAYS = [
   { key: 'MO', label: 'Mon' },
@@ -45,10 +44,7 @@ export default function ManualEntryForm() {
   const [endDate, setEndDate] = useState<Date | null>(null);
 
   // Room State
-  const [availableRooms, setAvailableRooms] = useState<RoomOption[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string>('');
-  const [customRoomId, setCustomRoomId] = useState<string>('');
-  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
 
   // Recurrence state
   const [isWeekly, setIsWeekly] = useState(true);
@@ -59,23 +55,6 @@ export default function ManualEntryForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-
-  // Fetch available rooms on mount
-  useEffect(() => {
-    let isMounted = true;
-    getAvailableRooms().then((rooms) => {
-      if (isMounted) {
-        setAvailableRooms(rooms);
-        if (rooms.length > 0) {
-          setSelectedRoomId(rooms[0].id);
-        }
-        setIsLoadingRooms(false);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Handle Type Change
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -104,7 +83,7 @@ export default function ManualEntryForm() {
     switch (type) {
       case 'Course':
         return {
-          label: 'Instructor / Professor',
+          label: 'Instructor / Lecturer',
           placeholder: 'e.g. Prof. Smith, Dr. Jane Doe',
         };
       case 'Exam':
@@ -115,7 +94,7 @@ export default function ManualEntryForm() {
       case 'Activity':
       default:
         return {
-          label: 'Organizer',
+          label: 'Organizer / Host',
           placeholder: 'e.g. Student Council, Tech Club',
         };
     }
@@ -128,11 +107,8 @@ export default function ManualEntryForm() {
     setSuccessMessage('');
     setErrorMessage('');
 
-    // Determine target room ID
-    const targetRoomId = selectedRoomId === 'custom' ? customRoomId.trim() : selectedRoomId.trim();
-
-    if (!targetRoomId) {
-      setErrorMessage('Please select or specify a room.');
+    if (!selectedRoomId) {
+      setErrorMessage('Please select a room.');
       return;
     }
 
@@ -173,7 +149,7 @@ export default function ManualEntryForm() {
       recurrence_rule: recurrenceRule,
     };
 
-    const { status: resStatus, body } = await createManualSchedule(targetRoomId, payload);
+    const { status: resStatus, body } = await createManualSchedule(selectedRoomId, payload);
 
     setIsSubmitting(false);
 
@@ -231,7 +207,7 @@ export default function ManualEntryForm() {
         </div>
 
         <div className="col-span-1 space-y-1 flex flex-col">
-          <label className="text-sm font-medium text-slate-700">Start at</label>
+          <label className="text-sm font-medium text-slate-700">Date & Start Time</label>
           <DatePicker
             selected={startDate}
             onChange={(date: Date | null) => setStartDate(date)}
@@ -257,7 +233,7 @@ export default function ManualEntryForm() {
         </div>
 
         <div className="col-span-1 space-y-1 flex flex-col">
-          <label className="text-sm font-medium text-slate-700">End at</label>
+          <label className="text-sm font-medium text-slate-700">End Time</label>
           <DatePicker
             selected={endDate}
             onChange={(date: Date | null) => setEndDate(date)}
@@ -270,17 +246,18 @@ export default function ManualEntryForm() {
           />
         </div>
 
-        {/* Row 3: Course Code & Status */}
-        <div className="col-span-1 space-y-1">
-          <label className="text-sm font-medium text-slate-700">Course Code</label>
-          <input
-            type="text"
-            value={courseCode}
-            onChange={(e) => setCourseCode(e.target.value)}
-            placeholder="e.g. CS201"
-            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+        {type !== 'Activity' && (
+          <div className="col-span-1 space-y-1">
+            <label className="text-sm font-medium text-slate-700">Course Code</label>
+            <input
+              type="text"
+              value={courseCode}
+              onChange={(e) => setCourseCode(e.target.value)}
+              placeholder="e.g. CS201"
+              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        )}
 
         <div className="col-span-1 space-y-1">
           <label className="text-sm font-medium text-slate-700">Status</label>
@@ -289,55 +266,14 @@ export default function ManualEntryForm() {
             onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
             className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
           >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
+            <option value="Active">Confirmed</option>
+            <option value="Inactive">Pending</option>
           </select>
         </div>
 
-        {/* Row 4: Room & Dynamic Organizer / Instructor / Examiner */}
-        <div className="col-span-1 space-y-1">
-          <label className="text-sm font-medium text-slate-700 flex items-center justify-between">
-            <span>Room</span>
-            {isLoadingRooms && (
-              <span className="text-xs text-slate-400 flex items-center gap-1 font-normal">
-                <Loader2 className="w-3 h-3 animate-spin" /> Loading rooms...
-              </span>
-            )}
-          </label>
-          {availableRooms.length > 0 ? (
-            <div className="space-y-1.5">
-              <select
-                value={selectedRoomId}
-                onChange={(e) => setSelectedRoomId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-              >
-                {availableRooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.buildingCode} - {r.name} (Fl. {r.floorNumber})
-                  </option>
-                ))}
-                <option value="custom">-- Custom Room ID --</option>
-              </select>
-
-              {selectedRoomId === 'custom' && (
-                <input
-                  type="text"
-                  value={customRoomId}
-                  onChange={(e) => setCustomRoomId(e.target.value)}
-                  placeholder="Enter custom Room UUID..."
-                  className="w-full border border-slate-300 rounded-lg p-2 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-              )}
-            </div>
-          ) : (
-            <input
-              type="text"
-              value={selectedRoomId}
-              onChange={(e) => setSelectedRoomId(e.target.value)}
-              placeholder="e.g. 2c9f4d6f-65a0-5efa-a12c-a2431c6cc91a"
-              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-          )}
+        <div className="col-span-1 sm:col-span-2 space-y-1">
+          <label className="text-sm font-medium text-slate-700">Location</label>
+          <CascadingRoomSelector value={selectedRoomId} onChange={setSelectedRoomId} />
         </div>
 
         <div className="col-span-1 space-y-1">
@@ -415,12 +351,12 @@ export default function ManualEntryForm() {
         </div>
 
         {/* Row 6: Description */}
-        <div className="col-span-2 space-y-1">
-          <label className="text-sm font-medium text-slate-700">Description</label>
+        <div className="col-span-2 space-y-1 mt-2">
+          <label className="text-sm font-medium text-slate-700">Notes / Remarks</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add notes or description..."
+            placeholder="Optional details, setup instructions, or notes for attendees..."
             rows={4}
             className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />

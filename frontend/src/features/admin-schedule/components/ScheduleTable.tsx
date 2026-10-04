@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
-import { scheduleApi } from '../services/scheduleApi';
+import { facilityCache } from '../services/facilityCache';
 import type { ScheduleItem } from '../types/schedule.types';
 
 interface ScheduleTableProps {
@@ -10,7 +10,6 @@ interface ScheduleTableProps {
   roomMap?: Record<string, string>;
 }
 
-const roomFetchCache: Record<string, Promise<any>> = {};
 
 const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> = ({ roomId, roomMap }) => {
   const [label, setLabel] = useState<string | null>(roomMap[roomId] || null);
@@ -21,13 +20,17 @@ const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> =
       return;
     }
     
+    // FAST PATH: Synchronous 0ms lookup if already in cache
+    if (facilityCache.roomMeta.has(roomId)) {
+      const meta = facilityCache.roomMeta.get(roomId)!;
+      const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
+      setLabel(`${buildingCode}${meta.roomNumber} ${meta.nameEn}`.trim());
+      return;
+    }
+    
     let isMounted = true;
     
-    if (!roomFetchCache[roomId]) {
-      roomFetchCache[roomId] = scheduleApi.getRoom(roomId);
-    }
-
-    roomFetchCache[roomId]
+    facilityCache.getRoom(roomId)
       .then(room => {
         if (isMounted && room) {
           const buildingCode = room.building?.code ? `${room.building.code} - ` : '';

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Info, CheckCircle2 } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import 'react-datepicker/dist/react-datepicker.css';
+import { X, Loader2 } from 'lucide-react';
 import type { ScheduleItem } from '../types/schedule.types';
+import { CascadingRoomSelector } from './CascadingRoomSelector';
 
 interface EditScheduleDrawerProps {
   isOpen: boolean;
@@ -9,215 +13,396 @@ interface EditScheduleDrawerProps {
   onApply: (updatedSchedule: ScheduleItem) => void;
 }
 
+const WEEKDAYS = [
+  { key: 'MO', label: 'Mon' },
+  { key: 'TU', label: 'Tue' },
+  { key: 'WE', label: 'Wed' },
+  { key: 'TH', label: 'Thu' },
+  { key: 'FR', label: 'Fri' },
+];
+
+function formatIsoWithTimezone(date: Date): string {
+  const tzOffsetMinutes = -date.getTimezoneOffset();
+  const sign = tzOffsetMinutes >= 0 ? '+' : '-';
+  const pad = (n: number) => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  const hours = pad(tzOffsetMinutes / 60);
+  const mins = pad(tzOffsetMinutes % 60);
+
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hour = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const sec = pad(date.getSeconds());
+
+  return `${year}-${month}-${day}T${hour}:${min}:${sec}${sign}${hours}:${mins}`;
+}
+
 export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
   isOpen,
   schedule,
   onClose,
   onApply,
 }) => {
-  const [formData, setFormData] = useState<ScheduleItem | null>(null);
+  const [type, setType] = useState<'Course' | 'Activity' | 'Exam'>('Course');
+  const [title, setTitle] = useState('');
+  const [courseCode, setCourseCode] = useState('');
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [organizer, setOrganizer] = useState('');
+  const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  // Room State
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('');
+
+  // Recurrence state
+  const [isWeekly, setIsWeekly] = useState(true);
+  const [selectedDays, setSelectedDays] = useState<string[]>(['MO']);
+  const [repeatWeeks, setRepeatWeeks] = useState(16);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (schedule) {
-      setFormData({ ...schedule });
-    } else {
-      setFormData(null);
+      setType(schedule.type === 'EVENT' ? 'Activity' : schedule.type === 'EXAM' ? 'Exam' : 'Course');
+      setTitle(schedule.title || '');
+      setCourseCode(schedule.course_code || '');
+      setStatus(schedule.status === 'CONFIRM' ? 'Active' : 'Inactive');
+      setOrganizer(schedule.organizer || '');
+      setDescription(schedule.description || '');
+      
+      try {
+        setStartDate(new Date(schedule.start_at));
+      } catch { setStartDate(null); }
+      
+      try {
+        setEndDate(new Date(schedule.end_at));
+      } catch { setEndDate(null); }
+
+      setSelectedRoomId(schedule.room_id);
+
+      if (schedule.recurrence_rule) {
+        setIsWeekly(true);
+        const dayMatch = schedule.recurrence_rule.match(/BYDAY=([^;]+)/);
+        if (dayMatch) {
+          setSelectedDays(dayMatch[1].split(','));
+        }
+        const countMatch = schedule.recurrence_rule.match(/COUNT=([^;]+)/);
+        if (countMatch) {
+          setRepeatWeeks(parseInt(countMatch[1]) || 16);
+        }
+      } else {
+        setIsWeekly(false);
+        setSelectedDays([]);
+      }
     }
   }, [schedule]);
 
-  if (!isOpen || !formData) {
+  if (!isOpen || !schedule) {
     return (
       <div
-        className="fixed inset-y-0 right-0 w-[400px] bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-50"
+        className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl border-l border-slate-200 transform translate-x-full transition-transform duration-300 z-50"
       />
     );
   }
 
-  const isCourse = formData.type === 'COURSE';
-  const isExamOrEvent = formData.type === 'EXAM' || formData.type === 'EVENT';
-
-  const handleDayToggle = (dayCode: string) => {
-    if (!formData.recurrence_rule) return;
-    const rule = formData.recurrence_rule;
-    const match = rule.match(/BYDAY=([^;]+)/);
-    let days: string[] = [];
-    if (match) {
-      days = match[1].split(',');
-    }
-    
-    if (days.includes(dayCode)) {
-      days = days.filter(d => d !== dayCode);
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as 'Course' | 'Activity' | 'Exam';
+    setType(newType);
+    if (newType === 'Course') {
+      setIsWeekly(true);
     } else {
-      days.push(dayCode);
+      setIsWeekly(false);
     }
-    
-    let newRule = rule;
-    if (match) {
-      newRule = rule.replace(`BYDAY=${match[1]}`, `BYDAY=${days.join(',')}`);
-    } else {
-      newRule = `${rule};BYDAY=${days.join(',')}`;
-    }
-    setFormData({ ...formData, recurrence_rule: newRule });
   };
 
-  const getActiveDays = () => {
-    if (!formData.recurrence_rule) return [];
-    const match = formData.recurrence_rule.match(/BYDAY=([^;]+)/);
-    if (match) return match[1].split(',');
-    return [];
+  const toggleDay = (dayKey: string) => {
+    if (selectedDays.includes(dayKey)) {
+      if (selectedDays.length > 1) {
+        setSelectedDays(selectedDays.filter((d) => d !== dayKey));
+      }
+    } else {
+      setSelectedDays([...selectedDays, dayKey]);
+    }
   };
-  
-  const activeDays = getActiveDays();
 
-  const daysList = [
-    { code: 'MO', text: 'M' },
-    { code: 'TU', text: 'T' },
-    { code: 'WE', text: 'W' },
-    { code: 'TH', text: 'Th' },
-    { code: 'FR', text: 'F' },
-  ];
+  const getOrganizerMeta = () => {
+    switch (type) {
+      case 'Course': return { label: 'Instructor / Lecturer', placeholder: 'e.g. Prof. Smith, Dr. Jane Doe' };
+      case 'Exam': return { label: 'Examiner / Proctor', placeholder: 'e.g. Prof. Smith (Lead Examiner)' };
+      case 'Activity':
+      default: return { label: 'Organizer / Host', placeholder: 'e.g. Student Council, Tech Club' };
+    }
+  };
 
-  const handleDateChange = (field: 'start_at' | 'end_at', value: string) => {
-    setFormData({ ...formData, [field]: value });
+  const organizerMeta = getOrganizerMeta();
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    if (!selectedRoomId) {
+      setErrorMessage('Please select a room.');
+      return;
+    }
+    if (!title.trim()) {
+      setErrorMessage('Please enter a title.');
+      return;
+    }
+    if (!startDate || !endDate) {
+      setErrorMessage('Please select both Start at and End at date & time.');
+      return;
+    }
+    if (startDate >= endDate) {
+      setErrorMessage('Start time must be before End time.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const recurrenceRule =
+      isWeekly && selectedDays.length > 0
+        ? `FREQ=WEEKLY;BYDAY=${selectedDays.join(',')};COUNT=${repeatWeeks}`
+        : null;
+
+    const backendStatus: 'CONFIRM' | 'CANCELLED' = status === 'Active' ? 'CONFIRM' : 'CANCELLED';
+    const backendType: 'COURSE' | 'EXAM' | 'EVENT' = type === 'Activity' ? 'EVENT' : (type.toUpperCase() as any);
+
+    const payload: ScheduleItem = {
+      ...schedule,
+      type: backendType,
+      title: title.trim(),
+      start_at: formatIsoWithTimezone(startDate),
+      end_at: formatIsoWithTimezone(endDate),
+      time_zone: 'Asia/Bangkok',
+      status: backendStatus,
+      course_code: courseCode.trim() || null,
+      organizer: organizer.trim() || '',
+      description: description.trim() || '',
+      recurrence_rule: recurrenceRule,
+      room_id: selectedRoomId,
+    };
+
+    onApply(payload);
+    setIsSubmitting(false); // Normally parent handles this but we just reset here
   };
 
   return (
     <>
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
+      <div 
+        className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
       <div
-        className={`fixed inset-y-0 right-0 w-[400px] bg-white shadow-2xl border-l border-slate-200 transform transition-transform duration-300 z-50 flex flex-col ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl border-l border-slate-200 transform transition-transform duration-300 z-50 flex flex-col translate-x-0 overflow-hidden`}
       >
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+        <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/50 sticky top-0 z-10">
           <div>
             <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">
               MODE: EDIT SCHEDULE
             </p>
             <h2 className="text-lg font-bold text-slate-900 leading-tight">
-              {formData.title || 'Edit Schedule'}
+              Edit {title || 'Schedule'}
             </h2>
           </div>
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Schedule Type</label>
-            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 font-medium">
-              {formData.type === 'COURSE' ? 'COURSE (RECURRING)' : formData.type}
-            </div>
-          </div>
-
-          {isCourse && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex gap-3 text-sm text-emerald-800">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-              <p>Safe Allocation: Room {formData.room_id} is available during this recurring slot.</p>
+        <div className="flex-1 p-6 sm:p-8 overflow-y-auto">
+          {errorMessage && (
+            <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg flex items-center gap-2 border border-red-200">
+              <span className="font-medium text-sm">{errorMessage}</span>
             </div>
           )}
 
-          {isExamOrEvent && (
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-3 text-sm text-blue-800">
-              <Info className="w-5 h-5 text-blue-500 shrink-0" />
-              <p>Exams require precise start and end dates instead of recurring patterns to avoid conflict scans.</p>
+          <form id="edit-schedule-form" onSubmit={handleManualSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="col-span-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Type</label>
+              <select
+                value={type}
+                onChange={handleTypeChange}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+              >
+                <option value="Course">Course</option>
+                <option value="Activity">Activity</option>
+                <option value="Exam">Exam</option>
+              </select>
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Course Code</label>
-            <input
-              type="text"
-              value={formData.course_code || ''}
-              onChange={(e) => setFormData({ ...formData, course_code: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Title</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Assigned Room</label>
-            <input
-              type="text"
-              value={formData.room_id}
-              onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Start Date/Time</label>
-              <input
-                type="text"
-                value={formData.start_at}
-                onChange={(e) => handleDateChange('start_at', e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            <div className="col-span-1 space-y-1 flex flex-col">
+              <label className="text-sm font-medium text-slate-700">Date & Start Time</label>
+              <DatePicker
+                selected={startDate}
+                onChange={(date: Date | null) => setStartDate(date)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="MM/dd/yyyy h:mm aa"
+                placeholderText="mm/dd/yyyy --:--"
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">End Date/Time</label>
+
+            <div className="col-span-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Title</label>
               <input
                 type="text"
-                value={formData.end_at}
-                onChange={(e) => handleDateChange('end_at', e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Data Structures"
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
-          </div>
 
-          {isCourse && (
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Recurrence Days (COURSE only)</label>
-              <div className="flex gap-2">
-                {daysList.map(({ code, text }) => {
-                  const isSelected = activeDays.includes(code);
-                  return (
-                    <button
-                      key={code}
-                      onClick={() => handleDayToggle(code)}
-                      className={`w-8 h-8 rounded-full text-xs font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {text}
-                    </button>
-                  );
-                })}
+            <div className="col-span-1 space-y-1 flex flex-col">
+              <label className="text-sm font-medium text-slate-700">End Time</label>
+              <DatePicker
+                selected={endDate}
+                onChange={(date: Date | null) => setEndDate(date)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                dateFormat="MM/dd/yyyy h:mm aa"
+                placeholderText="mm/dd/yyyy --:--"
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {type !== 'Activity' && (
+              <div className="col-span-1 space-y-1">
+                <label className="text-sm font-medium text-slate-700">Course Code</label>
+                <input
+                  type="text"
+                  value={courseCode}
+                  onChange={(e) => setCourseCode(e.target.value)}
+                  placeholder="e.g. CS201"
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            <div className="col-span-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+              >
+                <option value="Active">Confirmed</option>
+                <option value="Inactive">Pending</option>
+              </select>
+            </div>
+
+            <div className="col-span-1 sm:col-span-2 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Location</label>
+              <CascadingRoomSelector value={selectedRoomId} onChange={setSelectedRoomId} />
+            </div>
+
+            <div className="col-span-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">
+                {organizerMeta.label}
+              </label>
+              <input
+                type="text"
+                value={organizer}
+                onChange={(e) => setOrganizer(e.target.value)}
+                placeholder={organizerMeta.placeholder}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="col-span-1 sm:col-span-2 space-y-2">
+              <label className="text-sm font-medium text-slate-700">Recurring Schedule</label>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5">
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isWeekly}
+                    onChange={(e) => setIsWeekly(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-800">
+                    Repeat weekly
+                  </span>
+                </label>
+
+                {isWeekly && (
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <span className="text-xs text-slate-500 font-medium block mb-2">
+                        Days of the week:
+                      </span>
+                      <div className="flex flex-wrap gap-2.5 max-w-md">
+                        {WEEKDAYS.map((day) => {
+                          const isSelected = selectedDays.includes(day.key);
+                          return (
+                            <button
+                              key={day.key}
+                              type="button"
+                              onClick={() => toggleDay(day.key)}
+                              className={`flex-1 min-w-[3rem] py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                }`}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1 text-xs text-slate-600">
+                      <span className="font-medium">Total duration:</span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={1}
+                          max={52}
+                          value={repeatWeeks}
+                          onChange={(e) => setRepeatWeeks(Number(e.target.value) || 1)}
+                          className="w-20 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-center outline-none focus:border-blue-500 bg-white"
+                        />
+                        <span className="text-slate-500 font-medium">weeks</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+
+            <div className="col-span-1 sm:col-span-2 space-y-1 mt-2">
+              <label className="text-sm font-medium text-slate-700">Notes / Remarks</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional details, setup instructions, or notes for attendees..."
+                rows={4}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </form>
         </div>
 
-        <div className="p-6 border-t border-slate-100 flex items-center gap-3 bg-white">
+        <div className="p-6 border-t border-slate-100 flex items-center gap-3 bg-white sticky bottom-0 z-10">
           <button
-            onClick={() => onApply(formData)}
-            className="flex-1 bg-primary hover:bg-primary-hover text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-colors"
+            type="submit"
+            form="edit-schedule-form"
+            disabled={isSubmitting}
+            className="flex-1 bg-primary hover:bg-primary-hover disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-colors flex justify-center items-center gap-2"
           >
-            Apply Changes
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSubmitting ? 'Saving...' : 'Apply Changes'}
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors"
           >
