@@ -49,9 +49,10 @@ class ScheduleService:
         self,
         limit: int = 20,
         next_token: str | None = None,
+        schedule_type: str | None = None,
     ) -> dict[str, Any]:
         """List stored schedule series without expanding recurrence."""
-        items, next_token = self.source.list_schedules(limit, next_token)
+        items, next_token = self.source.list_schedules(limit, next_token, schedule_type)
         data = [to_contract(item) for item in items]
 
         return {

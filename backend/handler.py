@@ -36,6 +36,7 @@ from services.room_service import RoomService
 from services.schedule_import_service import ScheduleImportService
 from services.schedule_service import ScheduleService
 from services.search_service import SearchService
+from models.schedule import TYPES
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -166,7 +167,7 @@ ROUTES = {
     f"GET {SCHEDULES}": Route(
         (),
         lambda deps, p: deps.ensure_schedules().get_schedules(
-            p["pageSize"], p.get("nextToken")
+            p["pageSize"], p.get("nextToken"), p.get("type")
         ),
     ),
     f"POST {ROOM_SCHEDULES}": Route(
@@ -378,6 +379,11 @@ def lambda_handler(event, context):
                 ) from exc
 
         if route_key == f"GET {SCHEDULES}":
+            if params.get("type") is not None:
+                params["type"] = params["type"].upper()
+            if params.get("type") is not None and params["type"] not in TYPES:
+                raise InvalidParameter("type must be one of COURSE, EXAM, or ACTIVITY.")
+
             try:
                 params["pageSize"] = int(params.get("pageSize", 20))
             except (TypeError, ValueError) as exc:

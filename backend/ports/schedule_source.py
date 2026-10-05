@@ -6,8 +6,9 @@ class ScheduleSource(Protocol):
         self,
         limit: int,
         next_token: str | None = None,
+        schedule_type: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        """List schedule series using opaque pagination."""
+        """List schedule series using opaque pagination and an optional type filter."""
         ...
 
     def get_schedule(
