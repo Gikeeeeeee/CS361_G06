@@ -1,11 +1,13 @@
 import os
 
 import boto3
+
 from opensearchpy import (
     AWSV4SignerAuth,
     OpenSearch,
     RequestsHttpConnection,
 )
+
 from opensearchpy.exceptions import ConnectionError, ConnectionTimeout
 
 from errors import SearchServiceUnavailable
@@ -13,6 +15,7 @@ from models.search import SearchQuery, SearchResult
 
 
 class OpenSearchRepository:
+
     def __init__(
         self,
         endpoint: str | None = None,
@@ -20,6 +23,7 @@ class OpenSearchRepository:
         index_name: str | None = None,
         region: str | None = None,
     ) -> None:
+
         endpoint = (
             endpoint
             or os.environ["OPENSEARCH_ENDPOINT"]
@@ -83,10 +87,13 @@ class OpenSearchRepository:
         self,
         query: SearchQuery,
     ) -> tuple[int, list[SearchResult]]:
+
         fields = [
             "code^10",
             "room_number^10",
             "course_code^10",
+            "name_en^6",
+            "name_th^6",
             "title^6",
             "title_en^5",
             "title_th^5",
@@ -100,7 +107,9 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Entity / Schedule Type Filter
         # ---------------------------------------------------------
+
         if query.entity_type:
+
             if query.entity_type in {
                 "building",
                 "room",
@@ -147,6 +156,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Building Filter
         # ---------------------------------------------------------
+
         if query.building_id:
             filters.append(
                 {
@@ -161,6 +171,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # OpenSearch Query
         # ---------------------------------------------------------
+
         body = {
             "from": (
                 (query.page - 1)
@@ -187,11 +198,13 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Execute Search
         # ---------------------------------------------------------
+
         try:
             response = self.client.search(
                 index=self.index_name,
                 body=body,
             )
+
         except (
             ConnectionError,
             ConnectionTimeout,
@@ -201,6 +214,7 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Total
         # ---------------------------------------------------------
+
         total_value = response["hits"]["total"]
 
         total = int(
@@ -212,9 +226,11 @@ class OpenSearchRepository:
         # ---------------------------------------------------------
         # Map Search Results
         # ---------------------------------------------------------
+
         results = []
 
         for hit in response["hits"]["hits"]:
+
             source = hit.get(
                 "_source",
                 {},
@@ -239,6 +255,7 @@ class OpenSearchRepository:
             #
             # API result:
             # type = BUILDING / ROOM / FACILITY
+
             if entity_type == "SCHEDULE":
                 result_type = source.get(
                     "type",
@@ -254,16 +271,20 @@ class OpenSearchRepository:
                         hit.get("_id", ""),
                     ),
 
-                    # Schedule:
-                    # COURSE / EXAM / ACTIVITY
-                    #
-                    # Other:
-                    # BUILDING / ROOM / FACILITY
                     type=result_type,
 
                     title=source.get(
                         "title",
                         "",
+                    ),
+
+                    # Localized names
+                    name_th=source.get(
+                        "name_th"
+                    ),
+
+                    name_en=source.get(
+                        "name_en"
                     ),
 
                     subtitle=(
@@ -283,8 +304,10 @@ class OpenSearchRepository:
                         "building_id"
                     ),
 
+                    # Use the explicit indexed building_code
+                    # instead of the entity's own "code".
                     building_code=source.get(
-                        "code"
+                        "building_code"
                     ),
 
                     # Room / Schedule

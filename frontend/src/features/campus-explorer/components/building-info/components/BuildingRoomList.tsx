@@ -65,9 +65,9 @@ export function BuildingRoomList({ floor }: BuildingRoomListProps) {
   const handleItemClick = (item: BuildingListItem) => {
     if (!buildingId) return;
     if (item.isFacility) {
-      navigate(`/facilities/${buildingId}_${item.id}`);
+      navigate(`/facilities/${item.id}`);
     } else {
-      navigate(`/rooms/${buildingId}_${item.id}`);
+      navigate(`/rooms/${item.id}`);
     }
   };
 

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { Room, Floor } from '../../../../../shared/types/domain.types';
+import type { Room, Floor, Building } from '../../../../../shared/types/domain.types';
 import { campusService } from '../../../services';
 
 export function useRoomDetail(roomId: string | undefined) {
   const [room, setRoom] = useState<Room | null>(null);
-  const [buildingId, setBuildingId] = useState<string | null>(null);
-  const [floorId, setFloorId] = useState<string | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
+  const [building, setBuilding] = useState<Building | { id: string; code: string; name: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,52 +17,48 @@ export function useRoomDetail(roomId: string | undefined) {
     }
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     const fetchRoom = async () => {
-      const parts = roomId.split('_');
-      if (parts.length < 2) {
-        if (isMounted) { setError('Invalid room identifier format'); setLoading(false); }
-        return;
-      }
-      
-      const bid = parts[0];
-      const targetRoomId = parts.slice(1).join('_');
-      
-      try {
-        const building = await campusService.getBuildingById(bid);
-        if (!building) {
-          if (isMounted) { setError('Building not found'); setLoading(false); }
-          return;
-        }
+      setLoading(true);
+      setError(null);
 
-        const floors = await campusService.getFloorsByBuildingId(bid);
+      try {
+        const cleanId = roomId.includes('_') ? roomId.substring(roomId.indexOf('_') + 1) : roomId;
+        const r = await campusService.getRoomById(cleanId);
         
-        // Search floors for the target room ID
-        for (const floor of floors) {
-          if (!isMounted) return;
-          try {
-            const rooms = await campusService.getRoomsByFloorId(floor.id);
-            const r = rooms.find(room => room.id === targetRoomId);
-            
-            if (r && isMounted) {
-              setRoom(r);
-              setBuildingId(bid);
-              setFloorId(floor.id);
-              setFloor(floor);
-              setLoading(false);
-              return;
+        if (isMounted) {
+          if (r) {
+            setRoom(r);
+            const bldg = (r as any).building || null;
+            setBuilding(bldg);
+
+            const floorInfo = (r as any).floor;
+            if (floorInfo?.id) {
+              try {
+                const floorDetails = await campusService.getFloorById(floorInfo.id);
+                if (isMounted) {
+                  setFloor(floorDetails || floorInfo);
+                }
+              } catch (floorErr) {
+                console.warn('Failed to fetch full floor details:', floorErr);
+                if (isMounted) {
+                  setFloor(floorInfo);
+                }
+              }
+            } else {
+              setFloor(floorInfo || null);
             }
-          } catch (apiErr) {
-            // Continue searching next floor on error
-            continue;
+          } else {
+            setError('Room not found');
           }
         }
-        
-        if (isMounted) { setError('Room not found'); setLoading(false); }
       } catch (err: any) {
-        if (isMounted) { setError(err.message || 'Error fetching room'); setLoading(false); }
+        if (isMounted) {
+          console.error(`Failed to fetch room ${roomId}:`, err);
+          setError(err.message || 'Error fetching room');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -74,5 +69,5 @@ export function useRoomDetail(roomId: string | undefined) {
     };
   }, [roomId]);
 
-  return { room, buildingId, floorId, floor, loading, error };
-}
+  return { room, building, floorId: floor?.id, floor, loading, error };
+}

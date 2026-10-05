@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 resource "terraform_data" "build" {
   triggers_replace = concat(
     [
@@ -11,25 +13,29 @@ resource "terraform_data" "build" {
 
   provisioner "local-exec" {
     command = <<-EOT
-    set -e
-    rm -rf "${path.module}/build"
-    mkdir -p "${path.module}/build"
+      set -e
 
-    docker run --rm --platform linux/amd64 \
-      --entrypoint /bin/sh \
-      -v "${abspath(var.source_dir)}:/src:ro" \
-      -v "${abspath("${path.module}/build")}:/out" \
-      public.ecr.aws/lambda/python:3.12 \
-      -c 'python -m pip install -r /src/requirements.txt -t /out'
+      rm -rf "${path.module}/build"
+      mkdir -p "${path.module}/build"
 
-    cp -r "${var.source_dir}/." "${path.module}/build/"
-    rm -rf "${path.module}/build/env"
-    rm -rf "${path.module}/build/venv"
-    rm -rf "${path.module}/build/.venv"
-    rm -rf "${path.module}/build/__pycache__"
-    rm -rf "${path.module}/build/.pytest_cache"
-    rm -rf "${path.module}/build/tests"
-  EOT
+      docker run --rm --platform linux/amd64 \
+        --user "$(id -u):$(id -g)" \
+        --entrypoint /bin/sh \
+        -e HOME=/tmp \
+        -v "${abspath(var.source_dir)}:/src:ro" \
+        -v "${abspath("${path.module}/build")}:/out" \
+        public.ecr.aws/lambda/python:3.12 \
+        -c 'python -m pip install -r /src/requirements.txt -t /out'
+
+      cp -r "${var.source_dir}/." "${path.module}/build/"
+
+      rm -rf "${path.module}/build/env"
+      rm -rf "${path.module}/build/venv"
+      rm -rf "${path.module}/build/.venv"
+      rm -rf "${path.module}/build/__pycache__"
+      rm -rf "${path.module}/build/.pytest_cache"
+      rm -rf "${path.module}/build/tests"
+    EOT
   }
 }
 
@@ -402,7 +408,8 @@ resource "aws_opensearchserverless_access_policy" "lambda" {
 
       Principal = [
         aws_iam_role.this.arn,
-        aws_iam_role.indexer.arn
+        aws_iam_role.indexer.arn,
+        "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/terraform-deployer"
       ]
     }
   ])

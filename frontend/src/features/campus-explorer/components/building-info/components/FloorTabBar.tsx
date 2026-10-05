@@ -26,10 +26,10 @@ export function FloorTabBar({ floors, selectedFloorId, onSelectFloor }: FloorTab
               key={floor.id}
               onClick={() => onSelectFloor(floor.id)}
               className={cn(
-                'snap-start flex-shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 border',
+                'snap-start flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 border cursor-pointer',
                 isActive
-                  ? 'bg-primary border-primary text-white'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               )}
             >
               {`Floor ${floor.floor_number}`}

@@ -7,7 +7,7 @@ import { apiClient, ApiError } from '../../../services/api/apiClient';
  */
 export async function importSchedulesCSV(file: File, dryRun: boolean) {
   try {
-    const endpoint = `/schedules/imports${dryRun ? '?dry_run=true' : ''}`;
+    const endpoint = `/api/v1/schedules/imports${dryRun ? '?dry_run=true' : ''}`;
     const response = await apiClient.post(endpoint, file);
     return { status: dryRun ? 200 : 201, body: response };
   } catch (error: any) {

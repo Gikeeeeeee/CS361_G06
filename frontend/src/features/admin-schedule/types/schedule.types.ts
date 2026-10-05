@@ -1,4 +1,4 @@
-export type ScheduleType = 'COURSE' | 'EXAM' | 'EVENT';
+export type ScheduleType = 'COURSE' | 'EXAM' | 'ACTIVITY';
 export type ScheduleStatus = 'CONFIRM' | 'CANCELLED';
 
 export interface ScheduleItem {
@@ -22,6 +22,14 @@ export interface ScheduleResponse {
     room_id: string;
     type: string;
     count: number;
+  };
+}
+
+export interface GlobalScheduleResponse {
+  data: ScheduleItem[];
+  meta?: {
+    count: number;
+    next_token: string | null;
   };
 }
 

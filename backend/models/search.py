@@ -16,6 +16,10 @@ class SearchResult:
     id: str
     type: str
     title: str = ""
+    name_th: str | None = None
+    
+    name_en: str | None = None
+    
     subtitle: str | None = None
 
     description: str | None = None
