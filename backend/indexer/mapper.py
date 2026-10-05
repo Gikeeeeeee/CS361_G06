@@ -79,47 +79,15 @@ def get_document_id(item: dict[str, Any]) -> str:
     raise ValueError("Unable to determine OpenSearch document id.")
 
 
-def get_building_id(
-    item: dict[str, Any],
-    entity_type: str,
-) -> str | None:
-    """Get the building ID."""
-    if entity_type == "BUILDING":
-        value = item.get("id")
-        return str(value) if value is not None else None
+def get_storage_document_id(item: dict[str, Any]) -> str:
+    """Use DynamoDB's complete primary key as the OpenSearch document ID."""
+    pk = item.get("PK") or item.get("pk")
+    sk = item.get("SK") or item.get("sk")
 
-    value = _first(
-        item,
-        "building_id",
-        "buildingId",
-        "buildingID",
-    )
+    if pk and sk:
+        return f"{pk}#{sk}"
 
-    if value is not None:
-        return str(value)
-
-    return None
-
-
-def get_building_code(
-    item: dict[str, Any],
-    entity_type: str,
-) -> str | None:
-    """Get the building code."""
-    if entity_type == "BUILDING":
-        value = item.get("code")
-    else:
-        value = _first(
-            item,
-            "building_code",
-            "buildingCode",
-            "building_code",
-        )
-
-    if value is not None:
-        return str(value)
-
-    return None
+    return get_document_id(item)
 
 
 def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
@@ -210,4 +178,5 @@ def get_deleted_document_id(
 ) -> str:
     """Get the document ID from Stream keys."""
     item = deserialize_item(keys)
-    return get_document_id(item)
+
+    return get_storage_document_id(item)

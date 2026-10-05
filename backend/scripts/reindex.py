@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from opensearchpy.helpers import bulk
 
 from indexer.mapper import (
     deserialize_item,
+    get_storage_document_id,
     to_search_document,
 )
 
@@ -301,7 +303,7 @@ def build_actions(
         item = deserialize_item(raw_item)
         document = to_search_document(item)
 
-        document_id = document.get("id")
+        document_id = get_storage_document_id(item)
 
         if not document_id:
             raise ValueError(
@@ -321,6 +323,14 @@ def build_actions(
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--reset-index",
+        action="store_true",
+        help="Delete and recreate the OpenSearch index before reindexing.",
+    )
+    args = parser.parse_args()
+
     print("=== Reindex started ===")
 
     print(
@@ -345,6 +355,16 @@ def main() -> int:
         if client.indices.exists(
             index=OPENSEARCH_INDEX
         ):
+            if args.reset_index:
+                print(
+                    f"Deleting OpenSearch index: {OPENSEARCH_INDEX}"
+                )
+                client.indices.delete(index=OPENSEARCH_INDEX)
+                create_index(client)
+                print(
+                    f"OpenSearch index recreated: {OPENSEARCH_INDEX}"
+                )
+
             print(
                 f"OpenSearch index exists: "
                 f"{OPENSEARCH_INDEX}"
