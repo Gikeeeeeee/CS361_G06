@@ -27,7 +27,6 @@ class IndexerService:
             index_name
             or os.getenv("OPENSEARCH_INDEX", "university")
         )
-
         self.client = client or self._create_client()
 
     @staticmethod
@@ -40,17 +39,11 @@ class IndexerService:
             .rstrip("/")
         )
 
-        region = os.getenv(
-            "AWS_REGION",
-            "us-east-1",
-        )
+        region = os.getenv("AWS_REGION", "us-east-1")
 
         credentials = boto3.Session().get_credentials()
-
         if credentials is None:
-            raise RuntimeError(
-                "AWS credentials are unavailable."
-            )
+            raise RuntimeError("AWS credentials are unavailable.")
 
         auth = AWSV4SignerAuth(
             credentials,
@@ -74,41 +67,69 @@ class IndexerService:
             retry_on_timeout=True,
         )
 
-    def index_record(self, image: dict[str, Any]) -> None:
+    def index_record(
+        self,
+        image: dict[str, Any],
+    ) -> None:
         document = map_stream_image(image)
-
         document_id = document["id"]
 
-        self.client.index(
+        response = self.client.index(
             index=self.index_name,
             id=document_id,
             body=document,
+            # OpenSearch Serverless does not support
+            # refresh="wait_for".
             refresh=False,
         )
 
-    def delete_record(self, keys: dict[str, Any]) -> None:
+        print(
+            "Indexed document: "
+            f"id={document_id}, "
+            f"result={response.get('result')}"
+        )
+
+    def delete_record(
+        self,
+        keys: dict[str, Any],
+    ) -> None:
         document_id = get_deleted_document_id(keys)
 
         try:
-            self.client.delete(
+            response = self.client.delete(
                 index=self.index_name,
                 id=document_id,
                 refresh=False,
             )
+
+            print(
+                "Deleted document: "
+                f"id={document_id}, "
+                f"result={response.get('result')}"
+            )
+
         except Exception as exc:
-            # OpenSearch can return a not-found error if the projection
-            # is already missing. That should not break the stream.
+            # OpenSearch can return a not-found error if the
+            # document is already missing. That should not
+            # break DynamoDB Stream processing.
             error_info = getattr(exc, "info", {})
 
             if (
                 isinstance(error_info, dict)
                 and error_info.get("result") == "not_found"
             ):
+                print(
+                    "Document already missing: "
+                    f"id={document_id}"
+                )
                 return
 
             raise
 
-    def process_record(self, record: dict[str, Any]) -> None:
+    def process_record(
+        self,
+        record: dict[str, Any],
+    ) -> None:
         event_name = record.get("eventName")
 
         if event_name in {"INSERT", "MODIFY"}:
@@ -128,9 +149,7 @@ class IndexerService:
             keys = dynamodb.get("Keys")
 
             if not keys:
-                raise ValueError(
-                    "REMOVE record has no Keys."
-                )
+                raise ValueError("REMOVE record has no Keys.")
 
             self.delete_record(keys)
             return
@@ -138,7 +157,7 @@ class IndexerService:
         # Ignore events we do not currently support.
         if event_name:
             print(
-                f"Ignoring unsupported DynamoDB event: "
+                "Ignoring unsupported DynamoDB event: "
                 f"{event_name}"
             )
 
@@ -147,6 +166,11 @@ class IndexerService:
         event: dict[str, Any],
     ) -> None:
         records = event.get("Records", [])
+
+        print(
+            "Processing DynamoDB Stream batch: "
+            f"{len(records)} record(s)"
+        )
 
         for record in records:
             self.process_record(record)
