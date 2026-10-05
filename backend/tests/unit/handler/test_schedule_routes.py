@@ -86,6 +86,23 @@ def test_get_all_schedules_rejects_invalid_next_token(invoke_handler):
 
 @pytest.mark.unit
 @pytest.mark.handler
+def test_get_all_schedules_rejects_invalid_type(invoke_handler):
+    result = invoke_handler(_get_all({"type": "INVALID"}))
+
+    assert result["statusCode"] == 400
+    assert json.loads(result["body"])["error"]["code"] == "INVALID_PARAMETER"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_all_schedules_normalizes_type_filter(invoke_handler):
+    result = invoke_handler(_get_all({"type": "exam"}))
+
+    assert result["statusCode"] == 200
+
+
+@pytest.mark.unit
+@pytest.mark.handler
 def test_get_schedules_success(invoke_handler):
     result = invoke_handler(_get())
 

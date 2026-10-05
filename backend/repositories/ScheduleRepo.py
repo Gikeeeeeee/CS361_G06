@@ -51,11 +51,14 @@ class ScheduleRepository(ScheduleSource):
         self,
         limit: int,
         next_token: str | None = None,
+        schedule_type: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        """List one page of schedule series from GSI0."""
+        """List one page of schedule series from the all-schedules or type index."""
+        index = "GSI6" if schedule_type else "GSI0"
+        partition = f"TYPE#{schedule_type}" if schedule_type else "SCHEDULE"
         query = {
-            "IndexName": "GSI0",
-            "KeyConditionExpression": Key("GSI0PK").eq("SCHEDULE"),
+            "IndexName": index,
+            "KeyConditionExpression": Key(f"{index}PK").eq(partition),
             "Limit": limit,
         }
         if next_token:
