@@ -20,12 +20,10 @@ export const UserLayout: React.FC = () => {
           <Outlet />
         </main>
         
-        {/* Bottom Navigation - Only on Tab Pages */}
-        {isTabPage && (
-          <div className="pb-safe bg-white z-50">
-            <BottomNavbar />
-          </div>
-        )}
+        {/* Bottom Navigation */}
+        <div className="pb-safe bg-white z-50 mt-auto shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+          <BottomNavbar />
+        </div>
       </div>
     </div>
   );

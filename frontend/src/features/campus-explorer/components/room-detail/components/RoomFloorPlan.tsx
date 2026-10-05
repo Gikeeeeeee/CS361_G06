@@ -18,7 +18,10 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
 
   if (!floor && !room) return null;
 
-  const highlightedRoomId = room?.room_number || (room as any)?.id || null;
+  let highlightedRoomId = room?.room_number || null;
+  if (!highlightedRoomId && room) {
+    highlightedRoomId = room.name?.en || room.name?.th || (room as any).id || null;
+  }
 
   return (
     <section className="px-5 pt-4 pb-6">
