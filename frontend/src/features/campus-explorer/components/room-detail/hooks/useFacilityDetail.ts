@@ -16,48 +16,30 @@ export function useFacilityDetail(facilityParam: string | undefined) {
     }
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     const fetchFacility = async () => {
-      const parts = facilityParam.split('_');
-      if (parts.length < 2) {
-        if (isMounted) { setError('Invalid facility identifier format'); setLoading(false); }
-        return;
-      }
-
-      const bid = parts[0];
-      const targetFacilityId = parts.slice(1).join('_');
+      setLoading(true);
+      setError(null);
 
       try {
-        const building = await campusService.getBuildingById(bid);
-        if (!building) {
-          if (isMounted) { setError('Building not found'); setLoading(false); }
-          return;
-        }
-
-        const floors = await campusService.getFloorsByBuildingId(bid);
-
-        for (const flr of floors) {
-          if (!isMounted) return;
-          try {
-            const facilities = await campusService.getFacilitiesByFloorId(flr.id);
-            const f = facilities.find(fac => fac.id === targetFacilityId);
-
-            if (f && isMounted) {
-              setFacility(f);
-              setFloor(flr);
-              setLoading(false);
-              return;
-            }
-          } catch {
-            continue;
+        const f = await campusService.getFacilityById(facilityParam);
+        
+        if (isMounted) {
+          if (f) {
+            setFacility(f);
+            // Floor context is unknown from standard facility endpoint
+            setFloor(null);
+          } else {
+            setError('Facility not found');
           }
         }
-
-        if (isMounted) { setError('Facility not found'); setLoading(false); }
       } catch (err: any) {
-        if (isMounted) { setError(err.message || 'Error fetching facility'); setLoading(false); }
+        if (isMounted) {
+          console.error(`Failed to fetch facility ${facilityParam}:`, err);
+          setError(err.message || 'Error fetching facility');
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
 

@@ -30,4 +30,6 @@ export interface ICampusService {
    * Fetch facilities for a specific floor.
    */
   getFacilitiesByFloorId(floorId: string): Promise<Facility[]>;
+  getRoomById(roomId: string): Promise<Room | null>;
+  getFacilityById(facilityId: string): Promise<Facility | null>;
 }
