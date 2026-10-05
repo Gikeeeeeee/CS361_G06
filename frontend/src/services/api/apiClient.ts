@@ -1,11 +1,5 @@
-const rawBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL ||
-  'https://w5irvlq5mg.execute-api.us-east-1.amazonaws.com'
-).replace(/\/+$/, '');
-
-// Clean root base URL without trailing /api/v1
-const API_ROOT = rawBaseUrl.replace(/\/api\/v[0-9]+$/, '');
-const DEFAULT_API_PREFIX = '/api/v1';
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const API_VERSION = import.meta.env.VITE_API_VERSION || '/api/v1';
 
 export class ApiError extends Error {
   status: number;
@@ -22,16 +16,11 @@ export class ApiError extends Error {
 // ฟังก์ชันกลาง (request) เพื่อรองรับทุก HTTP Method (GET, POST, PUT, DELETE)
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-
-  // Automatically ensure /api/v1 prefix if not already present
-  let url: string;
-  if (cleanEndpoint.startsWith('/api/')) {
-    url = `${API_ROOT}${cleanEndpoint}`;
-  } else if (rawBaseUrl.endsWith('/api/v1')) {
-    url = `${rawBaseUrl}${cleanEndpoint}`;
-  } else {
-    url = `${API_ROOT}${DEFAULT_API_PREFIX}${cleanEndpoint}`;
-  }
+  
+  // ต่อ API_VERSION (เช่น /api/v1) เข้าไปอัตโนมัติ ตามที่เพื่อนในทีมเซ็ตไว้
+  const url = BASE_URL.endsWith(API_VERSION) 
+    ? `${BASE_URL}${cleanEndpoint}`
+    : `${BASE_URL}${API_VERSION}${cleanEndpoint}`;
 
   // ตั้งค่า Headers พื้นฐาน (แต่ยอมให้เขียนทับได้)
   const headers = new Headers({

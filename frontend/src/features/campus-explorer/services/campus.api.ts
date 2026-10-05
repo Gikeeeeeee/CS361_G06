@@ -1,20 +1,10 @@
 import type { ICampusService } from './campus.interface';
 import type { Building, BuildingListResponse, Floor, Room, Facility } from '../../../shared/types/domain.types';
-
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+import { apiClient } from '../../../services/api/apiClient';
 
 export class CampusApiService implements ICampusService {
   private async fetchApi<T>(endpoint: string): Promise<T> {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = BASE_URL.endsWith('/api/v1')
-      ? `${BASE_URL}${cleanEndpoint}`
-      : `${BASE_URL}/api/v1${cleanEndpoint}`;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`API fetch error for ${endpoint}: ${response.statusText}`);
-    }
-    return response.json();
+    return apiClient.get<T>(endpoint);
   }
 
   async getBuildings(): Promise<BuildingListResponse> {
