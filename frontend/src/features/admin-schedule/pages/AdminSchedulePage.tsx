@@ -25,7 +25,7 @@ export const AdminSchedulePage: React.FC = () => {
 
   const [editingSchedule, setEditingSchedule] = useState<ScheduleItem | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<ScheduleItem | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -44,11 +44,17 @@ export const AdminSchedulePage: React.FC = () => {
     loadingRooms,
   } = useFacilitySelector();
 
-  const fetchSchedules = async (token: string | null) => {
+  const fetchSchedules = async (token: string | null, tab: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await scheduleApi.getAllSchedules(token ?? undefined);
+      let response;
+      if (tab === 'All') {
+        response = await scheduleApi.getAllSchedules(token ?? undefined);
+      } else {
+        const typeMap: Record<string, string> = { Courses: 'COURSE', Exams: 'EXAM', Activities: 'ACTIVITY' };
+        response = await scheduleApi.getSchedulesByType(typeMap[tab], token ?? undefined);
+      }
       setRawSchedules(response.data);
       setNextToken(response.meta?.next_token ?? null);
     } catch (err: any) {
@@ -59,16 +65,23 @@ export const AdminSchedulePage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSchedules(currentToken);
-  }, [currentToken]);
+    fetchSchedules(currentToken, activeTab);
+  }, [currentToken, activeTab]);
 
   const handleRefresh = React.useCallback(() => {
     if (currentToken === null && tokenHistory.length === 0) {
-      fetchSchedules(null);
+      fetchSchedules(null, activeTab);
     } else {
       resetPagination();
     }
-  }, [currentToken, tokenHistory.length, resetPagination]);
+  }, [currentToken, tokenHistory.length, resetPagination, activeTab]);
+
+  const handleTabChange = (tab: string) => {
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+      resetPagination();
+    }
+  };
 
   const handleEditClick = (schedule: ScheduleItem) => {
     setEditingSchedule(schedule);
@@ -120,13 +133,7 @@ export const AdminSchedulePage: React.FC = () => {
 
   const filteredSchedules = useMemo(() => {
     return rawSchedules.filter(schedule => {
-      // 1. Filter by Type
-      if (activeTab !== 'All') {
-        const typeMap: Record<string, string> = { Courses: 'COURSE', Exams: 'EXAM', Activities: 'ACTIVITY' };
-        if (schedule.type !== typeMap[activeTab]) return false;
-      }
-
-      // 2. Filter by Room
+      // 1. Filter by Room
       if (selectedRoomId && schedule.room_id !== selectedRoomId) {
         return false;
       }
@@ -156,7 +163,7 @@ export const AdminSchedulePage: React.FC = () => {
         </div>
 
         <div className="flex-shrink-0">
-          <ScheduleFilters 
+          <ScheduleFilters
             buildings={buildings}
             floors={floors}
             rooms={rooms}
@@ -179,12 +186,11 @@ export const AdminSchedulePage: React.FC = () => {
             {['All', 'Courses', 'Exams', 'Activities'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === tab
+                onClick={() => handleTabChange(tab)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === tab
                     ? 'bg-primary/10 text-primary border-primary shadow-sm ring-1 ring-primary'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -220,13 +226,13 @@ export const AdminSchedulePage: React.FC = () => {
           </div>
           <div className="flex-shrink-0">
             <PaginationBar
-            currentPage={tokenHistory.length + 1}
-            hasNext={!!nextToken}
-            hasPrev={tokenHistory.length > 0}
-            onNext={handleNextPage}
-            onPrev={handlePrevPage}
-            isLoading={loading}
-          />
+              currentPage={tokenHistory.length + 1}
+              hasNext={!!nextToken}
+              hasPrev={tokenHistory.length > 0}
+              onNext={handleNextPage}
+              onPrev={handlePrevPage}
+              isLoading={loading}
+            />
           </div>
         </div>
       </div>
@@ -246,13 +252,13 @@ export const AdminSchedulePage: React.FC = () => {
               Are you sure you want to delete the schedule <strong>{deletingSchedule.title}</strong>? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button 
+              <button
                 onClick={cancelDelete}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={confirmDelete}
                 className="px-4 py-2 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >

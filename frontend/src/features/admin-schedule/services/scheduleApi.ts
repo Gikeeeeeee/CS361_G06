@@ -37,7 +37,7 @@ export interface Room {
 export const scheduleApi = {
   getAllSchedules: async (nextToken?: string): Promise<import('../types/schedule.types').GlobalScheduleResponse> => {
     const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
-    
+
     if (nextToken) {
       url.searchParams.append('nextToken', nextToken);
     }
@@ -45,6 +45,22 @@ export const scheduleApi = {
     const response = await fetch(url.toString());
     if (!response.ok) {
       throw new Error(`Failed to fetch all schedules: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  getSchedulesByType: async (type: string, nextToken?: string): Promise<import('../types/schedule.types').GlobalScheduleResponse> => {
+    const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
+
+    url.searchParams.append('type', type);
+
+    if (nextToken) {
+      url.searchParams.append('nextToken', nextToken);
+    }
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error(`Failed to fetch schedules by type: ${response.statusText}`);
     }
     return response.json();
   },
@@ -86,7 +102,7 @@ export const scheduleApi = {
     params?: { start?: string; end?: string; type?: string }
   ): Promise<FetchSchedulesResponse> => {
     const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
-    
+
     url.searchParams.append('roomId', roomId);
     if (params?.start) url.searchParams.append('start', params.start);
     if (params?.end) url.searchParams.append('end', params.end);
@@ -124,7 +140,7 @@ export const scheduleApi = {
     if (!response.ok) {
       throw new Error(`Failed to update schedule: ${response.statusText}`);
     }
-    
+
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       return response.json();
