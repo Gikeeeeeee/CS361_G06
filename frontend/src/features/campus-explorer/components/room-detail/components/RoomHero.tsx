@@ -8,7 +8,7 @@ interface RoomHeroProps {
 
 export function RoomHero({ room }: RoomHeroProps) {
   const navigate = useNavigate();
-  const displayNumber = room.room_number || room.name.en || room.id;
+  const displayNumber = room.name?.en || room.name?.th || room.room_number || room.id;
 
   return (
     <div className="flex flex-col">

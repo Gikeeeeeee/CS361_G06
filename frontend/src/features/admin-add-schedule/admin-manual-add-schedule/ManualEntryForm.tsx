@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import {
   createManualSchedule,
   type CreateSchedulePayload,
 } from '../services/manualScheduleService';
 import { CascadingRoomSelector } from '../../admin-schedule/components/CascadingRoomSelector';
+import { CustomSelect } from '../../../shared/components/CustomSelect';
 
 const WEEKDAYS = [
   { key: 'MO', label: 'Mon' },
@@ -14,6 +14,10 @@ const WEEKDAYS = [
   { key: 'WE', label: 'Wed' },
   { key: 'TH', label: 'Thu' },
   { key: 'FR', label: 'Fri' },
+];
+
+const COURSE_TIMES = [
+  '08:00', '09:30', '11:00', '12:30', '13:30', '15:00', '16:30', '18:00'
 ];
 
 function formatIsoWithTimezone(date: Date): string {
@@ -42,6 +46,8 @@ export default function ManualEntryForm() {
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
+  const [courseStartTime, setCourseStartTime] = useState('');
+  const [courseEndTime, setCourseEndTime] = useState('');
 
   // Room State
   const [selectedRoomId, setSelectedRoomId] = useState<string>('');
@@ -75,6 +81,23 @@ export default function ManualEntryForm() {
       }
     } else {
       setSelectedDays([...selectedDays, dayKey]);
+    }
+  };
+
+  const handleStartDateChange = (date: Date | null) => {
+    setStartDate(date);
+    if (date && type === 'Course') {
+      const dayIndex = date.getDay();
+      const dayMap: Record<number, string> = { 1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR' };
+      const dayKey = dayMap[dayIndex];
+      
+      if (dayKey) {
+        setSelectedDays(prev => {
+          if (prev.includes(dayKey)) return prev;
+          if (prev.length <= 1) return [dayKey]; // Replace if only 1 (or 0) day was selected
+          return [...prev, dayKey]; // Add if multiple were already selected
+        });
+      }
     }
   };
 
@@ -117,17 +140,56 @@ export default function ManualEntryForm() {
       return;
     }
 
-    if (!startDate || !endDate) {
-      setErrorMessage('Please select both Start at and End at date & time.');
-      return;
-    }
+    if (type === 'Course') {
+      if (!startDate) {
+        setErrorMessage('Please select a date.');
+        return;
+      }
+      if (!courseStartTime || !courseEndTime) {
+        setErrorMessage('Please select both start and end times.');
+        return;
+      }
 
-    if (startDate >= endDate) {
-      setErrorMessage('Start time must be before End time.');
-      return;
+      const startMinutes = parseInt(courseStartTime.split(':')[0]) * 60 + parseInt(courseStartTime.split(':')[1]);
+      const endMinutes = parseInt(courseEndTime.split(':')[0]) * 60 + parseInt(courseEndTime.split(':')[1]);
+      
+      if (startMinutes >= endMinutes) {
+        setErrorMessage('Start time must be before End time.');
+        return;
+      }
+    } else {
+      if (!startDate || !endDate) {
+        setErrorMessage('Please select both Start at and End at date & time.');
+        return;
+      }
+
+      if (startDate >= endDate) {
+        setErrorMessage('Start time must be before End time.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
+
+    let finalStartAt = '';
+    let finalEndAt = '';
+
+    if (type === 'Course') {
+      const [startH, startM] = courseStartTime.split(':').map(Number);
+      const [endH, endM] = courseEndTime.split(':').map(Number);
+      
+      const start = new Date(startDate as Date);
+      start.setHours(startH, startM, 0, 0);
+      
+      const end = new Date(startDate as Date);
+      end.setHours(endH, endM, 0, 0);
+      
+      finalStartAt = formatIsoWithTimezone(start);
+      finalEndAt = formatIsoWithTimezone(end);
+    } else {
+      finalStartAt = formatIsoWithTimezone(startDate as Date);
+      finalEndAt = formatIsoWithTimezone(endDate as Date);
+    }
 
     const recurrenceRule =
       isWeekly && selectedDays.length > 0
@@ -139,8 +201,8 @@ export default function ManualEntryForm() {
     const payload: CreateSchedulePayload = {
       type: type.toUpperCase() as 'COURSE' | 'EXAM' | 'ACTIVITY',
       title: title.trim(),
-      start_at: formatIsoWithTimezone(startDate),
-      end_at: formatIsoWithTimezone(endDate),
+      start_at: finalStartAt,
+      end_at: finalEndAt,
       time_zone: 'Asia/Bangkok',
       status: backendStatus,
       course_code: courseCode.trim() || undefined,
@@ -163,6 +225,8 @@ export default function ManualEntryForm() {
       setDescription('');
       setStartDate(null);
       setEndDate(null);
+      setCourseStartTime('');
+      setCourseEndTime('');
     } else {
       const errorMsg =
         body?.error?.message ||
@@ -195,27 +259,29 @@ export default function ManualEntryForm() {
         {/* Row 1: Type & Start at */}
         <div className="col-span-1 space-y-1">
           <label className="text-sm font-medium text-slate-700">Type</label>
-          <select
+          <CustomSelect
             value={type}
-            onChange={handleTypeChange}
-            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-          >
-            <option value="Course">Course</option>
-            <option value="Activity">Activity</option>
-            <option value="Exam">Exam</option>
-          </select>
+            onChange={(val) => handleTypeChange({ target: { value: val } } as any)}
+            options={[
+              { value: 'Course', label: 'Course' },
+              { value: 'Activity', label: 'Activity' },
+              { value: 'Exam', label: 'Exam' }
+            ]}
+          />
         </div>
 
         <div className="col-span-1 space-y-1 flex flex-col">
-          <label className="text-sm font-medium text-slate-700">Date & Start Time</label>
+          <label className="text-sm font-medium text-slate-700">
+            {type === 'Course' ? 'Date' : 'Date & Start Time'}
+          </label>
           <DatePicker
             selected={startDate}
-            onChange={(date: Date | null) => setStartDate(date)}
-            showTimeSelect
+            onChange={handleStartDateChange}
+            showTimeSelect={type !== 'Course'}
             timeFormat="HH:mm"
             timeIntervals={15}
-            dateFormat="MM/dd/yyyy h:mm aa"
-            placeholderText="mm/dd/yyyy --:--"
+            dateFormat={type === 'Course' ? "MM/dd/yyyy" : "MM/dd/yyyy h:mm aa"}
+            placeholderText={type === 'Course' ? "mm/dd/yyyy" : "mm/dd/yyyy --:--"}
             className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -233,17 +299,42 @@ export default function ManualEntryForm() {
         </div>
 
         <div className="col-span-1 space-y-1 flex flex-col">
-          <label className="text-sm font-medium text-slate-700">End Time</label>
-          <DatePicker
-            selected={endDate}
-            onChange={(date: Date | null) => setEndDate(date)}
-            showTimeSelect
-            timeFormat="HH:mm"
-            timeIntervals={15}
-            dateFormat="MM/dd/yyyy h:mm aa"
-            placeholderText="mm/dd/yyyy --:--"
-            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-          />
+          <label className="text-sm font-medium text-slate-700">
+            {type === 'Course' ? 'Time' : 'End Time'}
+          </label>
+          {type === 'Course' ? (
+            <div className="flex gap-2 h-[42px]">
+              <div className="w-1/2">
+                <CustomSelect
+                  value={courseStartTime}
+                  onChange={setCourseStartTime}
+                  placeholder="Start Time"
+                  options={COURSE_TIMES.map(time => ({ value: time, label: time }))}
+                  className="h-full"
+                />
+              </div>
+              <div className="w-1/2">
+                <CustomSelect
+                  value={courseEndTime}
+                  onChange={setCourseEndTime}
+                  placeholder="End Time"
+                  options={COURSE_TIMES.map(time => ({ value: time, label: time }))}
+                  className="h-full"
+                />
+              </div>
+            </div>
+          ) : (
+            <DatePicker
+              selected={endDate}
+              onChange={(date: Date | null) => setEndDate(date)}
+              showTimeSelect
+              timeFormat="HH:mm"
+              timeIntervals={15}
+              dateFormat="MM/dd/yyyy h:mm aa"
+              placeholderText="mm/dd/yyyy --:--"
+              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          )}
         </div>
 
         {type !== 'Activity' && (
@@ -261,14 +352,14 @@ export default function ManualEntryForm() {
 
         <div className="col-span-1 space-y-1">
           <label className="text-sm font-medium text-slate-700">Status</label>
-          <select
+          <CustomSelect
             value={status}
-            onChange={(e) => setStatus(e.target.value as 'Active' | 'Inactive')}
-            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
-          >
-            <option value="Active">Confirmed</option>
-            <option value="Inactive">Pending</option>
-          </select>
+            onChange={(val) => setStatus(val as 'Active' | 'Inactive')}
+            options={[
+              { value: 'Active', label: 'Confirmed' },
+              { value: 'Inactive', label: 'Pending' }
+            ]}
+          />
         </div>
 
         <div className="col-span-1 sm:col-span-2 space-y-1">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useFacilitySelector } from '../hooks/useFacilitySelector';
 import { facilityCache } from '../services/facilityCache';
 import { Loader2 } from 'lucide-react';
+import { CustomSelect } from '../../../shared/components/CustomSelect';
 
 interface CascadingRoomSelectorProps {
   value: string;
@@ -76,23 +77,20 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
             Building
             {loadingBuildings && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
           </label>
-          <select
+          <CustomSelect
             value={selectedBuildingId}
-            onChange={(e) => {
-              setSelectedBuildingId(e.target.value);
+            onChange={(val) => {
+              setSelectedBuildingId(val);
               setSelectedFloorId('');
               setSelectedRoomId('');
             }}
             disabled={isResolving}
-            className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
-          >
-            <option value="">Select Building</option>
-            {buildings.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.code} - {b.name.en}
-              </option>
-            ))}
-          </select>
+            placeholder="Select Building"
+            options={buildings.map(b => ({
+              value: b.id,
+              label: `${b.code} - ${b.name.en}`
+            }))}
+          />
         </div>
 
         <div className="space-y-1">
@@ -100,22 +98,19 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
             Floor
             {loadingFloors && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
           </label>
-          <select
+          <CustomSelect
             value={selectedFloorId}
-            onChange={(e) => {
-              setSelectedFloorId(e.target.value);
+            onChange={(val) => {
+              setSelectedFloorId(val);
               setSelectedRoomId('');
             }}
             disabled={!selectedBuildingId || isResolving}
-            className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
-          >
-            <option value="">Select Floor</option>
-            {floors.map(f => (
-              <option key={f.id} value={f.id}>
-                Floor {f.floor_number}
-              </option>
-            ))}
-          </select>
+            placeholder="Select Floor"
+            options={floors.map(f => ({
+              value: f.id,
+              label: `Floor ${f.floor_number}`
+            }))}
+          />
         </div>
 
         <div className="space-y-1">
@@ -123,19 +118,16 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
             Room
             {(loadingRooms || isResolving) && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
           </label>
-          <select
+          <CustomSelect
             value={selectedRoomId}
-            onChange={(e) => setSelectedRoomId(e.target.value)}
+            onChange={setSelectedRoomId}
             disabled={!selectedFloorId || isResolving}
-            className="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 transition-colors"
-          >
-            <option value="">Select Room</option>
-            {rooms.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.room_number} - {r.name.en}
-              </option>
-            ))}
-          </select>
+            placeholder="Select Room"
+            options={rooms.map(r => ({
+              value: r.id,
+              label: `${r.room_number} - ${r.name.en}`
+            }))}
+          />
         </div>
       </div>
     </div>

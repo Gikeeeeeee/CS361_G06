@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useRoomSchedule } from '../hooks/useRoomSchedule';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Calendar, Clock, User, ChevronLeft, ChevronRight, X, Info } from 'lucide-react';
 import { Badge } from '../../../../../shared/components/Badge';
 
 interface RoomScheduleProps {
@@ -242,33 +242,46 @@ function ExamCalendar({ roomId }: { roomId: string }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const endDay = new Date(today.getTime());
-  endDay.setDate(today.getDate() + 30);
-  endDay.setHours(23, 59, 59, 999);
+  const [currentMonth, setCurrentMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState<Date>(today);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
 
-  const { schedules, isLoading, error } = useRoomSchedule(roomId, undefined, today, endDay);
+  // Generate Calendar Grid for currentMonth
+  const daysGrid = useMemo(() => {
+    const days: Date[] = [];
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    // Pad start to Sunday
+    const startOffset = monthStart.getDay();
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(gridStart.getDate() - startOffset);
+    
+    // Pad end to Saturday
+    const endOffset = 6 - monthEnd.getDay();
+    const gridEnd = new Date(monthEnd);
+    gridEnd.setDate(gridEnd.getDate() + endOffset);
+    
+    const current = new Date(gridStart);
+    while (current <= gridEnd) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    return days;
+  }, [currentMonth]);
+
+  const gridStart = daysGrid[0];
+  const gridEnd = new Date(daysGrid[daysGrid.length - 1]);
+  gridEnd.setHours(23, 59, 59, 999);
+
+  const { schedules, isLoading, error } = useRoomSchedule(roomId, undefined, gridStart, gridEnd);
 
   const filteredSchedules = useMemo(() => {
     return (schedules || []).filter((s: any) => s?.type === 'EXAM' || s?.type === 'ACTIVITY');
   }, [schedules]);
 
-  const [selectedDate, setSelectedDate] = useState<Date>(today);
-
-  // Generate 30 days grid
-  const daysGrid = useMemo(() => {
-    const days: Date[] = [];
-    const current = new Date(today.getTime());
-    const firstDayOfWeek = current.getDay();
-    current.setDate(current.getDate() - firstDayOfWeek);
-    
-    for (let i = 0; i < 35; i++) {
-      days.push(new Date(current.getTime()));
-      current.setDate(current.getDate() + 1);
-    }
-    return days;
-  }, [today]);
-
   const selectedDateStr = toLocalDateString(selectedDate);
+  const todayStr = toLocalDateString(today);
   
   const selectedDayEvents = useMemo(() => {
     return filteredSchedules.filter((s: any) => {
@@ -298,44 +311,127 @@ function ExamCalendar({ roomId }: { roomId: string }) {
     return <div className="text-red-500 text-sm text-center py-4 bg-white rounded-xl border border-red-100 shadow-sm">{error}</div>;
   }
 
-  const todayStr = toLocalDateString(today);
+  const nextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const prevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
 
   return (
     <div className="w-full pt-2 pb-8">
+      {/* Agenda List Below Calendar */}
+      <div className="mb-6">
+        <h4 className="font-bold text-slate-800 mb-4 flex items-center">
+          <Calendar className="w-4 h-4 mr-2 text-slate-500" />
+          {selectedDateStr === todayStr 
+            ? "Today's Events" 
+            : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+        </h4>
+
+        {isLoading && selectedDayEvents.length === 0 ? (
+          <div className="space-y-3">
+             <div className="h-24 bg-white rounded-xl shadow-sm border border-slate-100 animate-pulse w-full"></div>
+          </div>
+        ) : selectedDayEvents.length > 0 ? (
+          <div className="space-y-3">
+            {selectedDayEvents.map((event: any) => (
+              <button 
+                key={event.id} 
+                onClick={() => setSelectedEvent(event)}
+                className="w-full text-left bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden transition-all hover:shadow-md hover:border-slate-200 cursor-pointer"
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-1 ${event.type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'}`}></div>
+                
+                <div className="flex justify-between items-start mb-2 pl-2 w-full">
+                  <Badge variant={event.type === 'EXAM' ? 'destructive' : 'default'} className={event.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
+                    {event.type}
+                  </Badge>
+                  <div className="flex items-center text-xs font-medium text-slate-500">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {formatTime(event.start_at)} - {formatTime(event.end_at)}
+                  </div>
+                </div>
+                
+                <h5 className="font-bold text-slate-800 pl-2">{event.title}</h5>
+                {event.description && <p className="text-sm text-slate-600 mt-1 pl-2 truncate w-full">{event.description}</p>}
+                
+                {event.organizer && (
+                  <div className="flex items-center mt-3 pt-3 border-t border-slate-50 text-xs text-slate-500 pl-2">
+                    <User className="w-3 h-3 mr-1" />
+                    <span className="truncate">{event.organizer}</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-slate-100 border-dashed">
+            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Calendar className="w-6 h-6 text-slate-400" />
+            </div>
+            <h5 className="font-medium text-slate-700">No events scheduled</h5>
+            <p className="text-sm text-slate-500 mt-1">There are no exams or activities on this date.</p>
+          </div>
+        )}
+      </div>
+
       {/* Calendar Grid on Top */}
-      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 mb-6">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-4">
+        
+        {/* Calendar Header */}
+        <div className="flex justify-between items-center mb-4 px-1">
+          <h4 className="font-bold text-slate-800 flex items-center gap-2">
+            {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h4>
+          <div className="flex gap-1">
+            <button onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-500">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button onClick={() => {
+              setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+              setSelectedDate(today);
+            }} className="px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 rounded-md transition-colors text-slate-600">
+              Today
+            </button>
+            <button onClick={nextMonth} className="p-1.5 hover:bg-slate-100 rounded-md transition-colors text-slate-500">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d, i) => (
             <div key={i} className="text-center text-xs font-semibold text-slate-400">
               {d}
             </div>
           ))}
         </div>
         
-        {isLoading ? (
+        {isLoading && filteredSchedules.length === 0 ? (
           <div className="grid grid-cols-7 gap-1 h-40 animate-pulse">
-            {Array.from({ length: 35 }).map((_, i) => (
+            {daysGrid.map((_, i) => (
               <div key={i} className="bg-slate-100 rounded-md m-1"></div>
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-y-2 gap-x-1">
             {daysGrid.map((d, i) => {
-              const isPast = d < today;
               const dStr = toLocalDateString(d);
               const isSelected = dStr === selectedDateStr;
               const isToday = dStr === todayStr;
               const marker = getEventMarker(d);
+              const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
 
               return (
                 <button
                   key={i}
-                  disabled={isPast}
                   onClick={() => setSelectedDate(d)}
                   className={`
                     relative flex items-center justify-center h-10 w-full rounded-lg text-sm transition-all
-                    ${isPast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 hover:bg-slate-50'}
-                    ${isSelected ? 'bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md' : ''}
+                    ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-700 hover:bg-slate-50'}
+                    ${isSelected ? 'bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md z-10' : ''}
                     ${!isSelected && isToday ? 'border border-blue-200 text-blue-600 font-bold' : ''}
                   `}
                 >
@@ -350,55 +446,94 @@ function ExamCalendar({ roomId }: { roomId: string }) {
         )}
       </div>
 
-      {/* Agenda List Below Calendar */}
-      <div>
-        <h4 className="font-bold text-slate-800 mb-4 flex items-center">
-          <Calendar className="w-4 h-4 mr-2 text-slate-500" />
-          {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-        </h4>
-
-        {isLoading ? (
-          <div className="space-y-3">
-             <div className="h-24 bg-white rounded-xl shadow-sm border border-slate-100 animate-pulse w-full"></div>
-          </div>
-        ) : selectedDayEvents.length > 0 ? (
-          <div className="space-y-3">
-            {selectedDayEvents.map((event: any) => (
-              <div key={event.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden">
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${event.type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'}`}></div>
-                
-                <div className="flex justify-between items-start mb-2 pl-2">
-                  <Badge variant={event.type === 'EXAM' ? 'destructive' : 'default'} className={event.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
-                    {event.type}
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedEvent(null)}>
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`px-6 py-5 border-b flex justify-between items-center ${selectedEvent.type === 'EXAM' ? 'bg-amber-500/10 border-amber-100' : 'bg-purple-500/10 border-purple-100'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${selectedEvent.type === 'EXAM' ? 'bg-amber-500 text-white' : 'bg-purple-500 text-white'}`}>
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <Badge variant={selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} className={selectedEvent.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event?.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
+                    {selectedEvent.type}
                   </Badge>
-                  <div className="flex items-center text-xs font-medium text-slate-500">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {formatTime(event.start_at)} - {formatTime(event.end_at)}
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedEvent(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-slate-800 mb-1">{selectedEvent.title}</h3>
+              {selectedEvent.course_code && (
+                <p className="text-sm font-medium text-slate-500 mb-4">{selectedEvent.course_code}</p>
+              )}
+              
+              <div className="space-y-4 mt-6">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Time</p>
+                    <p className="text-sm font-medium text-slate-800">
+                      {formatTime(selectedEvent.start_at)} - {formatTime(selectedEvent.end_at)}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {new Date(selectedEvent.start_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
                   </div>
                 </div>
-                
-                <h5 className="font-bold text-slate-800 pl-2">{event.title}</h5>
-                {event.description && <p className="text-sm text-slate-600 mt-1 pl-2">{event.description}</p>}
-                
-                {event.organizer && (
-                  <div className="flex items-center mt-3 pt-3 border-t border-slate-50 text-xs text-slate-500 pl-2">
-                    <User className="w-3 h-3 mr-1" />
-                    <span>{event.organizer}</span>
+
+                {selectedEvent.organizer && (
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Organizer</p>
+                      <p className="text-sm font-medium text-slate-800">{selectedEvent.organizer}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedEvent.description && (
+                  <div className="flex items-start gap-3 pt-2">
+                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
+                      <Info className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Details</p>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedEvent.description}</p>
+                    </div>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-slate-100 border-dashed">
-            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Calendar className="w-6 h-6 text-slate-400" />
             </div>
-            <h5 className="font-medium text-slate-700">No events scheduled</h5>
-            <p className="text-sm text-slate-500 mt-1">There are no exams or activities on this date.</p>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <button 
+                onClick={() => setSelectedEvent(null)}
+                className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { fetchAndCacheSvg, getCachedSvg } from "../../../../../utils/svgCache";
 
 export function useSvgFloorPlan(url: string | undefined) {
   const [svgContent, setSvgContent] = useState<string | null>(null);
@@ -12,38 +13,23 @@ export function useSvgFloorPlan(url: string | undefined) {
     }
 
     let isMounted = true;
+    
+    // Check if we already have it in cache for instant render
+    const cached = getCachedSvg(url);
+    if (cached) {
+      setSvgContent(cached);
+      setLoading(false);
+      return; // Already loaded
+    }
+
     setLoading(true);
     setError(null);
 
-    const parseAndSetSvg = (text: string) => {
+    const loadSvg = async () => {
       try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, "image/svg+xml");
-        const svgElement = doc.querySelector("svg");
-        
-        if (svgElement) {
-          svgElement.removeAttribute("width");
-          svgElement.removeAttribute("height");
-          svgElement.setAttribute("class", "w-full h-full");
-          svgElement.style.width = "100%";
-          svgElement.style.height = "100%";
-          return svgElement.outerHTML;
-        }
-      } catch (e) {
-        console.error("Error parsing SVG:", e);
-      }
-      return text;
-    };
-
-    const fetchSvg = async () => {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Failed to load SVG: ${res.statusText}`);
-        }
-        const text = await res.text();
+        const text = await fetchAndCacheSvg(url);
         if (isMounted) {
-          setSvgContent(parseAndSetSvg(text));
+          setSvgContent(text);
           setLoading(false);
         }
       } catch (err: any) {
@@ -55,7 +41,7 @@ export function useSvgFloorPlan(url: string | undefined) {
       }
     };
 
-    fetchSvg();
+    loadSvg();
 
     return () => {
       isMounted = false;

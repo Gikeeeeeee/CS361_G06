@@ -33,13 +33,13 @@ export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
       {/* Room Title and Breadcrumbs */}
       <div className="px-5 pt-5 pb-6 bg-white border-b border-slate-100">
         <div className="text-xs font-semibold text-slate-400 mb-2 tracking-wide uppercase">
-          {room.id}
+          {(room as any).building?.name?.en || (room as any).building?.code} • Floor {(room as any).floor?.floor_number}
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-1">
-          {room.room_number || room.name.th}
+          {room.name.en || room.name.th || room.room_number}
         </h1>
         <p className="text-slate-500 font-medium text-sm">
-          {room.name.th} &bull; {room.type}
+          {room.room_number ? `${room.room_number} • ` : ''}{room.type}
         </p>
       </div>
     </section>

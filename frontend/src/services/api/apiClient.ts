@@ -1,6 +1,8 @@
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 const API_VERSION = import.meta.env.VITE_API_VERSION || '/api/v1';
 
+import { ApiCache } from './apiCache';
+
 export class ApiError extends Error {
   status: number;
   body?: any; // เพิ่มตัวแปรเก็บรายละเอียด Error จาก Backend
@@ -13,8 +15,14 @@ export class ApiError extends Error {
   }
 }
 
+// เพิ่ม options พิเศษสำหรับ cache
+interface CustomRequestInit extends RequestInit {
+  cacheTtl?: number; // ระบุ TTL เองได้ (ms)
+  skipCache?: boolean; // บังคับให้ fetch ใหม่
+}
+
 // ฟังก์ชันกลาง (request) เพื่อรองรับทุก HTTP Method (GET, POST, PUT, DELETE)
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(endpoint: string, options: CustomRequestInit = {}): Promise<T> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   // ต่อ API_VERSION (เช่น /api/v1) เข้าไปอัตโนมัติ ตามที่เพื่อนในทีมเซ็ตไว้
@@ -73,14 +81,35 @@ export const apiClient = {
   request,
 
   // GET Method เดิม
-  async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    return request<T>(endpoint, { ...options, method: 'GET' });
+  async get<T>(endpoint: string, options: CustomRequestInit = {}): Promise<T> {
+    const cacheKey = `GET_${endpoint}`;
+    
+    // หากไม่ต้องการข้ามแคช ให้ลองดึงจากแคชก่อน
+    if (!options.skipCache) {
+      const cachedData = ApiCache.get<T>(cacheKey, options.cacheTtl);
+      if (cachedData) {
+        return cachedData;
+      }
+    }
+
+    const data = await request<T>(endpoint, { ...options, method: 'GET' });
+    
+    // บันทึกข้อมูลลงแคช
+    if (!options.skipCache) {
+      ApiCache.set(cacheKey, data);
+    }
+    
+    return data;
   },
 
   // POST Method ที่เพิ่มใหม่ (รองรับทั้ง JSON และการส่งไฟล์ดิบ)
-  async post<T>(endpoint: string, data?: any, options: RequestInit = {}): Promise<T> {
+  async post<T>(endpoint: string, data?: any, options: CustomRequestInit = {}): Promise<T> {
     const isFile = data instanceof File;
     
+    // Invalidate related cache based on the base endpoint (e.g. /schedules)
+    const basePath = endpoint.split('?')[0].split('/')[1] || endpoint.split('?')[0];
+    ApiCache.invalidate(basePath);
+
     return request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -89,6 +118,32 @@ export const apiClient = {
         ...(isFile ? { 'Content-Type': 'text/csv' } : {}), // บังคับ Content-Type ให้ไฟล์ CSV
         ...options.headers,
       },
+    });
+  },
+
+  // PUT Method
+  async put<T>(endpoint: string, data?: any, options: CustomRequestInit = {}): Promise<T> {
+    const basePath = endpoint.split('?')[0].split('/')[1] || endpoint.split('?')[0];
+    ApiCache.invalidate(basePath);
+    
+    return request<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(data),
+      headers: {
+        ...options.headers,
+      },
+    });
+  },
+
+  // DELETE Method
+  async delete<T>(endpoint: string, options: CustomRequestInit = {}): Promise<T> {
+    const basePath = endpoint.split('?')[0].split('/')[1] || endpoint.split('?')[0];
+    ApiCache.invalidate(basePath);
+    
+    return request<T>(endpoint, {
+      ...options,
+      method: 'DELETE',
     });
   },
 };

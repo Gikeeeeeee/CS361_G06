@@ -41,10 +41,13 @@ export function SearchResultItem({
   
   if (item.type === 'BUILDING') {
     Icon = Building2;
-    const nameTh = typeof item.name === 'string' ? item.name : item.name?.th || '';
-    const nameEn = typeof item.name === 'string' ? '' : item.name?.en || '';
-    title = item.code ? `${item.code} - ${nameTh}` : nameTh;
-    subtitle = nameEn;
+    const nameTh = item.name_th || (typeof item.name === 'string' ? item.name : item.name?.th) || '';
+    const nameEn = item.name_en || (typeof item.name === 'string' ? '' : item.name?.en) || '';
+    const bCode = item.code || item.building_code;
+    const baseTitle = item.title || nameTh || nameEn || 'Building';
+    
+    title = bCode && !baseTitle.includes(bCode) ? `${bCode} - ${baseTitle}` : baseTitle;
+    subtitle = item.subtitle || (baseTitle !== nameEn ? nameEn : '');
   } else if (item.type === 'ROOM') {
     Icon = DoorOpen;
     const nameTh = item.name_th || (typeof item.name === 'string' ? item.name : item.name?.th) || '';

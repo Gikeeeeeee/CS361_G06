@@ -158,9 +158,9 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
       {/* SVG Floor Map Container */}
       <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative min-h-[380px] flex items-center justify-center">
         {loading && (
-          <div className="flex flex-col items-center justify-center p-12 text-slate-400 gap-2">
+          <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="text-xs font-medium">กำลังโหลดแผนผังชั้น...</span>
+            <span className="text-xs font-medium text-slate-500">กำลังโหลดแผนผังชั้น...</span>
           </div>
         )}
 

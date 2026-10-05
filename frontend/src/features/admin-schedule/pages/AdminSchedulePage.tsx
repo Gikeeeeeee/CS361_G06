@@ -6,9 +6,11 @@ import { ScheduleFilters } from '../components/ScheduleFilters';
 import { EditScheduleDrawer } from '../components/EditScheduleDrawer';
 import { useFacilitySelector } from '../hooks/useFacilitySelector';
 import { useSchedulePagination } from '../hooks/useSchedulePagination';
+import { useNavigate } from 'react-router-dom';
 import { PaginationBar } from '../components/PaginationBar';
 
 export const AdminSchedulePage: React.FC = () => {
+  const navigate = useNavigate();
   const [rawSchedules, setRawSchedules] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +200,10 @@ export const AdminSchedulePage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors">
+            <button 
+              onClick={() => navigate('/admin/add-schedule')}
+              className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-colors"
+            >
               <span className="text-lg leading-none">+</span> New Schedule
             </button>
           </div>
