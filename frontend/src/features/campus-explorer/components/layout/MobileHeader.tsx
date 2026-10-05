@@ -9,7 +9,7 @@ interface MobileHeaderProps {
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONFIG }) => {
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/80 border-b border-slate-100/80 px-4 py-3 flex items-center justify-center relative">
+    <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/80 border-b border-slate-100/80 px-4 py-3 flex items-center justify-center relative shrink-0">
       {/* Center: Logo next to Title */}
       <Link
         to="/"
