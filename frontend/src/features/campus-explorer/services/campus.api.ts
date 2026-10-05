@@ -1,17 +1,30 @@
 import type { ICampusService } from './campus.interface';
 import type { Building, BuildingListResponse, Floor, Room, Facility } from '../../../shared/types/domain.types';
-import { apiClient } from '../../../services/api/apiClient';
+
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 export class CampusApiService implements ICampusService {
+  private async fetchApi<T>(endpoint: string): Promise<T> {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = BASE_URL.endsWith('/api/v1')
+      ? `${BASE_URL}${cleanEndpoint}`
+      : `${BASE_URL}/api/v1${cleanEndpoint}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API fetch error for ${endpoint}: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
   async getBuildings(): Promise<BuildingListResponse> {
-    return apiClient.get<BuildingListResponse>('/buildings');
+    return this.fetchApi<BuildingListResponse>('/buildings');
   }
 
   async getBuildingById(buildingId: string): Promise<Building | null> {
     try {
-      return await apiClient.get<Building>(`/buildings/${buildingId}`);
-    } catch (err) {
-      console.error(`Failed to get building ${buildingId}:`, err);
+      return await this.fetchApi<Building | null>(`/buildings/${buildingId}`);
+    } catch {
       return null;
     }
   }
@@ -27,9 +40,8 @@ export class CampusApiService implements ICampusService {
 
   async getFloorById(floorId: string): Promise<Floor | null> {
     try {
-      return await apiClient.get<Floor>(`/floors/${floorId}`);
-    } catch (err) {
-      console.error(`Failed to get floor ${floorId}:`, err);
+      return await this.fetchApi<Floor | null>(`/floors/${floorId}`);
+    } catch {
       return null;
     }
   }
@@ -55,9 +67,8 @@ export class CampusApiService implements ICampusService {
   async getRoomById(roomId: string): Promise<Room | null> {
     try {
       const cleanId = roomId.includes('_') ? roomId.substring(roomId.indexOf('_') + 1) : roomId;
-      return await apiClient.get<Room>(`/rooms/${cleanId}`);
-    } catch (err) {
-      console.error(`Failed to get room ${roomId}:`, err);
+      return await this.fetchApi<Room | null>(`/rooms/${cleanId}`);
+    } catch {
       return null;
     }
   }
@@ -65,9 +76,8 @@ export class CampusApiService implements ICampusService {
   async getFacilityById(facilityId: string): Promise<Facility | null> {
     try {
       const cleanId = facilityId.includes('_') ? facilityId.substring(facilityId.indexOf('_') + 1) : facilityId;
-      return await apiClient.get<Facility>(`/facilities/${cleanId}`);
-    } catch (err) {
-      console.error(`Failed to get facility ${facilityId}:`, err);
+      return await this.fetchApi<Facility | null>(`/facilities/${cleanId}`);
+    } catch {
       return null;
     }
   }
@@ -119,4 +129,3 @@ export class CampusApiService implements ICampusService {
 }
 
 let cachedBuildingRoomCounts: Record<string, number> | null = null;
-
