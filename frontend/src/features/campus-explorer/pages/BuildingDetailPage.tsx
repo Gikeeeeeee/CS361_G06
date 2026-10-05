@@ -47,17 +47,44 @@ export default function BuildingInfoPage() {
     if (!selectedRoomForModal || !building) return;
     setIsModalOpen(false);
 
-    // Look for real room UUID if available
-    const matchedRoom = selectedFloor?.rooms?.find(
-      (r) =>
-        r.id === selectedRoomForModal.id ||
-        r.room_number?.toLowerCase() ===
-          ('room_number' in selectedRoomForModal
-            ? selectedRoomForModal.room_number?.toLowerCase()
-            : '')
-    );
+    let targetRoomId = selectedRoomForModal.id;
 
-    const targetRoomId = matchedRoom ? matchedRoom.id : selectedRoomForModal.id;
+    // Check if targetRoomId is already a valid UUID (length > 20 and has hyphen)
+    const isRealUUID = targetRoomId && targetRoomId.length > 20 && targetRoomId.includes('-');
+
+    if (!isRealUUID) {
+      const rawTarget = targetRoomId.replace(/^(room-|facility-)/, '').toLowerCase();
+      const numTarget = (
+        'room_number' in selectedRoomForModal && selectedRoomForModal.room_number
+          ? selectedRoomForModal.room_number.toLowerCase()
+          : rawTarget
+      );
+      const alphaTarget = numTarget.replace(/[^a-z0-9]/gi, '');
+
+      const matchedRoom = selectedFloor?.rooms?.find((r) => {
+        if (r.id === targetRoomId) return true;
+        if (r.room_number && r.room_number.toLowerCase() === numTarget) return true;
+        if (
+          alphaTarget &&
+          r.room_number &&
+          r.room_number.replace(/[^a-z0-9]/gi, '').toLowerCase() === alphaTarget
+        ) {
+          return true;
+        }
+        if (
+          alphaTarget &&
+          (r.name?.th?.toLowerCase().includes(alphaTarget) ||
+            r.name?.en?.toLowerCase().includes(alphaTarget))
+        ) {
+          return true;
+        }
+        return false;
+      });
+
+      if (matchedRoom) {
+        targetRoomId = matchedRoom.id;
+      }
+    }
 
     // Navigate to room page
     navigate(`/rooms/${building.id}_${targetRoomId}`);

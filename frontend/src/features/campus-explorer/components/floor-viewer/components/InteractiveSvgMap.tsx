@@ -117,7 +117,12 @@ export function InteractiveSvgMap({
       const textContent = t.textContent?.trim() || "";
       const textNorm = normalizeRoomId(textContent);
 
-      if (textNorm === targetNorm || textContent.toLowerCase() === highlightedRoomId.toLowerCase()) {
+      const isTextMatch =
+        textNorm === targetNorm ||
+        textContent.toLowerCase() === highlightedRoomId.toLowerCase() ||
+        (textContent.includes(targetNorm) && !/[0-9]/.test(textContent.replace(targetNorm, "")));
+
+      if (isTextMatch) {
         t.style.setProperty("fill", "#ffffff", "important");
         t.style.setProperty("font-weight", "bold", "important");
       }

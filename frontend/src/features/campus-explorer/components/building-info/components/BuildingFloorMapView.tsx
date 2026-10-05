@@ -51,17 +51,65 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
 
   // Handle room click on SVG
   const handleRoomClick = (roomIdentifier: string, rawElementId: string) => {
-    // Look up room object from floor data
-    const matchedRoom = floor.rooms?.find(
-      (r) =>
-        r.room_number?.toLowerCase() === roomIdentifier.toLowerCase() ||
-        r.id === rawElementId ||
-        r.room_number?.toLowerCase().replace(/[^a-z0-9]/g, '') ===
-          roomIdentifier.toLowerCase().replace(/[^a-z0-9]/g, '')
-    );
+    const cleanIdent = roomIdentifier.toLowerCase().trim();
+    const cleanRaw = rawElementId.toLowerCase().trim();
+    const alphanumericIdent = cleanIdent.replace(/[^a-z0-9]/gi, '');
 
-    const resolvedRoomNumber = matchedRoom?.room_number || roomIdentifier;
-    setSelectedRoomId(resolvedRoomNumber);
+    // Look up room object from floor data
+    const matchedRoom = floor.rooms?.find((r) => {
+      // 1. Direct ID match
+      if (r.id === rawElementId || r.id === roomIdentifier) return true;
+
+      // 2. Exact room_number match
+      if (r.room_number && r.room_number.toLowerCase().trim() === cleanIdent) return true;
+
+      // 3. Alphanumeric match on room_number (e.g. 101-1 vs 101/1)
+      if (
+        alphanumericIdent &&
+        r.room_number &&
+        r.room_number.replace(/[^a-z0-9]/gi, '').toLowerCase() === alphanumericIdent
+      ) {
+        return true;
+      }
+
+      // 4. RawElementId contains room number (e.g. room-305 contains 305)
+      if (r.room_number && cleanRaw.includes(r.room_number.toLowerCase())) {
+        return true;
+      }
+
+      // 5. Name match (Thai or English contains identifier, e.g. "500" in "ห้องเรียน 500 คน")
+      if (alphanumericIdent) {
+        const th = r.name?.th?.toLowerCase() || '';
+        const en = r.name?.en?.toLowerCase() || '';
+        if (th.includes(alphanumericIdent) || en.includes(alphanumericIdent)) {
+          return true;
+        }
+      }
+
+      // 6. Name match for labels like "room-faculty-office" vs "Faculty Office" or "ห้องพักอาจารย์"
+      if (
+        cleanIdent.includes('office') &&
+        ((r.name?.th || '').includes('อาจารย์') || (r.name?.en || '').toLowerCase().includes('office'))
+      ) {
+        return true;
+      }
+      if (
+        cleanIdent.includes('restroom') &&
+        ((r.name?.th || '').includes('น้ำ') || (r.name?.en || '').toLowerCase().includes('restroom'))
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+
+    const resolvedRoomNumber =
+      matchedRoom?.room_number ||
+      matchedRoom?.name?.th ||
+      matchedRoom?.name?.en ||
+      roomIdentifier;
+
+    setSelectedRoomId(matchedRoom?.room_number || roomIdentifier);
 
     if (matchedRoom) {
       onRoomSelect(matchedRoom);
