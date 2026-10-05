@@ -4,6 +4,7 @@ import { useRoomDetail } from '../components/room-detail/hooks/useRoomDetail';
 import { RoomHero } from '../components/room-detail/components/RoomHero';
 import { RoomAmenities } from '../components/room-detail/components/RoomAmenities';
 import { RoomFloorPlan } from '../components/room-detail/components/RoomFloorPlan';
+import { RoomSchedule } from '../components/room-detail/components/RoomSchedule';
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -46,6 +47,11 @@ export default function RoomDetailPage() {
       <div className="mx-5 border-t border-slate-100 my-1" />
 
       <RoomFloorPlan room={room} floor={floor} building={building} />
+
+      {/* Divider */}
+      <div className="h-2 bg-slate-50 my-2" />
+
+      <RoomSchedule roomId={room.id} />
     </div>
   );
 }

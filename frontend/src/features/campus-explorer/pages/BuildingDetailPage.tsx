@@ -7,7 +7,7 @@ import { FloorTabBar } from '../components/building-info/components/FloorTabBar'
 import { BuildingRoomList } from '../components/building-info/components/BuildingRoomList';
 import { BuildingFloorMapView } from '../components/building-info/components/BuildingFloorMapView';
 import { RoomConfirmDestinationModal } from '../components/floor-viewer/components/RoomConfirmDestinationModal';
-import { BottomNavbar } from '../components/layout/BottomNavbar';
+
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '../../../shared/components/Button';
 import type { Room } from '../../../shared/types/domain.types';
