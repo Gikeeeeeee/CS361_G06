@@ -15,49 +15,47 @@ export function useSvgFloorPlan(url: string | undefined) {
     setLoading(true);
     setError(null);
 
-    fetch(url)
-      .then((res) => {
+    const parseAndSetSvg = (text: string) => {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "image/svg+xml");
+        const svgElement = doc.querySelector("svg");
+        
+        if (svgElement) {
+          svgElement.removeAttribute("width");
+          svgElement.removeAttribute("height");
+          svgElement.setAttribute("class", "w-full h-full");
+          svgElement.style.width = "100%";
+          svgElement.style.height = "100%";
+          return svgElement.outerHTML;
+        }
+      } catch (e) {
+        console.error("Error parsing SVG:", e);
+      }
+      return text;
+    };
+
+    const fetchSvg = async () => {
+      try {
+        const res = await fetch(url);
         if (!res.ok) {
-          throw new Error(`Failed to fetch SVG: ${res.statusText}`);
+          throw new Error(`Failed to load SVG: ${res.statusText}`);
         }
-        return res.text();
-      })
-      .then((text) => {
+        const text = await res.text();
         if (isMounted) {
-          try {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(text, "image/svg+xml");
-            const svgElement = doc.querySelector("svg");
-            
-            if (svgElement) {
-              // Ensure responsive behavior
-              svgElement.removeAttribute("width");
-              svgElement.removeAttribute("height");
-              svgElement.setAttribute("class", "w-full h-full");
-              svgElement.style.width = "100%";
-              svgElement.style.height = "100%";
-              
-              setSvgContent(svgElement.outerHTML);
-            } else {
-              throw new Error("Invalid SVG format");
-            }
-          } catch (e) {
-            console.error("Error parsing SVG:", e);
-            setSvgContent(text); // Fallback to raw text
-          }
-        }
-      })
-      .catch((err) => {
-        console.error("SVG Fetch Error:", err);
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
+          setSvgContent(parseAndSetSvg(text));
           setLoading(false);
         }
-      });
+      } catch (err: any) {
+        if (isMounted) {
+          console.error("SVG fetch error:", err);
+          setError(err instanceof Error ? err : new Error("Failed to load floor plan SVG"));
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSvg();
 
     return () => {
       isMounted = false;

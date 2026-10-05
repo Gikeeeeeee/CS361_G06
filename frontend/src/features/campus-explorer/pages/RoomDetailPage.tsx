@@ -7,7 +7,7 @@ import { RoomFloorPlan } from '../components/room-detail/components/RoomFloorPla
 
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { room, floor, loading, error } = useRoomDetail(roomId || '');
+  const { room, floor, building, loading, error } = useRoomDetail(roomId || '');
 
   useEffect(() => {
     if (room) {
@@ -34,7 +34,7 @@ export default function RoomDetailPage() {
   }
 
   return (
-    <div className="bg-slate-50">
+    <div className="bg-slate-50 min-h-full pb-10">
       <RoomHero room={room} />
 
       {/* Divider */}
@@ -45,7 +45,7 @@ export default function RoomDetailPage() {
       {/* Divider */}
       <div className="mx-5 border-t border-slate-100 my-1" />
 
-      <RoomFloorPlan floor={floor} />
+      <RoomFloorPlan room={room} floor={floor} building={building} />
     </div>
   );
 }

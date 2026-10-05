@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { Room, Floor } from '../../../../../shared/types/domain.types';
+import type { Room, Floor, Building } from '../../../../../shared/types/domain.types';
 import { campusService } from '../../../services';
 
 export function useRoomDetail(roomId: string | undefined) {
   const [room, setRoom] = useState<Room | null>(null);
   const [floor, setFloor] = useState<Floor | null>(null);
+  const [building, setBuilding] = useState<Building | { id: string; code: string; name: any } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,13 +23,31 @@ export function useRoomDetail(roomId: string | undefined) {
       setError(null);
 
       try {
-        const r = await campusService.getRoomById(roomId);
+        const cleanId = roomId.includes('_') ? roomId.substring(roomId.indexOf('_') + 1) : roomId;
+        const r = await campusService.getRoomById(cleanId);
         
         if (isMounted) {
           if (r) {
             setRoom(r);
-            // We set floor to null since the real API room endpoint doesn't return floor context
-            setFloor(null);
+            const bldg = (r as any).building || null;
+            setBuilding(bldg);
+
+            const floorInfo = (r as any).floor;
+            if (floorInfo?.id) {
+              try {
+                const floorDetails = await campusService.getFloorById(floorInfo.id);
+                if (isMounted) {
+                  setFloor(floorDetails || floorInfo);
+                }
+              } catch (floorErr) {
+                console.warn('Failed to fetch full floor details:', floorErr);
+                if (isMounted) {
+                  setFloor(floorInfo);
+                }
+              }
+            } else {
+              setFloor(floorInfo || null);
+            }
           } else {
             setError('Room not found');
           }
@@ -50,5 +69,5 @@ export function useRoomDetail(roomId: string | undefined) {
     };
   }, [roomId]);
 
-  return { room, buildingId: null, floorId: null, floor, loading, error };
-}
+  return { room, building, floorId: floor?.id, floor, loading, error };
+}
