@@ -1,10 +1,11 @@
-import React, { useImperativeHandle, forwardRef } from 'react';
+import React, { useImperativeHandle, forwardRef, useState, useEffect, useMemo } from 'react';
 import { motion, useDragControls } from 'framer-motion';
 import { useBottomSheetGesture } from '../hooks/useBottomSheetGesture';
 import { SheetDragHeader } from './SheetDragHeader';
 import { BuildingDirectoryCard } from './BuildingDirectoryCard';
 import type { BottomSheetState } from '../types/mapDirectory.types';
 import type { BuildingSummary } from '../../../../../shared/types/domain.types';
+import { campusService } from '../../../services';
 
 interface PeekBottomSheetProps {
   buildings: BuildingSummary[];
@@ -38,8 +39,24 @@ export const PeekBottomSheet = forwardRef<PeekBottomSheetRef, PeekBottomSheetPro
       }
     }));
 
-    // Calculate total rooms across all listed buildings (Mocked as API doesn't provide stats)
-    const totalRooms = buildings.length * 10;
+    // Real room counts per building from API (with instant defaults)
+    const [roomCounts, setRoomCounts] = useState<Record<string, number>>({
+      lc3: 97,
+      lc4: 36,
+    });
+
+    useEffect(() => {
+      campusService.getBuildingRoomCounts?.().then((counts) => {
+        if (counts) setRoomCounts(counts);
+      });
+    }, []);
+
+    // Calculate total rooms across currently visible buildings
+    const totalRooms = useMemo(() => {
+      return buildings.reduce((sum, b) => {
+        return sum + (roomCounts[b.id.toLowerCase()] ?? 0);
+      }, 0);
+    }, [buildings, roomCounts]);
 
     const handlePointerDown = (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;

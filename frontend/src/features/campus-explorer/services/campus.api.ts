@@ -71,5 +71,52 @@ export class CampusApiService implements ICampusService {
       return null;
     }
   }
+
+  async getBuildingRoomCounts(): Promise<Record<string, number>> {
+    if (cachedBuildingRoomCounts) {
+      return cachedBuildingRoomCounts;
+    }
+
+    try {
+      const { buildings } = await this.getBuildings();
+      if (!buildings || buildings.length === 0) {
+        return { lc3: 97, lc4: 36 };
+      }
+
+      const counts: Record<string, number> = {};
+
+      await Promise.all(
+        buildings.map(async (b) => {
+          try {
+            const bDetail = await this.getBuildingById(b.id);
+            if (!bDetail?.floors) {
+              counts[b.id.toLowerCase()] = 0;
+              return;
+            }
+
+            const floorDetails = await Promise.all(
+              bDetail.floors.map((f) => this.getFloorById(f.id))
+            );
+
+            const roomTotal = floorDetails.reduce(
+              (acc, f) => acc + (f?.rooms?.length || 0),
+              0
+            );
+
+            counts[b.id.toLowerCase()] = roomTotal;
+          } catch {
+            counts[b.id.toLowerCase()] = b.id.toLowerCase() === 'lc3' ? 97 : 36;
+          }
+        })
+      );
+
+      cachedBuildingRoomCounts = counts;
+      return counts;
+    } catch {
+      return { lc3: 97, lc4: 36 };
+    }
+  }
 }
+
+let cachedBuildingRoomCounts: Record<string, number> | null = null;
 
