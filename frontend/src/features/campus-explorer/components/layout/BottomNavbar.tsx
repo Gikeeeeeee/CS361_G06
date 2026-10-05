@@ -4,7 +4,7 @@ import { BOTTOM_NAV_ITEMS } from '../../../../shared/config/navigation.config';
 
 export const BottomNavbar: React.FC = () => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 pointer-events-auto shadow-[0_-4px_20px_rgba(0,0,0,0.03)] flex items-center justify-around">
+    <nav className="w-full h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] flex items-center justify-around shrink-0">
       <ul className="flex items-center justify-around w-full h-full px-3">
         {BOTTOM_NAV_ITEMS.map((item) => (
           <li key={item.path} className="flex-1 h-full">

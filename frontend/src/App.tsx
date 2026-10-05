@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import RootLayout from './features/campus-explorer/pages/RootLayout';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { UserLayout } from './layouts/UserLayout';
 import HomePage from './features/campus-explorer/pages/HomePage';
 import SavedPage from './features/campus-explorer/pages/SavedPage';
 import ProfilePage from './features/campus-explorer/pages/ProfilePage';
 import BuildingInfoPage from './features/campus-explorer/pages/BuildingDetailPage';
 import RoomDetailPage from './features/campus-explorer/pages/RoomDetailPage';
 import FacilityDetailPage from './features/campus-explorer/pages/FacilityDetailPage';
-import { AdminPlaceholder } from './features/admin/AdminPlaceholder';
 import { AdminLayout } from './features/admin/components/AdminLayout';
 
 // Imports ของเราและของเพื่อนทั้งหมด (อยู่ครบ)
@@ -49,18 +48,18 @@ function App() {
     <BrowserRouter>
       <DynamicPageTitle />
       <Routes>
-        <Route path="/" element={<RootLayout />}>
+        <Route path="/" element={<UserLayout />}>
           <Route index element={<HomePage />} />
           <Route path="saved" element={<SavedPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
+          <Route path="rooms/:roomId" element={<RoomDetailPage />} />
+          <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
         </Route>
-        <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
-        <Route path="rooms/:roomId" element={<RoomDetailPage />} />
-        <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
         
         {/* ส่วนของ Admin: รวมของทุกคนไว้ครบถ้วน */}
         <Route path="admin" element={<AdminLayout />}>
-          <Route index element={<AdminPlaceholder />} />
+          <Route index element={<Navigate to="schedules/manage" replace />} />
           <Route path="schedules" element={<ScheduleManagePage />} />
           <Route path="schedules/manage" element={<AdminSchedulePage />} />
           <Route path="add-schedule" element={<AddSchedulePage />} />
