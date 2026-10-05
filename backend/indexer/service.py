@@ -11,7 +11,9 @@ from opensearchpy import (
 )
 
 from indexer.mapper import (
+    deserialize_item,
     get_deleted_document_id,
+    get_storage_document_id,
     map_stream_image,
 )
 
@@ -76,8 +78,9 @@ class IndexerService:
 
     def index_record(self, image: dict[str, Any]) -> None:
         document = map_stream_image(image)
+        item = deserialize_item(image)
 
-        document_id = document["id"]
+        document_id = get_storage_document_id(item)
 
         self.client.index(
             index=self.index_name,

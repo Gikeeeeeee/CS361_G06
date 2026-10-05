@@ -95,6 +95,17 @@ def get_document_id(item: dict[str, Any]) -> str:
     raise ValueError("Unable to determine OpenSearch document id.")
 
 
+def get_storage_document_id(item: dict[str, Any]) -> str:
+    """Use DynamoDB's complete primary key as the OpenSearch document ID."""
+    pk = item.get("PK") or item.get("pk")
+    sk = item.get("SK") or item.get("sk")
+
+    if pk and sk:
+        return f"{pk}#{sk}"
+
+    return get_document_id(item)
+
+
 def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
     entity_type = get_entity_type(item)
     document_id = get_document_id(item)
@@ -179,4 +190,4 @@ def get_deleted_document_id(keys: dict[str, Any]) -> str:
     """
     item = deserialize_item(keys)
 
-    return get_document_id(item)
+    return get_storage_document_id(item)
