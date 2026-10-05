@@ -82,6 +82,7 @@ class FakeScheduleSource:
         self,
         limit: int,
         next_token: str | None = None,
+        schedule_type: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         try:
             start = (
@@ -93,11 +94,15 @@ class FakeScheduleSource:
 
             raise InvalidParameter("Invalid nextToken.") from exc
 
-        page = self.schedules[start:start + limit]
+        filtered = [
+            schedule for schedule in self.schedules
+            if schedule_type is None or schedule.get("type") == schedule_type
+        ]
+        page = filtered[start:start + limit]
         end = start + len(page)
         token = (
             base64.urlsafe_b64encode(json.dumps({"index": end}).encode()).decode()
-            if end < len(self.schedules)
+            if end < len(filtered)
             else None
         )
         return page, token

@@ -62,6 +62,18 @@ def test_list_schedules_decodes_cursor_and_returns_none_on_final_page():
 
 
 @pytest.mark.unit
+def test_list_schedules_uses_type_index_when_filtered():
+    table = _PagedTable([{"Items": [{"id": "s1", "GSI6PK": "TYPE#EXAM"}]}])
+
+    items, next_token = ScheduleRepository(table=table).list_schedules(2, schedule_type="EXAM")
+
+    assert items == [{"id": "s1"}]
+    assert next_token is None
+    assert table.queries[0]["IndexName"] == "GSI6"
+    assert str(table.queries[0]["KeyConditionExpression"]) == "GSI6PK = :GSI6PK"
+
+
+@pytest.mark.unit
 def test_list_schedules_rejects_invalid_cursor():
     with pytest.raises(InvalidParameter) as exc_info:
         ScheduleRepository(table=_PagedTable()).list_schedules(2, "bad-token")
