@@ -104,8 +104,22 @@ function CourseTimetable({ roomId }: { roomId: string }) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const schedulesForDay = useMemo(() => {
-    return (schedules || []).filter((s: any) => s?.start_at?.startsWith(selectedDateStr));
-  }, [schedules, selectedDateStr]);
+    return (schedules || []).filter((s: any) => {
+      if (s.recurrence_rule) {
+        const byDayMatch = s.recurrence_rule.match(/BYDAY=([^;]+)/);
+        if (byDayMatch) {
+          const days = byDayMatch[1].split(',');
+          const daysMap: Record<string, number> = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
+          return days.some((day: string) => daysMap[day] === selectedDayOffset);
+        }
+        const startDate = new Date(s.start_at);
+        const startDay = startDate.getDay();
+        const startDayOffset = startDay === 0 ? 6 : startDay - 1;
+        return startDayOffset === selectedDayOffset;
+      }
+      return s?.start_at?.startsWith(selectedDateStr);
+    });
+  }, [schedules, selectedDateStr, selectedDayOffset]);
 
   if (error) {
     return <div className="text-red-500 text-sm text-center py-4 bg-white rounded-xl border border-red-100 shadow-sm">{error}</div>;
@@ -257,8 +271,20 @@ function ExamCalendar({ roomId }: { roomId: string }) {
   const selectedDateStr = toLocalDateString(selectedDate);
   
   const selectedDayEvents = useMemo(() => {
-    return filteredSchedules.filter((s: any) => s?.start_at?.startsWith(selectedDateStr));
-  }, [filteredSchedules, selectedDateStr]);
+    return filteredSchedules.filter((s: any) => {
+      if (s.recurrence_rule) {
+        const byDayMatch = s.recurrence_rule.match(/BYDAY=([^;]+)/);
+        if (byDayMatch) {
+          const days = byDayMatch[1].split(',');
+          const daysMap: Record<string, number> = { MO: 0, TU: 1, WE: 2, TH: 3, FR: 4, SA: 5, SU: 6 };
+          const selectedDay = selectedDate.getDay();
+          const selectedOffset = selectedDay === 0 ? 6 : selectedDay - 1;
+          return days.some((day: string) => daysMap[day] === selectedOffset);
+        }
+      }
+      return s?.start_at?.startsWith(selectedDateStr);
+    });
+  }, [filteredSchedules, selectedDateStr, selectedDate]);
 
   const getEventMarker = (date: Date) => {
     const dStr = toLocalDateString(date);
