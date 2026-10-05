@@ -92,7 +92,7 @@ export default function BuildingInfoPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
+      <div className="flex flex-col items-center justify-center min-h-full py-20 bg-slate-50">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-slate-500 font-medium text-sm">กำลังโหลดข้อมูลอาคาร...</p>
       </div>
@@ -101,7 +101,7 @@ export default function BuildingInfoPage() {
 
   if (error || !building) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
+      <div className="flex flex-col items-center justify-center min-h-full py-20 bg-slate-50 p-6 text-center">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500 mb-4">
           <AlertTriangle className="w-8 h-8" />
         </div>
@@ -115,8 +115,7 @@ export default function BuildingInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 relative pb-20 max-w-md mx-auto shadow-2xl">
-      {/* Hero Header with Building Details */}
+    <div className="bg-slate-50 relative pb-20">
       <BuildingHero building={building} />
 
       {(building.floors?.length || 0) > 0 && selectedFloor && (
