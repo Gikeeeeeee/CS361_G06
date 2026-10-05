@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 
-export function useSvgFloorPlan(url: string | undefined, fallbackUrl?: string) {
+export function useSvgFloorPlan(url: string | undefined) {
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const targetUrl = url || fallbackUrl;
-    if (!targetUrl) {
+    if (!url) {
       setSvgContent(null);
       return;
     }
@@ -37,43 +36,22 @@ export function useSvgFloorPlan(url: string | undefined, fallbackUrl?: string) {
     };
 
     const fetchSvg = async () => {
-      // First attempt with primary url
-      if (url) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) {
-            const text = await res.text();
-            if (isMounted) {
-              setSvgContent(parseAndSetSvg(text));
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (primaryErr) {
-          console.warn("Primary SVG fetch failed, trying fallback:", primaryErr);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to load SVG: ${res.statusText}`);
         }
-      }
-
-      // Second attempt with fallbackUrl
-      if (fallbackUrl) {
-        try {
-          const res = await fetch(fallbackUrl);
-          if (res.ok) {
-            const text = await res.text();
-            if (isMounted) {
-              setSvgContent(parseAndSetSvg(text));
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (fallbackErr) {
-          console.error("Fallback SVG fetch failed:", fallbackErr);
+        const text = await res.text();
+        if (isMounted) {
+          setSvgContent(parseAndSetSvg(text));
+          setLoading(false);
         }
-      }
-
-      if (isMounted) {
-        setError(new Error("Failed to load floor plan SVG"));
-        setLoading(false);
+      } catch (err: any) {
+        if (isMounted) {
+          console.error("SVG fetch error:", err);
+          setError(err instanceof Error ? err : new Error("Failed to load floor plan SVG"));
+          setLoading(false);
+        }
       }
     };
 
@@ -82,7 +60,7 @@ export function useSvgFloorPlan(url: string | undefined, fallbackUrl?: string) {
     return () => {
       isMounted = false;
     };
-  }, [url, fallbackUrl]);
+  }, [url]);
 
   return { svgContent, loading, error };
 }

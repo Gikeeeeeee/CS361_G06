@@ -20,11 +20,8 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
-  // Fallback local SVG url if S3 presigned URL is unavailable
-  const fallbackSvgUrl = `/floor-plan/${building.code}/${building.code}-floor${floor.floor_number}-neutral.svg`;
-  const primarySvgUrl = floor.floor_plan?.url || floor.map?.url;
-
-  const { svgContent, loading, error } = useSvgFloorPlan(primarySvgUrl, fallbackSvgUrl);
+  const svgUrl = floor.floor_plan?.url || floor.map?.url;
+  const { svgContent, loading, error } = useSvgFloorPlan(svgUrl);
 
   // Active highlighted room: from search, click, or external prop
   const activeHighlight = useMemo(() => {

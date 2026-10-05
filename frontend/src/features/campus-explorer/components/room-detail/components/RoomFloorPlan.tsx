@@ -12,10 +12,9 @@ interface RoomFloorPlanProps {
 export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
   const buildingCode = building?.code || (room as any)?.building?.code || 'LC3';
   const floorNumber = floor?.floor_number || (room as any)?.floor?.floor_number || 1;
-  const primarySvgUrl = floor?.floor_plan?.url || floor?.map?.url;
-  const fallbackSvgUrl = `/floor-plan/${buildingCode}/${buildingCode}-floor${floorNumber}-neutral.svg`;
+  const svgUrl = floor?.floor_plan?.url || floor?.map?.url;
 
-  const { svgContent, loading, error } = useSvgFloorPlan(primarySvgUrl, fallbackSvgUrl);
+  const { svgContent, loading, error } = useSvgFloorPlan(svgUrl);
 
   if (!floor && !room) return null;
 
