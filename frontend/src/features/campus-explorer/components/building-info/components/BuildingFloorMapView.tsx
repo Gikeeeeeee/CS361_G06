@@ -43,7 +43,16 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
       if (matched?.room_number) return matched.room_number;
       return q;
     }
-    return selectedRoomId || externalHighlight || null;
+    if (selectedRoomId) return selectedRoomId;
+
+    if (externalHighlight) {
+      const matchedRoom = floor.rooms?.find((r) => r.id === externalHighlight);
+      if (matchedRoom) {
+        return matchedRoom.room_number || matchedRoom.name?.en || matchedRoom.name?.th || externalHighlight;
+      }
+      return externalHighlight;
+    }
+    return null;
   }, [searchQuery, selectedRoomId, externalHighlight, floor.rooms]);
 
   // Handle room click on SVG

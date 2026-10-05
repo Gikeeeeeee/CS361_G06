@@ -9,9 +9,11 @@ export function useRoomHighlight() {
   // We want to extract 'room-lab102' or whatever the SVG uses.
   const rawId = searchParams.get("highlight") || roomId;
   
-  // Extract just the base room name (e.g., 'lab105' from 'lc4-lab105' or 'lc4-room-lab105')
-  // so that id*="lab105" will successfully match 'room-lab105' in the SVG.
-  const highlightedRoomId = rawId ? rawId.split('-').pop() : null;
+  // Extract just the base room name/uuid (e.g., 'd434... ' from 'lc4_d434...')
+  // so that id="d434..." will successfully match in the SVG.
+  const highlightedRoomId = rawId 
+    ? (rawId.includes('_') ? rawId.substring(rawId.indexOf('_') + 1) : rawId)
+    : null;
 
   const setHighlightedRoom = useCallback(
     (roomId: string | null) => {

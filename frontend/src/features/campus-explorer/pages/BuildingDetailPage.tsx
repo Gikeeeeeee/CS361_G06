@@ -157,8 +157,6 @@ export default function BuildingInfoPage() {
         onConfirm={handleConfirmNavigation}
       />
 
-      {/* Bottom Navigation Bar */}
-      <BottomNavbar />
     </div>
   );
 }
