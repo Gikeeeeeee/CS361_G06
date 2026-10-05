@@ -8,8 +8,8 @@ export interface ScheduleEvent {
   title: string;
   description?: string;
   organizer?: string;
-  start_time: string;
-  end_time: string;
+  start_at: string;
+  end_at: string;
   course_code?: string;
 }
 
