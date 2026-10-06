@@ -62,12 +62,7 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
     }
   }, [value, selectedBuildingId, selectedFloorId, selectedRoomId, isResolving, setSelectedBuildingId, setSelectedFloorId, setSelectedRoomId]);
 
-  // Sync selected room back to parent
-  useEffect(() => {
-    if (selectedRoomId && selectedRoomId !== value && !isResolving) {
-      onChange(selectedRoomId);
-    }
-  }, [selectedRoomId, value, onChange, isResolving]);
+  // Removed sync effect to prevent infinite loops
 
   return (
     <div className="space-y-4">
@@ -83,6 +78,7 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
               setSelectedBuildingId(val);
               setSelectedFloorId('');
               setSelectedRoomId('');
+              if (value) onChange('');
             }}
             disabled={isResolving}
             placeholder="Select Building"
@@ -103,6 +99,7 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
             onChange={(val) => {
               setSelectedFloorId(val);
               setSelectedRoomId('');
+              if (value) onChange('');
             }}
             disabled={!selectedBuildingId || isResolving}
             placeholder="Select Floor"
@@ -120,7 +117,10 @@ export const CascadingRoomSelector: React.FC<CascadingRoomSelectorProps> = ({ va
           </label>
           <CustomSelect
             value={selectedRoomId}
-            onChange={setSelectedRoomId}
+            onChange={(val) => {
+              setSelectedRoomId(val);
+              onChange(val);
+            }}
             disabled={!selectedFloorId || isResolving}
             placeholder="Select Room"
             options={rooms.map(r => ({
