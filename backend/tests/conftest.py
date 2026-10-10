@@ -1,3 +1,6 @@
+import base64
+import binascii
+import json
 import os
 from typing import Any
 import pytest
@@ -55,6 +58,125 @@ class FakeBuildingSource:
 
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
         return f"https://mock-bucket.s3.amazonaws.com/{key}?expires={expires_in}"
+
+
+class FakeScheduleSource:
+    """
+    In-memory fake of ports.schedule_source.ScheduleSource.
+
+    Mirrors the real adapter: a series matches a window when it starts before
+    `end` and its `series_end_at` is after `start` (UTC strings).
+    """
+
+    def __init__(
+        self,
+        schedules: list[dict[str, Any]] | dict[tuple[str, str], dict[str, Any]] | None = None,
+    ):
+        if isinstance(schedules, dict):
+            self.schedules = list(schedules.values())
+        else:
+            self.schedules = list(schedules or [])
+        self.deleted_schedule = None
+
+    def list_schedules(
+        self,
+        limit: int,
+        next_token: str | None = None,
+        schedule_type: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        try:
+            start = (
+                json.loads(base64.urlsafe_b64decode(next_token).decode())["index"]
+                if next_token else 0
+            )
+        except (binascii.Error, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
+            from errors import InvalidParameter
+
+            raise InvalidParameter("Invalid nextToken.") from exc
+
+        filtered = [
+            schedule for schedule in self.schedules
+            if schedule_type is None or schedule.get("type") == schedule_type
+        ]
+        page = filtered[start:start + limit]
+        end = start + len(page)
+        token = (
+            base64.urlsafe_b64encode(json.dumps({"index": end}).encode()).decode()
+            if end < len(filtered)
+            else None
+        )
+        return page, token
+
+    def find_overlapping(
+        self,
+        room_id: str,
+        start: str,
+        end: str,
+        schedule_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        from models.schedule import to_utc
+
+        return [
+            schedule
+            for schedule in self.schedules
+            if schedule.get("room_id") == room_id
+            and to_utc(schedule["start_at"]) < end
+            and schedule.get("series_end_at", to_utc(schedule["end_at"])) > start
+            and (schedule_type is None or schedule["type"] == schedule_type)
+        ]
+
+    def save_schedule(self, schedule: dict[str, Any]) -> None:
+        existing = self.get_schedule(schedule["room_id"], schedule["id"])
+        if existing is not None:
+            self.schedules.remove(existing)
+        self.schedules.append(schedule)
+
+    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
+        self.schedules.extend(schedules)
+
+    def get_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        for s in self.schedules:
+            if s.get("room_id") == room_id and s.get("id") == schedule_id:
+                return s
+        return None
+
+    def delete_schedule(
+        self,
+        room_id: str,
+        schedule_id: str,
+    ) -> None:
+        self.deleted_schedule = (room_id, schedule_id)
+        self.schedules = [
+            s
+            for s in self.schedules
+            if not (s.get("room_id") == room_id and s.get("id") == schedule_id)
+        ]
+
+
+@pytest.fixture
+def sample_schedule_raw() -> dict[str, Any]:
+    """One stored schedule, shaped like the seeded DynamoDB item."""
+    return {
+        "id": "550e8400-e29b-41d4-a716-446655440050",
+        "room_id": "room-uuid-1",
+        "type": "COURSE",
+        "title": "Software Engineering",
+        "course_code": "CS361",
+        "organizer": "Aj. Example",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "start_at": "2026-09-16T13:00:00+07:00",
+        "end_at": "2026-09-16T16:00:00+07:00",
+    }
+
+
+@pytest.fixture
+def schedule_source(sample_schedule_raw: dict[str, Any]) -> FakeScheduleSource:
+    return FakeScheduleSource([sample_schedule_raw])
 
 
 @pytest.fixture
@@ -135,7 +257,23 @@ def sample_building_lc4_raw() -> dict[str, Any]:
                         "latitude": 14.07261,
                         "longitude": 100.60772,
                         "image_key": "image/room/LAB.webp",
-                    }
+                    },
+                    {
+                        "id": "lc4-room-uuid-2",
+                        "room_number": "205",
+                        "name": {"th": None, "en": "Office 205"},
+                        "type": "OFFICE",
+                        "latitude": 14.07262,
+                        "longitude": 100.60773,
+                    },
+                    {
+                        "id": "lc4-room-uuid-3",
+                        "room_number": "R2",
+                        "name": {"th": None, "en": "Restroom"},
+                        "type": "RESTROOM",
+                        "latitude": 14.07262,
+                        "longitude": 100.60773,
+                    },
                 ],
                 "facilities": [],
             }
@@ -165,6 +303,8 @@ def make_apigw_event(
     route_key: str | None = None,
     path_parameters: dict[str, str] | None = None,
     headers: dict[str, str] | None = None,
+    query: dict[str, str] | None = None,
+    body: Any = None,
 ) -> dict[str, Any]:
     """Helper to generate an API Gateway HTTP API v2 event payload."""
     event: dict[str, Any] = {
@@ -181,11 +321,18 @@ def make_apigw_event(
     }
     if path_parameters is not None:
         event["pathParameters"] = path_parameters
+    if query is not None:
+        event["queryStringParameters"] = query
+    if body is not None:
+        event["body"] = body if isinstance(body, str) else json.dumps(body)
     return event
 
 
 @pytest.fixture
-def invoke_handler(campus_source: FakeBuildingSource):
+def invoke_handler(
+    campus_source: FakeBuildingSource,
+    schedule_source: FakeScheduleSource,
+):
     """
     Fixture to invoke lambda_handler with Dependencies wired to a fake source.
     Safely restores original handler.DEPS after execution.
@@ -196,10 +343,39 @@ def invoke_handler(campus_source: FakeBuildingSource):
     def _invoke(event: dict[str, Any], source: FakeBuildingSource | None = None):
         target_source = source if source is not None else campus_source
         original_deps = handler.DEPS
-        handler.DEPS = Dependencies(target_source)
+        handler.DEPS = Dependencies(target_source, schedule_source)
         try:
             return lambda_handler(event, None)
         finally:
             handler.DEPS = original_deps
 
     return _invoke
+
+
+@pytest.fixture
+def fake_schedule_source():
+    """Factory fixture for creating an in-memory ScheduleSource."""
+    return FakeScheduleSource
+
+
+@pytest.fixture
+def sample_schedule() -> dict[str, Any]:
+    """Sample schedule data for Schedule service tests."""
+    return {
+        "id": "schedule-001",
+        "type": "COURSE",
+        "title": "Cloud-Based Software Architecture",
+        "description": "CS361 lecture",
+        "course_code": "CS361",
+        "organizer": "Computer Science Department",
+        "start_at": "2026-09-14T09:00:00+07:00",
+        "end_at": "2026-09-14T12:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "recurrence_rule": (
+            "RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=15"
+        ),
+        "room_id": "room-lc3-301",
+        "status": "CONFIRM",
+        "series_end_at": "2026-12-21T05:00:00+00:00",
+        "created_at": "2026-09-01T00:00:00+00:00",
+    }

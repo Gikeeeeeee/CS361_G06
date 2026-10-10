@@ -1,0 +1,47 @@
+import type { Room } from '../../../../../shared/types/domain.types';
+
+interface RoomHeaderSectionProps {
+  room: Room;
+}
+
+export function RoomHeaderSection({ room }: RoomHeaderSectionProps) {
+  const status = 'AVAILABLE';
+  const statusColor = status === 'AVAILABLE' ? 'text-emerald-700 bg-emerald-50' : status === 'IN_USE' ? 'text-amber-700 bg-amber-50' : 'text-rose-700 bg-rose-50';
+
+  return (
+    <section className="flex flex-col">
+      {/* Hero Background - Image or Gradient fallback */}
+      <div className="w-full h-56 relative overflow-hidden bg-slate-900">
+        {room.image_key ? (
+          <img 
+            src={`/${room.image_key}`} 
+            alt={room.room_number || 'Room Preview'} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-800 via-indigo-900 to-slate-900 opacity-90" />
+        )}
+        <div className="absolute bottom-4 left-4">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-sm backdrop-blur-md ${statusColor}`}>
+            <span className="text-xs font-bold tracking-wide capitalize">
+              {status.replace('_', ' ').toLowerCase()}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Room Title and Breadcrumbs */}
+      <div className="px-5 pt-5 pb-6 bg-white border-b border-slate-100">
+        <div className="text-xs font-semibold text-slate-400 mb-2 tracking-wide uppercase">
+          {(room as any).building?.name?.en || (room as any).building?.code} • Floor {(room as any).floor?.floor_number}
+        </div>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-tight mb-1">
+          {room.name.en || room.name.th || room.room_number}
+        </h1>
+        <p className="text-slate-500 font-medium text-sm">
+          {room.room_number ? `${room.room_number} • ` : ''}{room.type}
+        </p>
+      </div>
+    </section>
+  );
+}

@@ -23,4 +23,10 @@ frontend/node_modules/
 CLAUDE*
 Claude*
 
+#Unused Docs
+/docs
+
 tfplan
+
+# Terraform Lambda build artifacts
+terraform/terraform-backend/modules/lambda/build/
