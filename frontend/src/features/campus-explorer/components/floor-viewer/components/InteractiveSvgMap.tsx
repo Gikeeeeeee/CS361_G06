@@ -305,7 +305,7 @@ export function InteractiveSvgMap({
                   type="button"
                   onClick={() => zoomIn(0.25)}
                   aria-label="Zoom in"
-                  title="ซูมเข้า (Zoom In)"
+                  title="Zoom In"
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -315,7 +315,7 @@ export function InteractiveSvgMap({
                   type="button"
                   onClick={() => zoomOut(0.25)}
                   aria-label="Zoom out"
-                  title="ซูมออก (Zoom Out)"
+                  title="Zoom Out"
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
                 >
                   <Minus className="w-4 h-4 stroke-[2.5]" />
@@ -326,7 +326,7 @@ export function InteractiveSvgMap({
                   type="button"
                   onClick={() => resetTransform()}
                   aria-label="Reset view"
-                  title="รีเซ็ตมุมมอง (Reset View)"
+                  title="Reset View"
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
                 >
                   <RotateCcw className="w-4 h-4 stroke-[2]" />
