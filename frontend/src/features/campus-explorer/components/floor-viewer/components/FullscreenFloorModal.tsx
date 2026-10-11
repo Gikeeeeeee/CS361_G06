@@ -1,5 +1,4 @@
 import { X } from 'lucide-react';
-import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { InteractiveSvgMap } from './InteractiveSvgMap';
 import type { FloorMetadata } from '../types/floorViewer.types';
 
@@ -31,25 +30,15 @@ export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadat
       </div>
 
       {/* Viewer Area */}
-      <div className="flex-1 relative overflow-hidden">
-        <TransformWrapper
-          initialScale={1}
-          minScale={0.3}
-          maxScale={5}
-          centerOnInit
-          wheel={{ step: 0.1 }}
-        >
-          <>
-            <TransformComponent 
-              wrapperClass="w-full h-full flex items-center justify-center" 
-              contentClass="flex items-center justify-center"
-            >
-              <div className="w-[85vw] h-[75vh] p-4 flex items-center justify-center">
-                <InteractiveSvgMap svgContent={svgContent} />
-              </div>
-            </TransformComponent>
-          </>
-        </TransformWrapper>
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center p-4">
+        <div className="w-[90vw] h-[80vh] flex items-center justify-center">
+          <InteractiveSvgMap
+            svgContent={svgContent}
+            minScale={0.3}
+            maxScale={5}
+            showControls={true}
+          />
+        </div>
       </div>
     </div>
   );

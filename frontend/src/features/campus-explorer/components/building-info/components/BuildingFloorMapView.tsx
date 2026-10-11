@@ -156,7 +156,7 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
       </div>
 
       {/* SVG Floor Map Container */}
-      <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative min-h-[380px] flex items-center justify-center">
+      <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative min-h-[380px] h-[400px] sm:h-[460px] flex items-center justify-center">
         {loading && (
           <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -172,7 +172,7 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
         )}
 
         {svgContent && (
-          <div className="w-full h-full p-2 flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center">
             <InteractiveSvgMap
               svgContent={svgContent}
               highlightedRoomId={activeHighlight}

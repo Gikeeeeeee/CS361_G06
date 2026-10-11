@@ -1,9 +1,15 @@
 import { useEffect, useRef } from "react";
+import { Plus, Minus, RotateCcw } from "lucide-react";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface InteractiveSvgMapProps {
   svgContent: string;
   highlightedRoomId?: string | null;
   onRoomClick?: (roomId: string, rawElementId: string) => void;
+  enableZoomPan?: boolean;
+  minScale?: number;
+  maxScale?: number;
+  showControls?: boolean;
 }
 
 function normalizeRoomId(id: string | null | undefined): string {
@@ -20,15 +26,48 @@ export function InteractiveSvgMap({
   svgContent,
   highlightedRoomId,
   onRoomClick,
+  enableZoomPan = true,
+  minScale = 0.6,
+  maxScale = 4,
+  showControls = true,
 }: InteractiveSvgMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Click handler on rooms and facilities
+  // Click handler on rooms and facilities with drag distinction
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !onRoomClick) return;
 
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      pointerStartRef.current = { x: clientX, y: clientY };
+      isDraggingRef.current = false;
+    };
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+      if (pointerStartRef.current && !isDraggingRef.current) {
+        const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+        const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+        const dist = Math.hypot(
+          clientX - pointerStartRef.current.x,
+          clientY - pointerStartRef.current.y
+        );
+        if (dist > 7) {
+          isDraggingRef.current = true;
+        }
+      }
+    };
+
     const handleClick = (e: MouseEvent) => {
+      if (isDraggingRef.current) {
+        // Panned or pinched - cancel selection
+        isDraggingRef.current = false;
+        return;
+      }
+
       const target = e.target as HTMLElement | SVGElement | null;
       if (!target) return;
 
@@ -44,8 +83,17 @@ export function InteractiveSvgMap({
       }
     };
 
+    container.addEventListener("mousedown", handlePointerDown as EventListener, { passive: true });
+    container.addEventListener("mousemove", handlePointerMove as EventListener, { passive: true });
+    container.addEventListener("touchstart", handlePointerDown as EventListener, { passive: true });
+    container.addEventListener("touchmove", handlePointerMove as EventListener, { passive: true });
     container.addEventListener("click", handleClick);
+
     return () => {
+      container.removeEventListener("mousedown", handlePointerDown as EventListener);
+      container.removeEventListener("mousemove", handlePointerMove as EventListener);
+      container.removeEventListener("touchstart", handlePointerDown as EventListener);
+      container.removeEventListener("touchmove", handlePointerMove as EventListener);
       container.removeEventListener("click", handleClick);
     };
   }, [onRoomClick, svgContent]);
@@ -131,6 +179,18 @@ export function InteractiveSvgMap({
 
   // Base styles for container and interactive shapes
   const dynamicStyles = `
+    .svg-map-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      user-select: none;
+    }
+
     .svg-map-container {
       display: flex;
       align-items: center;
@@ -138,13 +198,16 @@ export function InteractiveSvgMap({
       width: 100%;
       height: 100%;
       user-select: none;
+      touch-action: none;
     }
     
     .svg-map-container svg {
       width: 100%;
-      height: auto;
+      height: 100%;
+      max-width: 100%;
       max-height: 100%;
       display: block;
+      touch-action: none;
     }
     
     .svg-map-container svg text {
@@ -185,14 +248,110 @@ export function InteractiveSvgMap({
     }
   `;
 
+  const mapSvgContent = (
+    <div
+      ref={containerRef}
+      className="svg-map-container w-full h-full"
+      dangerouslySetInnerHTML={{ __html: svgContent }}
+    />
+  );
+
+  if (!enableZoomPan) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        <style>{dynamicStyles}</style>
+        {mapSvgContent}
+      </div>
+    );
+  }
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
       <style>{dynamicStyles}</style>
-      <div
-        ref={containerRef}
-        className="svg-map-container w-full h-full"
-        dangerouslySetInnerHTML={{ __html: svgContent }}
-      />
+      <TransformWrapper
+        initialScale={1}
+        minScale={minScale}
+        maxScale={maxScale}
+        centerOnInit={true}
+        limitToBounds={true}
+        centerZoomedOut={true}
+        smooth={true}
+        wheel={{ step: 0.12 }}
+        pinch={{ step: 4 }}
+        panning={{
+          velocityDisabled: false,
+          allowLeftClickPan: true,
+        }}
+        doubleClick={{
+          disabled: false,
+          mode: "zoomIn",
+          step: 0.4,
+        }}
+        onPanning={() => {
+          isDraggingRef.current = true;
+        }}
+      >
+        {({ zoomIn, zoomOut, resetTransform }) => (
+          <>
+            {/* Zoom / Pan Floating Control Buttons */}
+            {showControls && (
+              <div
+                className="absolute bottom-3 right-3 z-30 flex flex-col items-center bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/90 shadow-md p-1 gap-1 select-none"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <button
+                  id="svg-zoom-in-btn"
+                  type="button"
+                  onClick={() => zoomIn(0.25)}
+                  aria-label="Zoom in"
+                  title="ซูมเข้า (Zoom In)"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <button
+                  id="svg-zoom-out-btn"
+                  type="button"
+                  onClick={() => zoomOut(0.25)}
+                  aria-label="Zoom out"
+                  title="ซูมออก (Zoom Out)"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
+                >
+                  <Minus className="w-4 h-4 stroke-[2.5]" />
+                </button>
+                <div className="w-5 h-[1px] bg-slate-200 my-0.5" />
+                <button
+                  id="svg-zoom-reset-btn"
+                  type="button"
+                  onClick={() => resetTransform()}
+                  aria-label="Reset view"
+                  title="รีเซ็ตมุมมอง (Reset View)"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:scale-95 transition-all focus:outline-none"
+                >
+                  <RotateCcw className="w-4 h-4 stroke-[2]" />
+                </button>
+              </div>
+            )}
+
+            {/* Transform Pan & Zoom Canvas */}
+            <TransformComponent
+              wrapperClass="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+              contentClass="w-full h-full flex items-center justify-center"
+              wrapperStyle={{ width: "100%", height: "100%", overflow: "hidden" }}
+              contentStyle={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {mapSvgContent}
+            </TransformComponent>
+          </>
+        )}
+      </TransformWrapper>
     </div>
   );
 }

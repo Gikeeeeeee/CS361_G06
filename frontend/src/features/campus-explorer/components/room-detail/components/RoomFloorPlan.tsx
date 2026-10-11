@@ -35,7 +35,7 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
       </div>
 
       {/* Floor Plan Preview with Interactive SVG */}
-      <div className="w-full rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs min-h-[340px] flex items-center justify-center p-2 relative">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs min-h-[340px] h-[360px] sm:h-[420px] flex items-center justify-center relative">
         {loading && (
           <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
