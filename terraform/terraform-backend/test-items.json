@@ -1,0 +1,337 @@
+[
+  {
+    "PK": { "S": "BUILDING#TEST-LC3" },
+    "SK": { "S": "BUILDING#TEST-LC3" },
+    "id": { "S": "test-building-001" },
+    "GSI0PK": { "S": "BUILDING" },
+    "GSI0SK": { "S": "TEST-LC3" },
+    "code": { "S": "TEST-LC3" },
+    "name": {
+      "M": {
+        "th": { "S": "อาคารทดสอบ 3" },
+        "en": { "S": "Test Learning Center 3" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "อาคารสำหรับทดสอบข้อมูลระบบ" },
+        "en": { "S": "Building used for system testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "BUILDING#TEST-LC4" },
+    "SK": { "S": "BUILDING#TEST-LC4" },
+    "id": { "S": "test-building-002" },
+    "GSI0PK": { "S": "BUILDING" },
+    "GSI0SK": { "S": "TEST-LC4" },
+    "code": { "S": "TEST-LC4" },
+    "name": {
+      "M": {
+        "th": { "S": "อาคารทดสอบ 4" },
+        "en": { "S": "Test Learning Center 4" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "อาคารทดสอบสำหรับ Search และ API" },
+        "en": { "S": "Test building for Search and API" }
+      }
+    }
+  },
+
+  {
+    "PK": { "S": "BUILDING#TEST-LC3" },
+    "SK": { "S": "FLOOR#1" },
+    "id": { "S": "test-floor-001" },
+    "GSI0PK": { "S": "FLOOR" },
+    "GSI0SK": { "S": "TEST-LC3#1" },
+    "GSI1PK": { "S": "BUILDING#test-building-001" },
+    "GSI1SK": { "S": "FLOOR#1#test-floor-001" },
+    "floor_number": { "N": "1" },
+    "floor_plan_key": { "S": "test/floor-plan/LC3-floor1.svg" }
+  },
+  {
+    "PK": { "S": "BUILDING#TEST-LC4" },
+    "SK": { "S": "FLOOR#2" },
+    "id": { "S": "test-floor-002" },
+    "GSI0PK": { "S": "FLOOR" },
+    "GSI0SK": { "S": "TEST-LC4#2" },
+    "GSI1PK": { "S": "BUILDING#test-building-002" },
+    "GSI1SK": { "S": "FLOOR#2#test-floor-002" },
+    "floor_number": { "N": "2" },
+    "floor_plan_key": { "S": "test/floor-plan/LC4-floor2.svg" }
+  },
+
+  {
+    "PK": { "S": "FLOOR#test-floor-001" },
+    "SK": { "S": "ROOM#TEST-101" },
+    "id": { "S": "test-room-001" },
+    "GSI0PK": { "S": "ROOM" },
+    "GSI0SK": { "S": "TEST-101" },
+    "GSI2PK": { "S": "FLOOR#test-floor-001" },
+    "GSI2SK": { "S": "ROOM#101#test-room-001" },
+    "room_number": { "S": "101" },
+    "type": { "S": "CLASSROOM" },
+    "name": {
+      "M": {
+        "th": { "S": "ห้องทดสอบ 101" },
+        "en": { "S": "Test Room 101" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "ห้องเรียนสำหรับทดสอบ Search" },
+        "en": { "S": "Classroom for search testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-001" },
+    "SK": { "S": "ROOM#TEST-102" },
+    "id": { "S": "test-room-002" },
+    "GSI0PK": { "S": "ROOM" },
+    "GSI0SK": { "S": "TEST-102" },
+    "GSI2PK": { "S": "FLOOR#test-floor-001" },
+    "GSI2SK": { "S": "ROOM#102#test-room-002" },
+    "room_number": { "S": "102" },
+    "type": { "S": "LAB" },
+    "name": {
+      "M": {
+        "th": { "S": "ห้องปฏิบัติการทดสอบ 102" },
+        "en": { "S": "Test Laboratory 102" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "ห้อง LAB สำหรับทดสอบข้อมูล" },
+        "en": { "S": "Laboratory room for data testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-002" },
+    "SK": { "S": "ROOM#TEST-201" },
+    "id": { "S": "test-room-003" },
+    "GSI0PK": { "S": "ROOM" },
+    "GSI0SK": { "S": "TEST-201" },
+    "GSI2PK": { "S": "FLOOR#test-floor-002" },
+    "GSI2SK": { "S": "ROOM#201#test-room-003" },
+    "room_number": { "S": "201" },
+    "type": { "S": "CLASSROOM" },
+    "name": {
+      "M": {
+        "th": { "S": "ห้องบรรยายทดสอบ 201" },
+        "en": { "S": "Test Lecture Room 201" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "ห้องบรรยายสำหรับทดสอบ" },
+        "en": { "S": "Lecture room for testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-002" },
+    "SK": { "S": "ROOM#TEST-202" },
+    "id": { "S": "test-room-004" },
+    "GSI0PK": { "S": "ROOM" },
+    "GSI0SK": { "S": "TEST-202" },
+    "GSI2PK": { "S": "FLOOR#test-floor-002" },
+    "GSI2SK": { "S": "ROOM#202#test-room-004" },
+    "room_number": { "S": "202" },
+    "type": { "S": "MEETING_ROOM" },
+    "name": {
+      "M": {
+        "th": { "S": "ห้องประชุมทดสอบ 202" },
+        "en": { "S": "Test Meeting Room 202" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "ห้องประชุมสำหรับทดสอบ" },
+        "en": { "S": "Meeting room for testing" }
+      }
+    }
+  },
+
+  {
+    "PK": { "S": "FLOOR#test-floor-001" },
+    "SK": { "S": "FACILITY#WATER_DISPENSER#test-facility-001" },
+    "id": { "S": "test-facility-001" },
+    "GSI0PK": { "S": "FACILITY" },
+    "GSI0SK": { "S": "WATER_DISPENSER#test-facility-001" },
+    "GSI3PK": { "S": "FLOOR#test-floor-001" },
+    "GSI3SK": { "S": "FACILITY#WATER_DISPENSER#test-facility-001" },
+    "type": { "S": "WATER_DISPENSER" },
+    "name": {
+      "M": {
+        "th": { "S": "ตู้กดน้ำทดสอบ" },
+        "en": { "S": "Test Water Dispenser" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "ตู้กดน้ำสำหรับทดสอบ Search" },
+        "en": { "S": "Water dispenser for search testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-001" },
+    "SK": { "S": "FACILITY#PROJECTOR#test-facility-002" },
+    "id": { "S": "test-facility-002" },
+    "GSI0PK": { "S": "FACILITY" },
+    "GSI0SK": { "S": "PROJECTOR#test-facility-002" },
+    "GSI3PK": { "S": "FLOOR#test-floor-001" },
+    "GSI3SK": { "S": "FACILITY#PROJECTOR#test-facility-002" },
+    "type": { "S": "PROJECTOR" },
+    "name": {
+      "M": {
+        "th": { "S": "โปรเจกเตอร์ทดสอบ" },
+        "en": { "S": "Test Projector" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "โปรเจกเตอร์สำหรับทดสอบ" },
+        "en": { "S": "Projector for testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-002" },
+    "SK": { "S": "FACILITY#WIFI#test-facility-003" },
+    "id": { "S": "test-facility-003" },
+    "GSI0PK": { "S": "FACILITY" },
+    "GSI0SK": { "S": "WIFI#test-facility-003" },
+    "GSI3PK": { "S": "FLOOR#test-floor-002" },
+    "GSI3SK": { "S": "FACILITY#WIFI#test-facility-003" },
+    "type": { "S": "WIFI" },
+    "name": {
+      "M": {
+        "th": { "S": "จุด Wi-Fi ทดสอบ" },
+        "en": { "S": "Test Wi-Fi Access Point" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "จุด Wi-Fi สำหรับทดสอบ Search" },
+        "en": { "S": "Wi-Fi access point for search testing" }
+      }
+    }
+  },
+  {
+    "PK": { "S": "FLOOR#test-floor-002" },
+    "SK": { "S": "FACILITY#AIR_CONDITIONER#test-facility-004" },
+    "id": { "S": "test-facility-004" },
+    "GSI0PK": { "S": "FACILITY" },
+    "GSI0SK": { "S": "AIR_CONDITIONER#test-facility-004" },
+    "GSI3PK": { "S": "FLOOR#test-floor-002" },
+    "GSI3SK": { "S": "FACILITY#AIR_CONDITIONER#test-facility-004" },
+    "type": { "S": "AIR_CONDITIONER" },
+    "name": {
+      "M": {
+        "th": { "S": "เครื่องปรับอากาศทดสอบ" },
+        "en": { "S": "Test Air Conditioner" }
+      }
+    },
+    "description": {
+      "M": {
+        "th": { "S": "เครื่องปรับอากาศสำหรับทดสอบ" },
+        "en": { "S": "Air conditioner for testing" }
+      }
+    }
+  },
+
+  {
+    "PK": { "S": "ROOM#test-room-001" },
+    "SK": { "S": "SCHEDULE#test-schedule-course-001" },
+    "id": { "S": "test-schedule-course-001" },
+    "GSI0PK": { "S": "SCHEDULE" },
+    "GSI0SK": { "S": "test-schedule-course-001" },
+    "GSI4PK": { "S": "ROOM#test-room-001" },
+    "GSI4SK": { "S": "2030-01-07T02:00:00+00:00#SCHEDULE#test-schedule-course-001" },
+    "GSI5PK": { "S": "COURSE#CS361" },
+    "GSI5SK": { "S": "2030-01-07T02:00:00+00:00#SCHEDULE#test-schedule-course-001" },
+    "GSI6PK": { "S": "TYPE#COURSE" },
+    "GSI6SK": { "S": "2030-01-07T02:00:00+00:00#SCHEDULE#test-schedule-course-001" },
+    "room_id": { "S": "test-room-001" },
+    "type": { "S": "COURSE" },
+    "title": { "S": "CS361 Software Architecture Test" },
+    "course_code": { "S": "CS361" },
+    "organizer": { "S": "CS361 Team" },
+    "start_at": { "S": "2030-01-07T09:00:00+07:00" },
+    "end_at": { "S": "2030-01-07T11:00:00+07:00" },
+    "time_zone": { "S": "Asia/Bangkok" },
+    "status": { "S": "CONFIRM" },
+    "description": { "S": "Course schedule smoke test" }
+  },
+  {
+    "PK": { "S": "ROOM#test-room-002" },
+    "SK": { "S": "SCHEDULE#test-schedule-course-002" },
+    "id": { "S": "test-schedule-course-002" },
+    "GSI0PK": { "S": "SCHEDULE" },
+    "GSI0SK": { "S": "test-schedule-course-002" },
+    "GSI4PK": { "S": "ROOM#test-room-002" },
+    "GSI4SK": { "S": "2030-01-14T02:00:00+00:00#SCHEDULE#test-schedule-course-002" },
+    "GSI5PK": { "S": "COURSE#CS242" },
+    "GSI5SK": { "S": "2030-01-14T02:00:00+00:00#SCHEDULE#test-schedule-course-002" },
+    "GSI6PK": { "S": "TYPE#COURSE" },
+    "GSI6SK": { "S": "2030-01-14T02:00:00+00:00#SCHEDULE#test-schedule-course-002" },
+    "room_id": { "S": "test-room-002" },
+    "type": { "S": "COURSE" },
+    "title": { "S": "CS242 Database Systems Test" },
+    "course_code": { "S": "CS242" },
+    "organizer": { "S": "CS242 Team" },
+    "start_at": { "S": "2030-01-14T09:00:00+07:00" },
+    "end_at": { "S": "2030-01-14T12:00:00+07:00" },
+    "time_zone": { "S": "Asia/Bangkok" },
+    "status": { "S": "CONFIRM" },
+    "description": { "S": "Second course schedule test" }
+  },
+  {
+    "PK": { "S": "ROOM#test-room-003" },
+    "SK": { "S": "SCHEDULE#test-schedule-exam-001" },
+    "id": { "S": "test-schedule-exam-001" },
+    "GSI0PK": { "S": "SCHEDULE" },
+    "GSI0SK": { "S": "test-schedule-exam-001" },
+    "GSI4PK": { "S": "ROOM#test-room-003" },
+    "GSI4SK": { "S": "2030-02-03T02:00:00+00:00#SCHEDULE#test-schedule-exam-001" },
+    "GSI5PK": { "S": "COURSE#CS361" },
+    "GSI5SK": { "S": "2030-02-03T02:00:00+00:00#SCHEDULE#test-schedule-exam-001" },
+    "GSI6PK": { "S": "TYPE#EXAM" },
+    "GSI6SK": { "S": "2030-02-03T02:00:00+00:00#SCHEDULE#test-schedule-exam-001" },
+    "room_id": { "S": "test-room-003" },
+    "type": { "S": "EXAM" },
+    "title": { "S": "CS361 Midterm Test" },
+    "course_code": { "S": "CS361" },
+    "organizer": { "S": "CS361 Team" },
+    "start_at": { "S": "2030-02-03T09:00:00+07:00" },
+    "end_at": { "S": "2030-02-03T11:00:00+07:00" },
+    "time_zone": { "S": "Asia/Bangkok" },
+    "status": { "S": "CONFIRM" },
+    "description": { "S": "Exam indexing test" }
+  },
+  {
+    "PK": { "S": "ROOM#test-room-004" },
+    "SK": { "S": "SCHEDULE#test-schedule-activity-001" },
+    "id": { "S": "test-schedule-activity-001" },
+    "GSI0PK": { "S": "SCHEDULE" },
+    "GSI0SK": { "S": "test-schedule-activity-001" },
+    "GSI4PK": { "S": "ROOM#test-room-004" },
+    "GSI4SK": { "S": "2030-02-10T03:00:00+00:00#SCHEDULE#test-schedule-activity-001" },
+    "GSI6PK": { "S": "TYPE#ACTIVITY" },
+    "GSI6SK": { "S": "2030-02-10T03:00:00+00:00#SCHEDULE#test-schedule-activity-001" },
+    "room_id": { "S": "test-room-004" },
+    "type": { "S": "ACTIVITY" },
+    "title": { "S": "Cybersecurity Workshop Test" },
+    "organizer": { "S": "CS361 Team" },
+    "start_at": { "S": "2030-02-10T10:00:00+07:00" },
+    "end_at": { "S": "2030-02-10T13:00:00+07:00" },
+    "time_zone": { "S": "Asia/Bangkok" },
+    "status": { "S": "CONFIRM" },
+    "description": { "S": "Activity indexing and search test" }
+  }
+]

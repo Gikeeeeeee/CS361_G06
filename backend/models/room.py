@@ -40,3 +40,18 @@ def room_pin(room: dict[str, Any]) -> dict[str, Any]:
         "latitude": room.get("latitude"),
         "longitude": room.get("longitude"),
     }
+
+
+def find_room_by_number(
+    building: dict[str, Any], room_number: str
+) -> dict[str, Any] | None:
+    """The room on any floor with this room_number (never matched by uuid), or None."""
+    return next(
+        (
+            room
+            for floor in building.get("floors") or []
+            for room in floor.get("rooms") or []
+            if room.get("room_number") == room_number
+        ),
+        None,
+    )

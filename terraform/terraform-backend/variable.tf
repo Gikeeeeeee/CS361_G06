@@ -1,5 +1,3 @@
-# CS361_G06/terraform/backend/variables.tf
-
 variable "aws_region" {
   description = "AWS region where backend resources are deployed."
   type        = string
@@ -21,4 +19,21 @@ variable "environment" {
   description = "Deployment environment."
   type        = string
   default     = "dev"
+}
+
+variable "dynamodb_table_name" {
+  description = "Shared DynamoDB table."
+  type        = string
+  default     = "CS361-G06-rickoroxd-data-dynamodb"
+}
+
+variable "opensearch_collection_name" {
+  description = "Shared OpenSearch Serverless collection."
+  type        = string
+  default     = "faculty-search"
+}
+
+variable "opensearch_index" {
+  description = "OpenSearch index used by this deployment."
+  type        = string
 }

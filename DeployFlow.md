@@ -4,6 +4,11 @@
 1. [Git](https://git-scm.com/)
 2. [AWS CLI v2](https://aws.amazon.com/cli/)
 3. [Terraform (>= 1.5.0)](https://developer.hashicorp.com/terraform/install)
+4. [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+Docker must be running when Terraform builds the Lambda package. It provides the
+Linux Python 3.12 environment used by AWS Lambda; installing dependencies from
+macOS can produce incompatible native binaries.
 
 ---
 
@@ -50,20 +55,66 @@ aws sts get-caller-identity
    * *Windows PowerShell:* `Copy-Item terraform.tfvars.example terraform.tfvars`
 
 3. **Edit `terraform.tfvars`:**
-   Set a globally unique bucket name (e.g. append your student ID or random string):
+   Set globally unique names and keep the project name, DynamoDB table, and
+   OpenSearch index consistent:
    ```hcl
-   aws_region   = "us-east-1"
-   bucket_name  = "cs361-g06-building-data-yourname-123" # Must be globally unique
-   project_name = "CS361-G06"
-   environment  = "dev"
+   aws_region          = "us-east-1"
+   bucket_name         = "cs361-g06-building-data-yourname-123"
+   project_name        = "CS361-G06-yourname"
+   environment         = "dev"
+   dynamodb_table_name = "CS361-G06-yourname-data-dynamodb"
+   opensearch_index    = "university-yourname"
    ```
 
-4. **Initialize & Deploy:**
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply -auto-approve
+   For the existing shared `rickoroxd` environment, use these exact values:
+   ```hcl
+   project_name        = "CS361-G06-rickoroxd"
+   dynamodb_table_name = "CS361-G06-rickoroxd-data-dynamodb"
+   opensearch_index    = "university-rickoroxd"
    ```
+
+4. **Initialize Terraform:**
+   ```bash
+   terraform init -reconfigure
+   ```
+
+   The backend is stored in the S3 bucket configured in `backend.tf`. Do not
+   initialize this directory with a different bucket or state key.
+
+5. **Plan before applying:**
+   ```bash
+   terraform plan -out=tfplan
+   ```
+
+   Review resource names carefully. An existing deployment should not show
+   replacement of resources merely because `project_name` changed.
+
+6. **Apply the reviewed plan:**
+   ```bash
+   terraform apply tfplan
+   ```
+
+Terraform builds both Lambda ZIP files inside the Lambda Python 3.12 Docker
+image. If Docker is stopped, the build fails before Lambda is updated.
+
+### Updating only the existing Lambdas
+
+For an old application version or a recovery after a failed deployment, keep
+the existing resource names and target only the two Lambda functions:
+
+```bash
+terraform plan \
+  -var='project_name=CS361-G06-rickoroxd' \
+  -var='opensearch_index=university-rickoroxd' \
+  -target='module.lambda.aws_lambda_function.this' \
+  -target='module.lambda.aws_lambda_function.indexer' \
+  -out=/tmp/cs361-lambda.plan
+
+terraform apply /tmp/cs361-lambda.plan
+```
+
+Targeting is for recovery or a narrowly scoped Lambda update. Run a normal
+full plan afterward to review any remaining changes.
 
 ---
 

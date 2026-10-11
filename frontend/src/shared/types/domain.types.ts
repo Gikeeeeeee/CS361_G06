@@ -50,7 +50,14 @@ export interface Building {
 export interface Floor {
   id: string; // UUID
   floor_number: number;
-  floor_plan_key: string;
+  floor_plan_key?: string;
+  floor_plan?: {
+    type?: string;
+    url?: string;
+  };
+  map?: {
+    url?: string;
+  };
   // Relationships
   rooms?: Room[];
   facilities?: Facility[];

@@ -1,26 +1,11 @@
-# CS361_G06/terraform/backend/modules/api_gateway/variables.tf
+# CS361_G06/terraform/backend/modules/api_gateway/outputs.tf
 
-variable "project_name" {
-  description = "Project name."
-  type        = string
+output "api_id" {
+  description = "HTTP API ID."
+  value       = aws_apigatewayv2_api.this.id
 }
 
-variable "environment" {
-  description = "Deployment environment."
-  type        = string
-}
-
-variable "lambda_function_name" {
-  description = "Lambda function name."
-  type        = string
-}
-
-variable "lambda_function_arn" {
-  description = "Lambda function ARN."
-  type        = string
-}
-
-variable "lambda_invoke_arn" {
-  description = "Lambda invoke ARN."
-  type        = string
+output "api_endpoint" {
+  description = "HTTP API endpoint."
+  value       = aws_apigatewayv2_api.this.api_endpoint
 }
