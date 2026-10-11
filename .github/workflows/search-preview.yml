@@ -43,9 +43,13 @@ jobs:
         with:
           filters: |
             search:
-              - 'backend/**'
+              - 'backend/services/search_service.py'
+              - 'backend/repositories/opensearch_repository.py'
+              - 'backend/indexer/**'
+              - 'backend/tests/**'
               - 'terraform/terraform-backend/modules/opensearch/**'
               - 'terraform/opensearch-preview/**'
+              - '.github/workflows/opensearch-pr-preview.yml'
 
   preview:
     name: Create OpenSearch Preview
@@ -105,10 +109,10 @@ jobs:
         working-directory: terraform/opensearch-preview
 
     steps:
-      - name: Checkout base branch
+      - name: Checkout PR commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -129,12 +133,13 @@ jobs:
       - name: Check for existing state
         id: state
         env:
-          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          set -euo pipefail
+
           if [ -z "$TF_STATE_BUCKET" ]; then
-            echo "::error::Repository variable TF_STATE_BUCKET is not configured."
+            echo "::error::TF_STATE_BUCKET is not configured."
             exit 1
           fi
 
@@ -142,12 +147,16 @@ jobs:
 
           if aws s3api head-object \
             --bucket "$TF_STATE_BUCKET" \
-            --key "$STATE_KEY" >/dev/null 2>&1; then
+            --key "$STATE_KEY" >/dev/null 2>error.log; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Terraform state exists for PR #${PR_NUMBER}."
-          else
+            echo "Terraform state found."
+          elif grep -q 'Not Found\|404' error.log; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "No Terraform state found for PR #${PR_NUMBER}; skipping destroy."
+            echo "No Terraform state found; skipping destroy."
+          else
+            cat error.log
+            echo "::error::Unable to check Terraform state."
+            exit 1
           fi
 
       - name: Destroy preview resources
