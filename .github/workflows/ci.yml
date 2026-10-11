@@ -10,6 +10,7 @@ on:
       - main
       - v1-known-issue
       - ci/cd-github-actions
+      - refactor/ci/cd
 
 permissions:
   contents: read
