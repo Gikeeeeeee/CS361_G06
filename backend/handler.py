@@ -36,6 +36,8 @@ from services.room_service import RoomService
 from services.schedule_import_service import ScheduleImportService
 from services.schedule_service import ScheduleService
 from services.search_service import SearchService
+from repositories.room_repository import RoomRepository
+from repositories.facility_repository import FacilityRepository
 from models.schedule import TYPES
 
 logger = logging.getLogger()
@@ -51,18 +53,20 @@ class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
     def __init__(self, source=None, schedule_source=None):
-        self.buildings = BuildingService(
+        building_source = (
             source if source is not None else BuildingRepository()
         )
-        self.floors = FloorService(
-            source if source is not None else BuildingRepository()
+        room_source = (
+            source if source is not None else RoomRepository()
         )
-        self.rooms = RoomService(
-            source if source is not None else BuildingRepository()
+        facility_source = (
+            source if source is not None else FacilityRepository()
         )
-        self.facilities = FacilityService(
-            source if source is not None else BuildingRepository()
-        )
+
+        self.buildings = BuildingService(building_source)
+        self.floors = FloorService(building_source)
+        self.rooms = RoomService(room_source)
+        self.facilities = FacilityService(facility_source)
 
         self._schedule_source = schedule_source
         self._schedules = (
@@ -71,6 +75,7 @@ class Dependencies:
             else None
         )
         self.search = None
+
 
     @property
     def schedules(self) -> ScheduleService:
