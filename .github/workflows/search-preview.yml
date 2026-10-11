@@ -1,4 +1,4 @@
-# add comment test cicd
+# add comment test ci/cd
 name: OpenSearch PR Preview
 
 on:
