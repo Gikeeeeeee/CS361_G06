@@ -8,52 +8,50 @@ on:
   push:
     branches:
       - main
-      - v1-known-issue
-      - ci/cd-github-actions
 
-# Prevent multiple Terraform deployments on the same branch
-# from running at the same time.
+permissions:
+  contents: read
+
+# Serialize deployments to the main Terraform state.
 concurrency:
-  group: terraform-${{ github.ref }}
+  group: terraform-main
   cancel-in-progress: false
 
 jobs:
-
-  # --------------------------------------------------
-  # Terraform Deployment
-  # --------------------------------------------------
-
   deploy:
     name: Terraform Deploy
     runs-on: ubuntu-latest
-
-    # Prevent Terraform from running forever
     timeout-minutes: 30
 
     defaults:
       run:
         working-directory: terraform/terraform-backend
 
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_bucket_name: ${{ vars.BUCKET_NAME }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+      TF_VAR_environment: ${{ vars.ENVIRONMENT }}
+      TF_VAR_opensearch_index: ${{ vars.OPENSEARCH_INDEX }}
+
     steps:
-
       # --------------------------------------------------
-      # Checkout Source Code
+      # Checkout
       # --------------------------------------------------
-
       - name: Checkout
         uses: actions/checkout@v4
 
       # --------------------------------------------------
       # Setup Terraform
       # --------------------------------------------------
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
       # --------------------------------------------------
       # Configure AWS Credentials
       # --------------------------------------------------
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -65,38 +63,23 @@ jobs:
       # --------------------------------------------------
       # Terraform Init
       # --------------------------------------------------
-
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       # --------------------------------------------------
       # Terraform Validate
       # --------------------------------------------------
-
       - name: Terraform Validate
         run: terraform validate
 
       # --------------------------------------------------
       # Terraform Plan
       # --------------------------------------------------
-
       - name: Terraform Plan
-        run: |
-          terraform plan \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}"
+        run: terraform plan -input=false -out=tfplan
 
       # --------------------------------------------------
       # Terraform Apply
       # --------------------------------------------------
-
       - name: Terraform Apply
-        run: |
-          terraform apply \
-            -auto-approve \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}"
+        run: terraform apply -input=false -auto-approve tfplan

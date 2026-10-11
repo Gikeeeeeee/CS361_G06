@@ -1,77 +1,81 @@
-# GitHub Actions workflow for CI
-# Runs automated tests and Terraform validation on Pull Requests
+# --------------------------------------------------
+# Continuous Integration (CI)
+# --------------------------------------------------
+
 name: CI
 
-# Trigger this workflow when a Pull Request targets the CI branch
 on:
   pull_request:
     branches:
-      - ci/cd-github-actions
-      - v1-known-issue
       - main
+      - v1-known-issue
+      - ci/cd-github-actions
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   # --------------------------------------------------
   # Python Tests
   # --------------------------------------------------
-  # Runs Unit, Handler, and Integration tests.
-  # API Contract tests are excluded because they require
-  # a live AWS API and AWS credentials.
   test:
     name: Python Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
-      # Checkout the source code from the Pull Request
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Python 3.13
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
-      # Install project dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install -r requirements.txt
 
-      # Run all tests except API Contract tests
-      # API tests are excluded because they require AWS/API Gateway.
+      # Keep API tests that require live AWS out of normal CI.
       - name: Run tests
-        run: |
-          cd backend
-          pytest -v -m "not api"
+        run: pytest -v -m "not api"
 
   # --------------------------------------------------
   # Terraform Validation
   # --------------------------------------------------
-  # Validates the Terraform configuration without
-  # connecting to or modifying AWS infrastructure.
   terraform:
     name: Terraform Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
-    # Run Terraform commands from the backend directory
     defaults:
-      run: 
+      run:
         working-directory: terraform/terraform-backend
+
     steps:
-      # Checkout the source code from the Pull Request
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install Terraform CLI
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # Initialize Terraform without configuring
-      # or connecting to a remote backend.
+      # No remote backend and no AWS infrastructure changes.
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init -backend=false -input=false
 
-      # Check whether the Terraform configuration is valid
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
       - name: Terraform Validate
         run: terraform validate
