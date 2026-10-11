@@ -5,7 +5,7 @@ import pytest
 BASE_URL = (
     "https://w5irvlq5mg.execute-api.us-east-1.amazonaws.com"
 )
-SEARCH_URL = f"{BASE_URL}/api/v2/search"
+SEARCH_URL = f"{BASE_URL}/api/v1/search"
 
 
 def search(**params):
