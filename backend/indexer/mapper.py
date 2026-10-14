@@ -90,6 +90,48 @@ def get_storage_document_id(item: dict[str, Any]) -> str:
     return get_document_id(item)
 
 
+def get_building_id(
+    item: dict[str, Any],
+    entity_type: str,
+) -> str | None:
+    """Get the building ID."""
+    if entity_type == "BUILDING":
+        value = item.get("id")
+        return str(value) if value is not None else None
+
+    value = _first(
+        item,
+        "building_id",
+        "buildingId",
+        "buildingID",
+    )
+
+    if value is not None:
+        return str(value)
+
+    return None
+
+
+def get_building_code(
+    item: dict[str, Any],
+    entity_type: str,
+) -> str | None:
+    """Get the building code."""
+    if entity_type == "BUILDING":
+        value = item.get("code")
+    else:
+        value = _first(
+            item,
+            "building_code",
+            "buildingCode",
+        )
+
+    if value is not None:
+        return str(value)
+
+    return None
+
+
 def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
     """Convert a DynamoDB item to a search document."""
     entity_type = get_entity_type(item)
