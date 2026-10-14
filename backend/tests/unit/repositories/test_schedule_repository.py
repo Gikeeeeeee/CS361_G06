@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from errors import InvalidParameter, UpstreamError
 
 from repositories.ScheduleRepo import ScheduleRepository
+from boto3.dynamodb.conditions import Equals
 
 
 class _PagedTable:
@@ -61,16 +62,27 @@ def test_list_schedules_decodes_cursor_and_returns_none_on_final_page():
     assert table.queries[0]["ExclusiveStartKey"] == key
 
 
+
 @pytest.mark.unit
 def test_list_schedules_uses_type_index_when_filtered():
     table = _PagedTable([{"Items": [{"id": "s1", "GSI6PK": "TYPE#EXAM"}]}])
 
-    items, next_token = ScheduleRepository(table=table).list_schedules(2, schedule_type="EXAM")
+    items, next_token = ScheduleRepository(table=table).list_schedules(
+        2,
+        schedule_type="EXAM",
+    )
 
     assert items == [{"id": "s1"}]
     assert next_token is None
     assert table.queries[0]["IndexName"] == "GSI6"
-    assert str(table.queries[0]["KeyConditionExpression"]) == "GSI6PK = :GSI6PK"
+
+    expression = table.queries[0]["KeyConditionExpression"]
+    assert isinstance(expression, Equals)
+
+    details = expression.get_expression()
+    assert details["operator"] == "="
+    assert details["values"][0].name == "GSI6PK"
+    assert details["values"][1] == "TYPE#EXAM"
 
 
 @pytest.mark.unit

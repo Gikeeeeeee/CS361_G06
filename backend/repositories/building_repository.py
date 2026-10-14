@@ -1,50 +1,75 @@
 """
-Driven adapter: reads building data from Amazon S3.
+Driven adapter: reads building data from Amazon DynamoDB and generates asset URLs via Amazon S3.
 
-This is the ONLY module in the backend that imports boto3 or knows a bucket
-exists. It implements `ports.building_source.BuildingSource`.
-
-It applies no domain rules -- selecting, shaping or validating records is the
-core's work and lives in `models/` and `services/`. Addressing a stored record
-by its identifier is I/O, and therefore does live here: `get_floor` locates a
-floor by uuid without a building, which today means scanning. See the note on
-that method.
+This module implements `ports.building_source.BuildingSource`.
 
 Layer: driven adapter (outbound).
 """
 
-import json
+from decimal import Decimal
 import os
 from typing import Any
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from errors import UpstreamError
 
-_MISSING_KEY_CODES = {"NoSuchKey", "404", "NotFound"}
+_KEY_ATTRS = {"PK", "SK"} | {
+    f"GSI{index}{part}" for index in range(7) for part in ("PK", "SK")
+}
+
+
+def _deserialize_value(val: Any) -> Any:
+    """Recursively convert Decimal types to int or float."""
+    if isinstance(val, Decimal):
+        return int(val) if val % 1 == 0 else float(val)
+    if isinstance(val, dict):
+        return {k: _deserialize_value(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_deserialize_value(v) for v in val]
+    return val
+
+
+def _to_dict(item: dict[str, Any]) -> dict[str, Any]:
+    """DynamoDB item -> domain dict, without PK/SK/GSI keys and with Decimals converted."""
+    return {
+        name: _deserialize_value(value)
+        for name, value in item.items()
+        if name not in _KEY_ATTRS
+    }
 
 
 class BuildingRepository:
-    """S3-backed implementation of the BuildingSource port."""
+    """DynamoDB-backed implementation of the BuildingSource port."""
 
     def __init__(
         self,
+        table_name: str | None = None,
+        table: Any = None,
         bucket_name: str | None = None,
-        index_key: str | None = None,
         s3_client: Any = None,
     ):
-        # Read env at construction time (not import time) so tests and the
-        # smoke script can point this at a different bucket.
+        self.table_name = (
+            table_name
+            if table_name is not None
+            else os.environ.get("DYNAMODB_TABLE_NAME", "")
+        )
+        self._table = table
         self.bucket_name = (
             bucket_name
             if bucket_name is not None
             else os.environ.get("BUCKET_NAME", "")
         )
-        self.index_key = index_key or os.environ.get(
-            "BUILDINGS_FILE", "building-index.json"
-        )
         self._s3_client = s3_client
+
+    @property
+    def table(self):
+        """Created lazily so importing this module never touches the network."""
+        if self._table is None:
+            self._table = boto3.resource("dynamodb").Table(self.table_name)
+        return self._table
 
     @property
     def s3_client(self):
@@ -56,113 +81,200 @@ class BuildingRepository:
     # -- BuildingSource ----------------------------------------------------
 
     def list_buildings(self) -> list[dict[str, Any]]:
-        """Every building summary from the building index."""
-        data = self._get_json(self.index_key)
-
-        if data is None:
-            raise UpstreamError(
-                f"Building index '{self.index_key}' not found in "
-                f"S3 bucket '{self.bucket_name}'."
+        """Every building summary from DynamoDB GSI0 index."""
+        try:
+            items = []
+            response = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("BUILDING"),
             )
+            items.extend(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    IndexName="GSI0",
+                    KeyConditionExpression=Key("GSI0PK").eq("BUILDING"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
 
-        buildings = data.get("buildings")
-
-        if not isinstance(buildings, list):
+            return [_to_dict(item) for item in items]
+        except ClientError as exc:
             raise UpstreamError(
-                f"The building file '{self.index_key}' must contain "
-                f"a 'buildings' array."
-            )
+                f"AWS DynamoDB client error querying buildings: {exc}"
+            ) from exc
 
-        return buildings
-
-    def get_building(self, building_id: str) -> dict[str, Any] | None:
+    def get_building(
+        self, building_id: str, include_children: bool = True
+    ) -> dict[str, Any] | None:
         """
         One building's raw record, or None if no such building exists.
 
-        S3 building object keys use upper-case building codes
-        (e.g. building/LC3.json).
+        Queries the building's partition (PK = BUILDING#{code.upper()}).
+        Returns building metadata and its floors.
         """
-        key = f"building/{str(building_id).upper()}.json"
-        return self._get_json(key)
+        code = str(building_id).upper()
+        items = self._query_building_partition(code)
+
+        if not items:
+            building_code = self._find_code_by_building_uuid(str(building_id))
+            if building_code:
+                code = building_code
+                items = self._query_building_partition(code)
+            if not items:
+                return None
+
+        building_item = None
+        floors = []
+        for raw in items:
+            sk = str(raw.get("SK", ""))
+            if sk == f"BUILDING#{code}" or (sk.startswith("BUILDING#") and not building_item):
+                building_item = _to_dict(raw)
+            elif sk.startswith("FLOOR#"):
+                floors.append(_to_dict(raw))
+
+        if not building_item:
+            return None
+
+        floors.sort(key=lambda f: f.get("floor_number", 0))
+
+        if include_children:
+            for floor in floors:
+                floor_id = floor.get("id")
+                if floor_id:
+                    rooms, facilities = self._get_floor_children(str(floor_id))
+                    floor["rooms"] = rooms
+                    floor["facilities"] = facilities
+
+        building_item["floors"] = floors
+        return building_item
 
     def get_floor(self, floor_id: str) -> dict[str, Any] | None:
         """
-        One floor's raw record, addressed by uuid alone, or None.
+        One floor's raw record addressed by uuid alone, or None if no such floor exists.
 
-        S3-JSON has no index from floor uuid to building, so this walks the
-        building index and fetches each building until the floor turns up.
-        That is deliberate, and it is deliberately HERE: the scan is how this
-        adapter implements "fetch the floor with this id", the same way a
-        DynamoDB adapter would implement it as a query on a floor-id index.
-        Were the loop in `services/`, the core would encode the fact that
-        floors are stored chunked inside per-building objects behind an index
-        file -- storage layout -- and the DynamoDB migration would have to
-        change the core as well as the adapter.
+        Locates the floor in GSI0, then queries the floor partition (PK = FLOOR#{floor_id})
+        to assemble its rooms and facilities.
         """
-        for summary in self.list_buildings():
-            building_id = summary.get("code") or summary.get("id")
+        floor_item = self._find_floor_item_by_uuid(str(floor_id))
+        if not floor_item:
+            return None
 
-            if not building_id:
-                continue
-
-            building = self.get_building(str(building_id))
-
-            if not building:
-                continue
-
-            for floor in building.get("floors") or []:
-                if str(floor.get("id")) == str(floor_id):
-                    return floor
-
-        return None
+        rooms, facilities = self._get_floor_children(str(floor_id))
+        floor = _to_dict(floor_item)
+        floor["rooms"] = rooms
+        floor["facilities"] = facilities
+        return floor
 
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        """A time-limited GET URL for a stored object (used for floor plans)."""
-        return self.s3_client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self.bucket_name, "Key": key},
-            ExpiresIn=expires_in,
-        )
-
-    # -- internals ---------------------------------------------------------
-
-    @staticmethod
-    def _key_candidates(building_id: str) -> list[str]:
-        """`['lc4', 'LC4']` -- de-duplicated, original spelling first."""
-        return list(dict.fromkeys([building_id, str(building_id).upper()]))
-
-    def _get_json(self, key: str) -> dict[str, Any] | None:
-        """
-        Fetch and parse one JSON object from S3.
-
-        Returns None when the key does not exist; raises UpstreamError for any
-        other storage or parsing failure.
-        """
+        """A time-limited GET URL for a stored object (used for floor plans and images)."""
+        if not key:
+            return ""
         try:
-            response = self.s3_client.get_object(
-                Bucket=self.bucket_name,
-                Key=key,
+            return self.s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket_name, "Key": key},
+                ExpiresIn=expires_in,
             )
-            body = response["Body"].read().decode("utf-8")
-
-            return json.loads(body)
-
         except ClientError as exc:
-            error_code = exc.response.get("Error", {}).get("Code")
-
-            if error_code in _MISSING_KEY_CODES:
-                return None
-
-            if error_code == "NoSuchBucket":
-                raise UpstreamError(
-                    f"S3 bucket '{self.bucket_name}' does not exist."
-                ) from exc
-
             raise UpstreamError(
-                f"AWS S3 client error [{error_code}] reading '{key}'."
+                f"AWS S3 client error generating presigned URL for '{key}': {exc}"
             ) from exc
 
-        except json.JSONDecodeError as exc:
+    # -- Internal query helpers --------------------------------------------
+
+    def _query_building_partition(self, code: str) -> list[dict[str, Any]]:
+        try:
+            items = []
+            response = self.table.query(
+                KeyConditionExpression=Key("PK").eq(f"BUILDING#{code}")
+            )
+            items.extend(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    KeyConditionExpression=Key("PK").eq(f"BUILDING#{code}"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+            return items
+        except ClientError as exc:
             raise UpstreamError(
-                f"The file '{key}' contains invalid JSON data."
+                f"AWS DynamoDB client error querying building partition '{code}': {exc}"
+            ) from exc
+
+    def _find_code_by_building_uuid(self, building_uuid: str) -> str | None:
+        try:
+            response = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("BUILDING"),
+            )
+            items = list(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    IndexName="GSI0",
+                    KeyConditionExpression=Key("GSI0PK").eq("BUILDING"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            for item in items:
+                if str(item.get("id")) == building_uuid:
+                    return str(item.get("code", "")).upper()
+            return None
+        except ClientError:
+            return None
+
+    def _find_floor_item_by_uuid(self, floor_id: str) -> dict[str, Any] | None:
+        try:
+            response = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("FLOOR"),
+            )
+            items = list(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    IndexName="GSI0",
+                    KeyConditionExpression=Key("GSI0PK").eq("FLOOR"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            for item in items:
+                if str(item.get("id")) == floor_id:
+                    return item
+            return None
+        except ClientError as exc:
+            raise UpstreamError(
+                f"AWS DynamoDB client error finding floor '{floor_id}': {exc}"
+            ) from exc
+
+    def _get_floor_children(
+        self, floor_id: str
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        try:
+            items = []
+            response = self.table.query(
+                KeyConditionExpression=Key("PK").eq(f"FLOOR#{floor_id}")
+            )
+            items.extend(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    KeyConditionExpression=Key("PK").eq(f"FLOOR#{floor_id}"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            rooms = []
+            facilities = []
+            for item in items:
+                gsi0pk = item.get("GSI0PK")
+                sk = str(item.get("SK", ""))
+                if gsi0pk == "ROOM" or sk.startswith("ROOM#"):
+                    rooms.append(_to_dict(item))
+                elif gsi0pk == "FACILITY" or sk.startswith("FACILITY#"):
+                    facilities.append(_to_dict(item))
+
+            return rooms, facilities
+        except ClientError as exc:
+            raise UpstreamError(
+                f"AWS DynamoDB client error fetching children for floor '{floor_id}': {exc}"
             ) from exc
