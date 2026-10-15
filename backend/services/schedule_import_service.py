@@ -23,6 +23,7 @@ from errors import (
 )
 from models.room import find_room_by_number
 from models.schedule import (
+    DEFAULT_TIME_ZONE,
     MAX_IMPORT_OCCURRENCES,
     can_share,
     check_room_type,
@@ -36,7 +37,7 @@ from ports.building_source import BuildingSource
 from ports.schedule_source import ScheduleSource
 from services.schedule_service import new_item
 
-DEFAULTS = {"time_zone": "Asia/Bangkok", "status": "CONFIRM"}
+DEFAULTS = {"time_zone": DEFAULT_TIME_ZONE, "status": "CONFIRM"}
 
 
 class Entry(NamedTuple):
