@@ -20,16 +20,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize and persist state on mount
   useEffect(() => {
-    try {
-      const existingUser = authService.getCurrentUser();
-      if (existingUser) {
-        setUser(existingUser);
+    const syncUser = () => {
+      try {
+        const existingUser = authService.getCurrentUser();
+        setUser(existingUser || null);
+      } catch (e) {
+        console.error('Failed to restore auth session:', e);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      console.error('Failed to restore auth session:', e);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    syncUser();
+    window.addEventListener('storage', syncUser);
+    return () => window.removeEventListener('storage', syncUser);
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<User> => {

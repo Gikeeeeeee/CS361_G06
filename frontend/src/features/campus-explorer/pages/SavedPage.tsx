@@ -12,6 +12,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
@@ -70,6 +72,7 @@ export default function SavedPage() {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isExportBarCollapsed, setIsExportBarCollapsed] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -174,7 +177,7 @@ END:VCALENDAR`;
   };
 
   return (
-    <div className="p-4 sm:p-6 max-w-md mx-auto space-y-4 pb-32 min-h-full flex flex-col bg-slate-50/50">
+    <div className="p-4 sm:p-6 max-w-md mx-auto space-y-4 pb-60 min-h-full flex flex-col bg-slate-50/50">
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in">
@@ -231,7 +234,7 @@ END:VCALENDAR`;
             </span>
           </div>
           <p className="text-[11px] text-amber-900 font-medium leading-relaxed mb-2.5">
-            Guest users do not have a personal timetable. Please sign in with a student account (Role: <strong>NON</strong>) to save and organize your classes.
+            Guest users do not have a personal timetable. Please sign in with a student account (Role: <strong>STUDENT</strong>) to save and organize your classes.
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -247,7 +250,7 @@ END:VCALENDAR`;
               className="py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[11px] font-semibold rounded-xl transition cursor-pointer"
               title="Switch to Student Role to view sample timetable"
             >
-              Try Student Demo (NON)
+              Try Student Demo (Non)
             </button>
           </div>
         </div>
@@ -256,10 +259,10 @@ END:VCALENDAR`;
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="font-bold text-slate-800 text-[11px]">
-              {activeUser?.name || 'KU Student'}
+              {activeUser?.name || 'Non'}
             </span>
             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
-              Role: {activeUser?.role || 'NON'}
+              Role: {activeUser?.role || 'STUDENT'}
             </span>
           </div>
           <button
@@ -295,7 +298,7 @@ END:VCALENDAR`;
           </h3>
           <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
             {!isLoggedIn
-              ? 'Guest users do not have a personal timetable. Please sign in with a student account (Role: NON) to bookmark classes.'
+              ? 'Guest users do not have a personal timetable. Please sign in with a student account (Role: STUDENT) to bookmark classes.'
               : 'Explore classroom schedules and tap the bookmark icon to add classes to your timetable.'}
           </p>
           {!isLoggedIn ? (
@@ -310,7 +313,7 @@ END:VCALENDAR`;
                 onClick={loginAsStudentDemo}
                 className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs transition-colors"
               >
-                Try Student Demo (Role: NON) to view 12 classes
+                Try Student Demo (Non) to view 12 classes
               </button>
             </div>
           ) : (
@@ -414,6 +417,9 @@ END:VCALENDAR`;
                 </div>
               );
             })}
+
+            {/* Bottom Clearance Spacer so the last card is never covered by the export bar */}
+            <div className="h-48 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
       ) : (
@@ -547,32 +553,61 @@ END:VCALENDAR`;
               </div>
             </div>
           </div>
+
+          {/* Bottom Clearance Spacer for Calendar view */}
+          <div className="h-48 w-full shrink-0 pointer-events-none" aria-hidden="true" />
         </div>
       )}
 
-      {/* Sticky Bottom Summary & Export Bar (Matches Figma Exactly) */}
+      {/* Sticky Bottom Summary & Export Bar (Matches Figma Exactly with Minimize Toggle) */}
       {savedSchedules.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
-          <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3.5 shadow-lg flex flex-col gap-2.5 pointer-events-auto">
-            {/* Summary Line */}
-            <div className="flex items-center justify-between text-xs px-0.5">
-              <span className="font-bold text-slate-900">
-                {selectedScheduleIds.length} Classes in Timetable
-              </span>
-              <span className="text-slate-400 font-medium">Weekly</span>
-            </div>
-
-            {/* Export Button */}
+          {isExportBarCollapsed ? (
+            /* Collapsed Floating Pill */
             <button
               type="button"
-              onClick={handleExportTimetableIcs}
-              disabled={selectedScheduleIds.length === 0}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              onClick={() => setIsExportBarCollapsed(false)}
+              className="pointer-events-auto bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+              title="Expand export bar"
             >
-              <Download className="w-4 h-4" />
-              <span>Export Timetable to .ics</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Export .ics ({selectedScheduleIds.length})</span>
+              <ChevronUp className="w-3.5 h-3.5 text-blue-200" />
             </button>
-          </div>
+          ) : (
+            /* Expanded Full Action Card */
+            <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3 shadow-lg flex flex-col gap-2 pointer-events-auto transition-all animate-in fade-in">
+              {/* Summary Line with Minimize Button */}
+              <div className="flex items-center justify-between text-xs px-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">
+                    {selectedScheduleIds.length} Classes in Timetable
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-medium">• Weekly</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsExportBarCollapsed(true)}
+                  className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                  title="Minimize export bar"
+                  aria-label="Minimize export bar"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Export Button */}
+              <button
+                type="button"
+                onClick={handleExportTimetableIcs}
+                disabled={selectedScheduleIds.length === 0}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Timetable to .ics</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

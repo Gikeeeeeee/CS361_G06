@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
+import { useBookmarks } from '../../bookmarks/context/BookmarkContext';
 import {
   Bookmark,
   Calendar,
@@ -14,8 +15,12 @@ import {
 
 export default function ProfilePage() {
   const { user, role, isAuthenticated, logout } = useAuth();
+  const { bookmarks } = useBookmarks();
   const navigate = useNavigate();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const savedRoomsCount = bookmarks.filter((b) => b.entityType === 'ROOM').length;
+  const savedSchedulesCount = bookmarks.filter((b) => b.entityType === 'SCHEDULE').length;
 
   useEffect(() => {
     if (role === 'STAFF' || role === 'ADMIN') {
@@ -142,7 +147,7 @@ END:VCALENDAR`;
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-2xl font-bold text-slate-900">3</span>
+            <span className="text-2xl font-bold text-slate-900">{savedRoomsCount}</span>
             <Building className="w-4 h-4 text-slate-400" />
           </div>
           <p className="text-xs text-slate-500 font-medium">Saved Rooms</p>
@@ -150,7 +155,7 @@ END:VCALENDAR`;
 
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-2xl font-bold text-slate-900">12</span>
+            <span className="text-2xl font-bold text-slate-900">{savedSchedulesCount}</span>
             <Calendar className="w-4 h-4 text-blue-600" />
           </div>
           <p className="text-xs text-slate-500 font-medium">Bookmarked Schedules</p>

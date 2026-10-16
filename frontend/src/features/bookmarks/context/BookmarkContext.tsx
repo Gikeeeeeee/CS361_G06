@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { bookmarkService } from '../services/bookmarkService';
 import type { BookmarkItem, BookmarkEntityType } from '../types/bookmark.types';
 import { AuthPromptModal } from '../components/AuthPromptModal';
 import { ScheduleConflictModal } from '../components/ScheduleConflictModal';
 import { detectScheduleConflict, type ParsedTimeSlot } from '../utils/scheduleConflictUtils';
 import { CheckCircle2, BookmarkX, AlertTriangle } from 'lucide-react';
+import { useAuth } from '../../auth/context/AuthContext';
 
 interface BookmarkContextType {
   bookmarks: BookmarkItem[];
@@ -21,25 +22,24 @@ interface BookmarkContextType {
 const BookmarkContext = createContext<BookmarkContextType | undefined>(undefined);
 
 export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user: authUser, logout: authLogout } = useAuth();
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'add' | 'remove' | 'warning' } | null>(null);
 
-  // Active User State
-  const [activeUser, setActiveUser] = useState<{
-    id: string;
-    name?: string;
-    role?: string;
-    email?: string;
-  } | null>(() => {
-    try {
-      const raw = localStorage.getItem('ku_long_auth_user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+  // Active User State derived directly from AuthContext authUser
+  const activeUser = useMemo(() => {
+    if (authUser) {
+      return {
+        id: authUser.id,
+        name: authUser.full_name,
+        role: authUser.role,
+        email: authUser.email,
+      };
     }
-  });
+    return null;
+  }, [authUser]);
 
   // State for Schedule Conflict Modal
   const [conflictModal, setConflictModal] = useState<{
@@ -86,28 +86,45 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [activeUser]);
 
-  // Demo login as student (role: NON) to test logged-in timetable
+  // Demo login as student (Non) to test logged-in timetable
   const loginAsStudentDemo = useCallback(async () => {
     const studentUser = {
-      id: 'student-demo-id',
-      email: 'student@ku.th',
-      name: 'KU Student (Demo)',
-      role: 'NON',
+      id: 'user-student-01',
+      email: 'non@ku.th',
+      name: 'Non',
+      role: 'STUDENT',
     };
-    localStorage.setItem('ku_long_auth_user', JSON.stringify(studentUser));
-    setActiveUser(studentUser);
-    setToast({ message: 'Signed in as Student Demo (Role: NON)', type: 'add' });
+    localStorage.setItem(
+      'ku_long_auth_user',
+      JSON.stringify({
+        id: studentUser.id,
+        email: studentUser.email,
+        full_name: studentUser.name,
+        role: studentUser.role,
+      })
+    );
+    localStorage.setItem('ku_long_auth_token', 'mock-jwt-student-token');
+    window.dispatchEvent(new Event('storage'));
+    setToast({ message: 'Signed in as Student Non', type: 'add' });
     setTimeout(() => setToast(null), 2500);
   }, []);
 
   // Logout back to Guest mode
   const logoutDemo = useCallback(async () => {
+    if (authLogout) {
+      try {
+        await authLogout();
+      } catch (err) {
+        console.warn(err);
+      }
+    }
     localStorage.removeItem('ku_long_auth_user');
-    setActiveUser(null);
+    localStorage.removeItem('ku_long_auth_token');
     setBookmarks([]);
+    window.dispatchEvent(new Event('storage'));
     setToast({ message: 'Switched to Guest mode (Signed out)', type: 'remove' });
     setTimeout(() => setToast(null), 2500);
-  }, []);
+  }, [authLogout]);
 
   const showToast = (message: string, type: 'add' | 'remove' | 'warning') => {
     setToast({ message, type });
