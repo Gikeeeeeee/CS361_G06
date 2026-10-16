@@ -1,12 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Building as BuildingIcon } from 'lucide-react';
-import type { Room } from '../../../../../shared/types/domain.types';
+import { ArrowLeft, Building as BuildingIcon } from 'lucide-react';
+import { BookmarkButton } from '../../../../bookmarks/components/BookmarkButton';
+import type { Room, Floor, Building } from '../../../../../shared/types/domain.types';
 
 interface RoomHeroProps {
   room: Room;
+  floor?: Floor | null;
+  building?: Building | { id: string; code?: string; name?: any } | null;
 }
 
-export function RoomHero({ room }: RoomHeroProps) {
+export function RoomHero({ room, floor, building }: RoomHeroProps) {
   const navigate = useNavigate();
   const displayNumber = room.name?.en || room.name?.th || room.room_number || room.id;
 
@@ -23,12 +26,18 @@ export function RoomHero({ room }: RoomHeroProps) {
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
           </button>
-          <button
+          <BookmarkButton
+            entityId={room.id || room.room_number || ''}
+            entityType="ROOM"
+            title={displayNumber}
+            subtitle={room.name?.th || room.name?.en}
+            building={building?.name?.en || building?.name?.th || (room as any).building_id}
+            floor={floor?.floor_number ?? (room as any).floor_id}
             className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition"
-            aria-label="Bookmark"
-          >
-            <Bookmark className="w-5 h-5 stroke-[2]" />
-          </button>
+            inactiveColorClass="text-white hover:text-white/80"
+            activeColorClass="text-amber-300 fill-amber-300"
+            size={22}
+          />
         </div>
 
         {/* Room number — large bottom-left label */}

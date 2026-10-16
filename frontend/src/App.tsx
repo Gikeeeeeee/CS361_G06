@@ -4,7 +4,7 @@ import { AuthProvider } from './features/auth/context/AuthContext';
 import { RoleRouteGuard } from './features/auth/guards/RoleRouteGuard';
 import LoginPage from './features/auth/pages/LoginPage';
 import SignUpPage from './features/auth/pages/SignUpPage';
-
+import { BookmarkProvider } from './features/bookmarks/context/BookmarkContext';
 import { UserLayout } from './layouts/UserLayout';
 import HomePage from './features/campus-explorer/pages/HomePage';
 import SavedPage from './features/campus-explorer/pages/SavedPage';
@@ -33,7 +33,7 @@ function DynamicPageTitle() {
     } else if (pathname === '/signup') {
       document.title = 'Sign Up | KU Long';
     } else if (pathname === '/saved') {
-      document.title = 'Saved | KU Long';
+      document.title = 'My Timetable | KU Long';
     } else if (pathname === '/profile') {
       document.title = 'Profile | KU Long';
     } else if (pathname.startsWith('/buildings/')) {
@@ -56,37 +56,39 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <DynamicPageTitle />
-        <Routes>
-          {/* Public Auth Routes */}
-          <Route path="login" element={<LoginPage />} />
-          <Route path="signup" element={<SignUpPage />} />
+        <BookmarkProvider>
+          <DynamicPageTitle />
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="login" element={<LoginPage />} />
+            <Route path="signup" element={<SignUpPage />} />
 
-          {/* User Layout Routes (Accessible by all: Guest, Student, Staff) */}
-          <Route path="/" element={<UserLayout />}>
-            <Route index element={<HomePage />} />
-            <Route path="saved" element={<SavedPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
-            <Route path="rooms/:roomId" element={<RoomDetailPage />} />
-            <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
-          </Route>
-          
-          {/* Protected Admin Routes: Accessible ONLY by STAFF / ADMIN roles */}
-          <Route path="admin" element={<RoleRouteGuard allowedRoles={['STAFF', 'ADMIN']} />}>
-            <Route element={<AdminLayout />}>
-              <Route index element={<Navigate to="schedules/manage" replace />} />
-              <Route path="schedules" element={<ScheduleManagePage />} />
-              <Route path="schedules/manage" element={<AdminSchedulePage />} />
-              <Route path="add-schedule" element={<AddSchedulePage />} />
-              <Route path="buildings" element={<BuildingsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+            {/* User Layout Routes (Accessible by all: Guest, Student, Staff) */}
+            <Route path="/" element={<UserLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="saved" element={<SavedPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
+              <Route path="rooms/:roomId" element={<RoomDetailPage />} />
+              <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
             </Route>
-          </Route>
+            
+            {/* Protected Admin Routes: Accessible ONLY by STAFF / ADMIN roles */}
+            <Route path="admin" element={<RoleRouteGuard allowedRoles={['STAFF', 'ADMIN']} />}>
+              <Route element={<AdminLayout />}>
+                <Route index element={<Navigate to="schedules/manage" replace />} />
+                <Route path="schedules" element={<ScheduleManagePage />} />
+                <Route path="schedules/manage" element={<AdminSchedulePage />} />
+                <Route path="add-schedule" element={<AddSchedulePage />} />
+                <Route path="buildings" element={<BuildingsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
+            </Route>
 
-          {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Catch-all redirect */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BookmarkProvider>
       </AuthProvider>
     </BrowserRouter>
   );
