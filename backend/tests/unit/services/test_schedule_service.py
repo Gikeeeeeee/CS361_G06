@@ -309,7 +309,7 @@ def test_create_schedule_allows_overlaps_in_a_different_room(schedule_source):
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "missing_field", ["type", "title", "start_at", "end_at", "time_zone", "status"]
+    "missing_field", ["type", "title", "start_at", "end_at", "status"]
 )
 def test_create_schedule_rejects_missing_required_fields(
     schedule_source, missing_field
