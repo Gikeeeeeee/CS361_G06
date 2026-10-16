@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Building as BuildingIcon } from 'lucide-react';
-import type { Room } from '../../../../../shared/types/domain.types';
+import { ArrowLeft, Building as BuildingIcon } from 'lucide-react';
+import type { Room, Floor, Building } from '../../../../../shared/types/domain.types';
 
 interface RoomHeroProps {
   room: Room;
+  floor?: Floor | null;
+  building?: Building | { id: string; code?: string; name?: any } | null;
 }
 
 export function RoomHero({ room }: RoomHeroProps) {
@@ -22,12 +24,6 @@ export function RoomHero({ room }: RoomHeroProps) {
             aria-label="Go back"
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
-          <button
-            className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition"
-            aria-label="Bookmark"
-          >
-            <Bookmark className="w-5 h-5 stroke-[2]" />
           </button>
         </div>
 

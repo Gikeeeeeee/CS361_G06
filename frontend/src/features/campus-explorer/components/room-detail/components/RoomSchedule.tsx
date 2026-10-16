@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useRoomSchedule } from '../hooks/useRoomSchedule';
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, X, Info } from 'lucide-react';
 import { Badge } from '../../../../../shared/components/Badge';
+import { BookmarkButton } from '../../../../bookmarks/components/BookmarkButton';
 
 interface RoomScheduleProps {
   roomId: string;
@@ -207,6 +208,17 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                               <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
                                 {event.course_code || 'COURSE'}
                               </span>
+                              <BookmarkButton
+                                entityId={String(event.id || event.course_code || event.title)}
+                                entityType="SCHEDULE"
+                                title={event.title}
+                                subtitle={`${slot.start} - ${slot.end}`}
+                                courseCode={event.course_code}
+                                startAt={event.start_at}
+                                endAt={event.end_at}
+                                size={16}
+                                className="p-1 hover:bg-blue-100 rounded-md"
+                              />
                             </div>
                             <h4 className="font-semibold text-slate-800 text-sm truncate">{event.title}</h4>
                             {event.organizer && (
@@ -337,9 +349,17 @@ function ExamCalendar({ roomId }: { roomId: string }) {
         ) : selectedDayEvents.length > 0 ? (
           <div className="space-y-3">
             {selectedDayEvents.map((event: any) => (
-              <button 
+              <div 
                 key={event.id} 
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedEvent(event)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedEvent(event);
+                  }
+                }}
                 className="w-full text-left bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden transition-all hover:shadow-md hover:border-slate-200 cursor-pointer"
               >
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${event.type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'}`}></div>
@@ -348,9 +368,22 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   <Badge variant={event.type === 'EXAM' ? 'destructive' : 'default'} className={event.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
                     {event.type}
                   </Badge>
-                  <div className="flex items-center text-xs font-medium text-slate-500">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {formatTime(event.start_at)} - {formatTime(event.end_at)}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center text-xs font-medium text-slate-500">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {formatTime(event.start_at)} - {formatTime(event.end_at)}
+                    </div>
+                    <BookmarkButton
+                      entityId={String(event.id || event.title)}
+                      entityType="SCHEDULE"
+                      title={event.title}
+                      subtitle={`${formatTime(event.start_at)} - ${formatTime(event.end_at)}`}
+                      courseCode={event.course_code || event.type}
+                      startAt={event.start_at}
+                      endAt={event.end_at}
+                      size={16}
+                      className="p-1 hover:bg-slate-100 rounded-md"
+                    />
                   </div>
                 </div>
                 
@@ -363,7 +396,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                     <span className="truncate">{event.organizer}</span>
                   </div>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -460,17 +493,30 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <Badge variant={selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} className={selectedEvent.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event?.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
+                  <Badge variant={selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} className={selectedEvent.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : selectedEvent.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
                     {selectedEvent.type}
                   </Badge>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedEvent(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <BookmarkButton
+                  entityId={String(selectedEvent.id || selectedEvent.title)}
+                  entityType="SCHEDULE"
+                  title={selectedEvent.title}
+                  subtitle={`${formatTime(selectedEvent.start_at)} - ${formatTime(selectedEvent.end_at)}`}
+                  courseCode={selectedEvent.course_code || selectedEvent.type}
+                  startAt={selectedEvent.start_at}
+                  endAt={selectedEvent.end_at}
+                  size={18}
+                  className="p-2 hover:bg-white/60 rounded-full"
+                />
+                <button 
+                  onClick={() => setSelectedEvent(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             {/* Modal Body */}

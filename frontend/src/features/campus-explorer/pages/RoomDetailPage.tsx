@@ -36,7 +36,7 @@ export default function RoomDetailPage() {
 
   return (
     <div className="bg-slate-50 min-h-full pb-10">
-      <RoomHero room={room} />
+      <RoomHero room={room} floor={floor} building={building} />
 
       {/* Divider */}
       <div className="h-2 bg-slate-50" />
