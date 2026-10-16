@@ -127,6 +127,7 @@ export const scheduleApi = {
       time_zone: data.time_zone,
       recurrence_rule: data.recurrence_rule,
       status: data.status,
+      visibility: data.visibility,
     };
 
     const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
