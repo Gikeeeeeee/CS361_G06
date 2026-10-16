@@ -37,3 +37,20 @@ variable "opensearch_index" {
   description = "OpenSearch index used by this deployment."
   type        = string
 }
+
+variable "supabase_url" {
+  description = "Supabase project URL"
+  type        = string
+}
+variable "supabase_jwt_secret" {
+  description = "Supabase JWT secret for token verification"
+  type        = string
+  sensitive   = true
+}
+
+variable "supabase_anon_key" {
+  description = "Supabase anon key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

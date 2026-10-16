@@ -271,3 +271,39 @@ class ImportConflict(AppError):
             "Nothing was imported.",
             details,
         )
+
+# ---------------------------------------------------------------------------
+# Auth & User
+# ---------------------------------------------------------------------------       
+
+class UnauthorizedError(AppError):
+    """Missing or invalid token."""
+    status_code = 401
+    code = "UNAUTHORIZED"
+
+    def __init__(
+        self,
+        message: str = "Missing or invalid authentication token.",
+        details: list | None = None,
+    ):
+        super().__init__(message, details)
+
+class ForbiddenError(AppError):
+    """Insufficient privileges (e.g. requires STAFF)."""
+    status_code = 403
+    code = "FORBIDDEN"
+
+    def __init__(
+        self,
+        message: str = "Operation requires elevated privileges",
+        details: list | None = None,
+    ):
+        super().__init__(message, details)
+
+class UserNotFound(NotFoundError):
+    code = "USER_NOT_FOUND"
+
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        super().__init__(f"User '{user_id}' not found")
+

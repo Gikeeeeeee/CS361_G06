@@ -64,3 +64,16 @@ variable "opensearch_collection_name" {
   description = "OpenSearch Serverless collection name."
   type        = string
 }
+
+variable "supabase_url" {
+  type = string
+}
+variable "supabase_jwt_secret" {
+  type      = string
+  sensitive = true
+}
+variable "supabase_anon_key" {
+  type      = string
+  default   = ""
+  sensitive = true
+}

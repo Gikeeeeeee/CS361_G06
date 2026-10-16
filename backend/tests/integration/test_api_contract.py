@@ -39,6 +39,9 @@ def _request(
     }
     if json_body is not None:
         req_headers["Content-Type"] = "application/json"
+    # Writes need a STAFF Supabase token: export STAFF_TOKEN=<access_token>
+    if method in ("POST", "PUT", "DELETE") and os.getenv("STAFF_TOKEN"):
+        req_headers["Authorization"] = f"Bearer {os.environ['STAFF_TOKEN']}"
     if headers:
         req_headers.update(headers)
 

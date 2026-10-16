@@ -4,6 +4,12 @@ import pytest
 
 from tests.conftest import make_apigw_event
 
+
+@pytest.fixture(autouse=True)
+def _skip_auth(monkeypatch):
+    """These tests cover routing/validation; the auth guard has its own tests."""
+    monkeypatch.setattr("handler.verify_token", lambda *a, **k: {})
+
 PATH = "/api/v1/rooms/room-uuid-1/schedules"
 GET_KEY = "GET /api/v1/rooms/{roomId}/schedules"
 POST_KEY = "POST /api/v1/rooms/{roomId}/schedules"
