@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface RoomDetailContainerProps {
   children: React.ReactNode;
@@ -24,9 +24,7 @@ export function RoomDetailContainer({ children, roomNumber }: RoomDetailContaine
           {roomNumber}
         </h1>
         
-        <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 active:bg-slate-100 transition-colors group">
-          <Bookmark size={20} className="text-slate-400 group-active:text-primary transition-colors" strokeWidth={2.5} />
-        </button>
+        <div className="w-10" />
       </header>
 
       {/* Main Content Area */}
