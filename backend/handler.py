@@ -172,6 +172,47 @@ def _get_me(deps: Dependencies, p: dict) -> dict:
     }
 
 
+def _extract_user_role(event: dict) -> str:
+    """Extract user role from request context claims or Authorization token, defaulting to GUEST."""
+    request_context = event.get("requestContext") or {}
+    authorizer = request_context.get("authorizer") or {}
+    jwt_data = authorizer.get("jwt") or {}
+    claims = jwt_data.get("claims") or authorizer.get("claims") or {}
+
+    app_metadata = claims.get("app_metadata") or {}
+    user_metadata = claims.get("user_metadata") or {}
+    if isinstance(app_metadata, str):
+        try:
+            app_metadata = json.loads(app_metadata)
+        except Exception:
+            app_metadata = {}
+    if isinstance(user_metadata, str):
+        try:
+            user_metadata = json.loads(user_metadata)
+        except Exception:
+            user_metadata = {}
+
+    role = (
+        claims.get("role")
+        or (app_metadata.get("role") if isinstance(app_metadata, dict) else None)
+        or (user_metadata.get("role") if isinstance(user_metadata, dict) else None)
+    )
+    if role:
+        return str(role).upper()
+
+    headers = event.get("headers") or {}
+    auth_header = headers.get("authorization") or headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            auth_user = verify_token(event)
+            if auth_user and auth_user.get("role"):
+                return str(auth_user["role"]).upper()
+        except Exception:
+            pass
+
+    return "GUEST"
+
+
 def _dry_run(params: dict) -> bool:
     return params.get("dry_run") == "true"
 
@@ -204,7 +245,11 @@ ROUTES = {
     f"GET {ROOM_SCHEDULES}": Route(
         ("roomId", "start", "end"),
         lambda deps, p: deps.ensure_schedules().get_room_schedules(
-            p["roomId"], p["start"], p["end"], p.get("type")
+            p["roomId"],
+            p["start"],
+            p["end"],
+            p.get("type"),
+            user_role=p.get("user_role") or "GUEST",
         ),
     ),
     f"GET {SCHEDULES}": Route(
@@ -421,6 +466,9 @@ def lambda_handler(event, context):
 
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
+
+        if route_key == f"GET {ROOM_SCHEDULES}":
+            params["user_role"] = _extract_user_role(event)
 
         if route_key == f"GET {USERS_ME}":
             params["auth_user"] = verify_token(event)

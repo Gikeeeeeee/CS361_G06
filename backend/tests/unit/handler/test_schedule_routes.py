@@ -300,6 +300,35 @@ def test_get_schedule_by_id_unknown_id_returns_404(invoke_handler):
     assert body["error"]["code"] == "SCHEDULE_NOT_FOUND"
 
 
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_room_schedules_masks_internal_for_unauthenticated_guest(invoke_handler, schedule_source):
+    schedule_source.schedules[0]["visibility"] = "INTERNAL"
+    result = invoke_handler(_get())
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["data"][0]["title"] == "Reserved"
+    assert body["data"][0]["description"] is None
+    assert body["data"][0]["organizer"] is None
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_room_schedules_shows_unmasked_internal_for_staff(invoke_handler, schedule_source, monkeypatch):
+    schedule_source.schedules[0]["visibility"] = "INTERNAL"
+    monkeypatch.setattr("handler.verify_token", lambda *a, **k: {"role": "STAFF"})
+    event = _get(headers={"authorization": "Bearer staff-token"})
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["data"][0]["title"] == "Software Engineering"
+    assert body["data"][0]["organizer"] == "Aj. Example"
+
+
+
 
 # -- POST /api/v1/schedules/imports --------------------------------------------
 

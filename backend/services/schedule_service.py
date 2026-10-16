@@ -139,25 +139,35 @@ class ScheduleService:
         start: str,
         end: str,
         schedule_type: str | None = None,
+        user_role: str = "GUEST",
     ) -> dict[str, Any]:
         """AP15: one row per occurrence inside [start, end)."""
         schedule_type = schedule_type.upper() if schedule_type else None
+        role = str(user_role).upper() if user_role else "GUEST"
         window_start, window_end = parse_time(start), parse_time(end)
 
         items = self.source.find_overlapping(
             room_id, to_utc(window_start), to_utc(window_end), schedule_type
         )
-        data = sorted(
-            (
-                {**to_contract(item), "start_at": s.isoformat(), "end_at": e.isoformat()}
-                for item in items
-                for s, e in occurrences(
-                    item["start_at"], item["end_at"], item.get("recurrence_rule")
-                )
-                if overlaps(s, e, window_start, window_end)
-            ),
-            key=lambda row: parse_time(row["start_at"]),
-        )
+        data = []
+        for item in items:
+            contract = to_contract(item)
+            for s, e in occurrences(
+                item["start_at"], item["end_at"], item.get("recurrence_rule")
+            ):
+                if overlaps(s, e, window_start, window_end):
+                    row = {
+                        **contract,
+                        "start_at": s.isoformat(),
+                        "end_at": e.isoformat(),
+                    }
+                    if row.get("visibility") == "INTERNAL" and role != "STAFF":
+                        row["title"] = "Reserved"
+                        row["description"] = None
+                        row["organizer"] = None
+                    data.append(row)
+
+        data.sort(key=lambda row: parse_time(row["start_at"]))
 
         return {
             "data": data,

@@ -187,6 +187,7 @@ def to_search_document(item: dict[str, Any]) -> dict[str, Any]:
         "recurrence_rule": item.get("recurrence_rule"),
         "room_id": item.get("room_id"),
         "status": item.get("status"),
+        "visibility": item.get("visibility") or "PUBLIC",
 
         "facility_type": (
             item.get("type")

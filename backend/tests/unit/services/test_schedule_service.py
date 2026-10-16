@@ -573,3 +573,97 @@ def test_get_schedule_wrong_room_raises_not_found_error(schedule_source):
     with pytest.raises(NotFoundError):
         service.get_schedule("wrong-room-id", schedule_id)
 
+
+@pytest.mark.unit
+def test_get_room_schedules_masks_internal_for_guest(empty_source):
+    empty_source.schedules.append({
+        "id": "s-internal",
+        "room_id": ROOM,
+        "type": "ACTIVITY",
+        "title": "Private Meeting",
+        "description": "Confidential strategy discussion",
+        "organizer": "Director",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "INTERNAL",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="GUEST")
+    [item] = result["data"]
+
+    assert item["title"] == "Reserved"
+    assert item["description"] is None
+    assert item["organizer"] is None
+    assert item["visibility"] == "INTERNAL"
+
+
+@pytest.mark.unit
+def test_get_room_schedules_does_not_mask_internal_for_staff(empty_source):
+    empty_source.schedules.append({
+        "id": "s-internal",
+        "room_id": ROOM,
+        "type": "ACTIVITY",
+        "title": "Private Meeting",
+        "description": "Confidential strategy discussion",
+        "organizer": "Director",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "INTERNAL",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="STAFF")
+    [item] = result["data"]
+
+    assert item["title"] == "Private Meeting"
+    assert item["description"] == "Confidential strategy discussion"
+    assert item["organizer"] == "Director"
+    assert item["visibility"] == "INTERNAL"
+
+
+@pytest.mark.unit
+def test_get_room_schedules_does_not_mask_public_for_guest(empty_source):
+    empty_source.schedules.append({
+        "id": "s-public",
+        "room_id": ROOM,
+        "type": "COURSE",
+        "title": "Public Lecture",
+        "description": "Open to all",
+        "organizer": "Prof. Smith",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "PUBLIC",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="GUEST")
+    [item] = result["data"]
+
+    assert item["title"] == "Public Lecture"
+    assert item["description"] == "Open to all"
+    assert item["organizer"] == "Prof. Smith"
+    assert item["visibility"] == "PUBLIC"
+
+
+@pytest.mark.unit
+def test_validate_enforces_visibility_and_defaults_to_public():
+    valid_default = validate(_payload())
+    assert valid_default["visibility"] == "PUBLIC"
+
+    valid_internal = validate(_payload(visibility="internal"))
+    assert valid_internal["visibility"] == "INTERNAL"
+
+    with pytest.raises(ValidationError, match="visibility"):
+        validate(_payload(visibility="SECRET"))
+
+
