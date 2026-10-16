@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from errors import ScheduleConflict, ScheduleNotFound
+from errors import NotFoundError, ScheduleConflict, ScheduleNotFound
 from models.schedule import (
     can_share,
     occurrences,
@@ -42,8 +42,81 @@ def new_item(schedule: dict[str, Any], room_id: str) -> dict[str, Any]:
 
 class ScheduleService:
 
-    def __init__(self, source: ScheduleSource):
+    def __init__(
+        self,
+        source: ScheduleSource,
+        room_service: Any = None,
+        room_repo: Any = None,
+        room_source: Any = None,
+    ):
         self.source = source
+        self.room_service = room_service
+        self.room_repo = room_repo or room_source
+
+    def get_schedule(self, room_id: str, schedule_id: str) -> dict[str, Any]:
+        """Fetch a single schedule item with nested room details."""
+        schedule = self.source.get_schedule(room_id, schedule_id)
+        if schedule is None or schedule.get("room_id") != room_id:
+            raise ScheduleNotFound(schedule_id)
+
+        room_data = None
+        if self.room_service is not None:
+            try:
+                room_data = self.room_service.get_room(room_id)
+            except NotFoundError:
+                raise
+            except Exception:
+                room_data = None
+        elif self.room_repo is not None:
+            try:
+                if hasattr(self.room_repo, "get_room"):
+                    raw = self.room_repo.get_room(room_id)
+                    if raw:
+                        b_name = None
+                        if hasattr(self.room_repo, "get_building") and raw.get("building_id"):
+                            b = self.room_repo.get_building(str(raw["building_id"]))
+                            b_name = b.get("name") if b else None
+                        elif isinstance(raw.get("building"), dict):
+                            b_name = raw["building"].get("name")
+                        else:
+                            b_name = raw.get("building_name")
+                        room_data = {
+                            "id": raw.get("id", room_id),
+                            "name": raw.get("name") or raw.get("room_number"),
+                            "building_name": b_name,
+                        }
+            except NotFoundError:
+                raise
+            except Exception:
+                room_data = None
+        else:
+            try:
+                from repositories.room_repository import RoomRepository
+                from services.room_service import RoomService
+
+                room_data = RoomService(RoomRepository()).get_room(room_id)
+            except NotFoundError:
+                raise
+            except Exception:
+                room_data = None
+
+        building_name = None
+        room_name = None
+        if room_data:
+            if isinstance(room_data.get("building"), dict):
+                building_name = room_data["building"].get("name")
+            elif "building_name" in room_data:
+                building_name = room_data.get("building_name")
+
+            room_name = room_data.get("name") or room_data.get("room_number")
+
+        contract = to_contract(schedule)
+        contract["room"] = {
+            "id": (room_data.get("id") if room_data else None) or room_id,
+            "name": room_name,
+            "building_name": building_name,
+        }
+        return contract
 
     def get_schedules(
         self,

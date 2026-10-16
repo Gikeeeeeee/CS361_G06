@@ -2,6 +2,7 @@ import pytest
 
 from errors import (
     MissingParameters,
+    NotFoundError,
     ScheduleConflict,
     ScheduleNotFound,
     ValidationError,
@@ -531,3 +532,44 @@ def test_validate_accepts_the_v2_contract_example():
 
     assert schedule["recurrence_rule"] == WEEKLY_15
     assert schedule["organizer"] == "Aj. Example"
+
+
+@pytest.mark.unit
+def test_get_schedule_returns_contract_with_nested_room(schedule_source):
+    schedule_id = schedule_source.schedules[0]["id"]
+    room_id = schedule_source.schedules[0]["room_id"]
+
+    class MockRoomService:
+        def get_room(self, rid):
+            return {
+                "id": rid,
+                "name": "LAB102",
+                "building": {"name": "LC4"},
+            }
+
+    service = ScheduleService(schedule_source, room_service=MockRoomService())
+    result = service.get_schedule(room_id, schedule_id)
+
+    assert result["id"] == schedule_id
+    assert result["room_id"] == room_id
+    assert result["room"] == {
+        "id": room_id,
+        "name": "LAB102",
+        "building_name": "LC4",
+    }
+
+
+@pytest.mark.unit
+def test_get_schedule_unknown_id_raises_not_found_error(empty_source):
+    service = ScheduleService(empty_source)
+    with pytest.raises(NotFoundError):
+        service.get_schedule(ROOM, "non-existent-id")
+
+
+@pytest.mark.unit
+def test_get_schedule_wrong_room_raises_not_found_error(schedule_source):
+    schedule_id = schedule_source.schedules[0]["id"]
+    service = ScheduleService(schedule_source)
+    with pytest.raises(NotFoundError):
+        service.get_schedule("wrong-room-id", schedule_id)
+

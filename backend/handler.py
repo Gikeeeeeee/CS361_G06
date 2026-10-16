@@ -73,7 +73,7 @@ class Dependencies:
 
         self._schedule_source = schedule_source
         self._schedules = (
-            ScheduleService(schedule_source)
+            ScheduleService(schedule_source, room_service=self.rooms)
             if schedule_source is not None
             else None
         )
@@ -106,12 +106,14 @@ class Dependencies:
                 if self._schedule_source is not None
                 else ScheduleRepository()
             )
-            self._schedules = ScheduleService(source)
+            self._schedules = ScheduleService(source, room_service=self.rooms)
         return self._schedules
 
     @schedules.setter
     def schedules(self, value: ScheduleService):
         self._schedules = value
+        if self._schedules is not None and getattr(self._schedules, "room_service", None) is None:
+            self._schedules.room_service = self.rooms
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
@@ -214,6 +216,26 @@ ROUTES = {
     f"POST {ROOM_SCHEDULES}": Route(
         ("roomId", "body"),
         lambda deps, p: deps.ensure_schedules().create_schedule(p["roomId"], p["body"]),
+    ),
+    f"GET {SCHEDULE}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: {
+            "success": True,
+            "data": deps.ensure_schedules().get_schedule(
+                p.get("roomId") or p.get("room_id"),
+                p.get("scheduleId") or p.get("schedule_id"),
+            ),
+        },
+    ),
+    "GET /api/v1/rooms/{room_id}/schedules/{schedule_id}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: {
+            "success": True,
+            "data": deps.ensure_schedules().get_schedule(
+                p.get("roomId") or p.get("room_id"),
+                p.get("scheduleId") or p.get("schedule_id"),
+            ),
+        },
     ),
     f"PUT {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
@@ -341,6 +363,15 @@ def _resolve(
 
     params.update(event.get("queryStringParameters") or {})
     route_key = _route_key(event, method, path, params)
+
+    if "room_id" in params and "roomId" not in params:
+        params["roomId"] = params["room_id"]
+    if "schedule_id" in params and "scheduleId" not in params:
+        params["scheduleId"] = params["schedule_id"]
+    if "roomId" in params and "room_id" not in params:
+        params["room_id"] = params["roomId"]
+    if "scheduleId" in params and "schedule_id" not in params:
+        params["schedule_id"] = params["scheduleId"]
 
     # Route first: the CSV import body is raw bytes, not JSON.
     if event.get("body"):

@@ -273,6 +273,34 @@ def test_delete_schedule_returns_deleted(invoke_handler, schedule_source):
     assert schedule_source.schedules == []
 
 
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_schedule_by_id_success(invoke_handler, schedule_source):
+    result = invoke_handler(_item("GET"))
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["success"] is True
+    assert body["data"]["id"] == SCHEDULE_ID
+    assert "room" in body["data"]
+    assert body["data"]["room"]["id"] == "room-uuid-1"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_schedule_by_id_unknown_id_returns_404(invoke_handler):
+    event = _item("GET")
+    event["pathParameters"]["scheduleId"] = "nope"
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 404
+    body = json.loads(result["body"])
+    assert body["success"] is False
+    assert body["error"]["code"] == "SCHEDULE_NOT_FOUND"
+
+
+
 # -- POST /api/v1/schedules/imports --------------------------------------------
 
 IMPORT_KEY = "POST /api/v1/schedules/imports"
