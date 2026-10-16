@@ -171,16 +171,21 @@ export const bookmarkService = {
    * Get all bookmarked items for the user
    */
   async getBookmarks(userId?: string): Promise<BookmarkItem[]> {
+    // Guest (unauthenticated) users do not have saved bookmarks
+    if (!userId) {
+      return [];
+    }
+
     try {
       const key = getStorageKey(userId);
       const raw = localStorage.getItem(key);
       if (!raw) {
-        // Initialize with realistic demo bookmarks
+        // Initialize with realistic demo bookmarks for authenticated student
         localStorage.setItem(key, JSON.stringify(INITIAL_DEMO_BOOKMARKS));
         return INITIAL_DEMO_BOOKMARKS;
       }
       const parsed: BookmarkItem[] = JSON.parse(raw);
-      // Auto-upgrade if user only has old short mock items
+      // Auto-upgrade if student has old short mock items
       if (parsed.length <= 4 && parsed.some((p) => p.entityId === 'sched-CS361')) {
         localStorage.setItem(key, JSON.stringify(INITIAL_DEMO_BOOKMARKS));
         return INITIAL_DEMO_BOOKMARKS;
@@ -188,7 +193,7 @@ export const bookmarkService = {
       return parsed;
     } catch (e) {
       console.warn('Failed to load bookmarks from storage:', e);
-      return INITIAL_DEMO_BOOKMARKS;
+      return [];
     }
   },
 

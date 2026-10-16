@@ -63,7 +63,7 @@ const HOUR_ROW_HEIGHT = 50; // px per hour
 
 export default function SavedPage() {
   const navigate = useNavigate();
-  const { bookmarks } = useBookmarks();
+  const { bookmarks, isLoggedIn, activeUser, loginAsStudentDemo, logoutDemo } = useBookmarks();
 
   // View switcher: LIST ('LIST') vs TIMETABLE CALENDAR ('CALENDAR')
   const [viewMode, setViewMode] = useState<'LIST' | 'CALENDAR'>('LIST');
@@ -222,6 +222,56 @@ END:VCALENDAR`;
         </div>
       </div>
 
+      {/* Role State Banner (Guest vs Student NON) */}
+      {!isLoggedIn ? (
+        <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300/60">
+              Guest Mode (ยังไม่ได้เข้าสู่ระบบ)
+            </span>
+          </div>
+          <p className="text-[11px] text-amber-900 font-medium leading-relaxed mb-2.5">
+            ผู้ใช้ Guest จะไม่มีตารางเรียนส่วนตัว กรุณาเข้าสู่ระบบด้วยบัญชีนิสิต (Role: <strong>NON</strong>) เพื่อบันทึกและจัดตารางเรียน
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs text-center"
+            >
+              Sign In (เข้าสู่ระบบ)
+            </button>
+            <button
+              type="button"
+              onClick={loginAsStudentDemo}
+              className="py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[11px] font-semibold rounded-xl transition cursor-pointer"
+              title="สลับเป็น Role NON เพื่อทดสอบดูตารางเรียน"
+            >
+              ทดลอง Login นิสิต (NON)
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between bg-blue-50/70 border border-blue-100 rounded-xl px-3 py-1.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold text-slate-800 text-[11px]">
+              {activeUser?.name || 'KU Student'}
+            </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
+              Role: {activeUser?.role || 'NON'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={logoutDemo}
+            className="text-[10px] text-slate-500 hover:text-rose-600 font-medium underline cursor-pointer"
+          >
+            สลับเป็น Guest
+          </button>
+        </div>
+      )}
+
       {/* Schedules Count Badge & Subtitle */}
       <div>
         <div className="w-full py-2 bg-white border border-blue-200/80 rounded-xl text-center shadow-2xs mb-1.5">
@@ -234,25 +284,44 @@ END:VCALENDAR`;
         </p>
       </div>
 
-      {/* EMPTY STATE */}
+      {/* EMPTY / GUEST STATE */}
       {savedSchedules.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-xs my-6">
           <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
             <Calendar className="w-7 h-7" />
           </div>
           <h3 className="text-sm font-bold text-slate-900 mb-1">
-            No Bookmarked Schedules
+            {!isLoggedIn ? 'Guest Timetable is Empty' : 'No Bookmarked Schedules'}
           </h3>
           <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
-            Explore classroom schedules and bookmark your classes to build your personal timetable.
+            {!isLoggedIn
+              ? 'ผู้ใช้งาน Guest จะยังไม่มีตารางเรียนส่วนตัว กรุณาเข้าสู่ระบบด้วยบัญชีนิสิต (Role: NON) เพื่อบันทึกรายวิชา'
+              : 'สำรวจตารางเรียนตามห้องเรียนแล้วกด Bookmark เพื่อเพิ่มวิชาลงในตารางของคุณ'}
           </p>
-          <button
-            onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors"
-          >
-            <span>Find Classes</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          {!isLoggedIn ? (
+            <div className="flex flex-col gap-2 max-w-xs mx-auto">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors"
+              >
+                Sign In to Save Classes
+              </button>
+              <button
+                onClick={loginAsStudentDemo}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs transition-colors"
+              >
+                ทดลอง Login นิสิต (Role: NON) เพื่อดูตัวอย่าง 12 วิชา
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors"
+            >
+              <span>Find Classes</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       ) : viewMode === 'LIST' ? (
         /* ================= VIEW 1: LIST VIEW ================= */
@@ -421,6 +490,8 @@ END:VCALENDAR`;
                   {/* Columns for Mon (1) to Fri (5) */}
                   {DAYS_HEADER.map((dayCol) => {
                     const dayEvents = savedSchedules.filter((s) => {
+                      // Only show schedules that are checked/selected
+                      if (!selectedScheduleIds.includes(s.entityId)) return false;
                       const slot = parseScheduleTime(s);
                       return slot?.dayOfWeek === dayCol.dayOfWeek;
                     });

@@ -9,9 +9,13 @@ import { CheckCircle2, BookmarkX, AlertTriangle } from 'lucide-react';
 interface BookmarkContextType {
   bookmarks: BookmarkItem[];
   isLoading: boolean;
+  isLoggedIn: boolean;
+  activeUser: { id: string; name?: string; role?: string; email?: string } | null;
   isBookmarked: (entityId: string, entityType: BookmarkEntityType) => boolean;
   toggleBookmark: (item: Omit<BookmarkItem, 'id' | 'savedAt'>) => Promise<boolean>;
   openAuthModal: () => void;
+  loginAsStudentDemo: () => void;
+  logoutDemo: () => void;
 }
 
 const BookmarkContext = createContext<BookmarkContextType | undefined>(undefined);
@@ -21,6 +25,21 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'add' | 'remove' | 'warning' } | null>(null);
+
+  // Active User State
+  const [activeUser, setActiveUser] = useState<{
+    id: string;
+    name?: string;
+    role?: string;
+    email?: string;
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem('ku_long_auth_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // State for Schedule Conflict Modal
   const [conflictModal, setConflictModal] = useState<{
@@ -37,36 +56,22 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     conflictingSlot: null,
   });
 
-  // Helper to check if user is logged in (reads auth session or storage)
+  // Helper to check if user is logged in
   const isUserLoggedIn = useCallback((): boolean => {
-    try {
-      const stored = localStorage.getItem('ku_long_auth_user');
-      return Boolean(stored);
-    } catch {
-      return false;
-    }
-  }, []);
+    return Boolean(activeUser?.id);
+  }, [activeUser]);
 
   const getActiveUserId = useCallback((): string | undefined => {
-    try {
-      const raw = localStorage.getItem('ku_long_auth_user');
-      if (raw) {
-        const u = JSON.parse(raw);
-        return u.id;
-      }
-    } catch {
-      // ignore
-    }
-    return undefined;
-  }, []);
+    return activeUser?.id;
+  }, [activeUser]);
 
-  // Load initial bookmarks on mount
+  // Load bookmarks whenever active user changes
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       setIsLoading(true);
       try {
-        const userId = getActiveUserId();
+        const userId = activeUser?.id;
         const data = await bookmarkService.getBookmarks(userId);
         if (mounted) {
           setBookmarks(data);
@@ -79,7 +84,30 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       mounted = false;
     };
-  }, [getActiveUserId]);
+  }, [activeUser]);
+
+  // Demo login as student (role: NON) to test logged-in timetable
+  const loginAsStudentDemo = useCallback(async () => {
+    const studentUser = {
+      id: 'student-demo-id',
+      email: 'student@ku.th',
+      name: 'KU Student (Demo)',
+      role: 'NON',
+    };
+    localStorage.setItem('ku_long_auth_user', JSON.stringify(studentUser));
+    setActiveUser(studentUser);
+    setToast({ message: 'เข้าสู่ระบบในฐานะนิสิต (Role: NON) สำเร็จ', type: 'add' });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  // Logout back to Guest mode
+  const logoutDemo = useCallback(async () => {
+    localStorage.removeItem('ku_long_auth_user');
+    setActiveUser(null);
+    setBookmarks([]);
+    setToast({ message: 'เปลี่ยนเป็นสถานะ Guest (ยังไม่ได้เข้าสู่ระบบ)', type: 'remove' });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
 
   const showToast = (message: string, type: 'add' | 'remove' | 'warning') => {
     setToast({ message, type });
@@ -179,9 +207,13 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         bookmarks,
         isLoading,
+        isLoggedIn: isUserLoggedIn(),
+        activeUser,
         isBookmarked,
         toggleBookmark,
         openAuthModal: () => setIsAuthModalOpen(true),
+        loginAsStudentDemo,
+        logoutDemo,
       }}
     >
       {children}
