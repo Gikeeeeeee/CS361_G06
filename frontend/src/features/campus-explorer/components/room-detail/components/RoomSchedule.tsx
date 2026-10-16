@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useRoomSchedule } from '../hooks/useRoomSchedule';
-import { Calendar, Clock, User, ChevronLeft, ChevronRight, X, Info } from 'lucide-react';
+import { Calendar, Clock, User, ChevronLeft, ChevronRight, X, Info, CalendarPlus } from 'lucide-react';
 import { Badge } from '../../../../../shared/components/Badge';
 import { BookmarkButton } from '../../../../bookmarks/components/BookmarkButton';
+import { downloadIcsEvent } from '../../../services/icsExportService';
 
 interface RoomScheduleProps {
   roomId: string;
@@ -208,17 +209,40 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                               <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
                                 {event.course_code || 'COURSE'}
                               </span>
-                              <BookmarkButton
-                                entityId={String(event.id || event.course_code || event.title)}
-                                entityType="SCHEDULE"
-                                title={event.title}
-                                subtitle={`${slot.start} - ${slot.end}`}
-                                courseCode={event.course_code}
-                                startAt={event.start_at}
-                                endAt={event.end_at}
-                                size={16}
-                                className="p-1 hover:bg-blue-100 rounded-md"
-                              />
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  title="Export to calendar (.ics)"
+                                  aria-label="Export to calendar (.ics)"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    downloadIcsEvent({
+                                      title: event.title,
+                                      start_at: event.start_at,
+                                      end_at: event.end_at,
+                                      course_code: event.course_code,
+                                      description: event.description,
+                                      organizer: event.organizer,
+                                      location: roomId,
+                                      type: event.type || 'COURSE',
+                                    });
+                                  }}
+                                  className="p-1 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                                >
+                                  <CalendarPlus className="w-4 h-4" />
+                                </button>
+                                <BookmarkButton
+                                  entityId={String(event.id || event.course_code || event.title)}
+                                  entityType="SCHEDULE"
+                                  title={event.title}
+                                  subtitle={`${slot.start} - ${slot.end}`}
+                                  courseCode={event.course_code}
+                                  startAt={event.start_at}
+                                  endAt={event.end_at}
+                                  size={16}
+                                  className="p-1 hover:bg-blue-100 rounded-md"
+                                />
+                              </div>
                             </div>
                             <h4 className="font-semibold text-slate-800 text-sm truncate">{event.title}</h4>
                             {event.organizer && (
@@ -373,6 +397,27 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                       <Clock className="w-3 h-3 mr-1" />
                       {formatTime(event.start_at)} - {formatTime(event.end_at)}
                     </div>
+                    <button
+                      type="button"
+                      title="Export to calendar (.ics)"
+                      aria-label="Export to calendar (.ics)"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadIcsEvent({
+                          title: event.title,
+                          start_at: event.start_at,
+                          end_at: event.end_at,
+                          course_code: event.course_code,
+                          description: event.description,
+                          organizer: event.organizer,
+                          location: roomId,
+                          type: event.type,
+                        });
+                      }}
+                      className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                    </button>
                     <BookmarkButton
                       entityId={String(event.id || event.title)}
                       entityType="SCHEDULE"
@@ -499,6 +544,26 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  title="Export to calendar (.ics)"
+                  aria-label="Export to calendar (.ics)"
+                  onClick={() => {
+                    downloadIcsEvent({
+                      title: selectedEvent.title,
+                      start_at: selectedEvent.start_at,
+                      end_at: selectedEvent.end_at,
+                      course_code: selectedEvent.course_code,
+                      description: selectedEvent.description,
+                      organizer: selectedEvent.organizer,
+                      location: selectedEvent.room_id || roomId,
+                      type: selectedEvent.type,
+                    });
+                  }}
+                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-white/60 rounded-full transition-colors"
+                >
+                  <CalendarPlus className="w-5 h-5" />
+                </button>
                 <BookmarkButton
                   entityId={String(selectedEvent.id || selectedEvent.title)}
                   entityType="SCHEDULE"
@@ -569,7 +634,26 @@ function ExamCalendar({ roomId }: { roomId: string }) {
             </div>
             
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  downloadIcsEvent({
+                    title: selectedEvent.title,
+                    start_at: selectedEvent.start_at,
+                    end_at: selectedEvent.end_at,
+                    course_code: selectedEvent.course_code,
+                    description: selectedEvent.description,
+                    organizer: selectedEvent.organizer,
+                    location: selectedEvent.room_id || roomId,
+                    type: selectedEvent.type,
+                  });
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                <span>Add to Calendar (.ics)</span>
+              </button>
               <button 
                 onClick={() => setSelectedEvent(null)}
                 className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
