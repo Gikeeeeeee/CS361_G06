@@ -17,6 +17,7 @@ import re
 from collections import namedtuple
 
 import response
+from auth import verify_token
 from errors import (
     AppError,
     InvalidParameter,
@@ -38,6 +39,8 @@ from services.schedule_service import ScheduleService
 from services.search_service import SearchService
 from repositories.room_repository import RoomRepository
 from repositories.facility_repository import FacilityRepository
+from repositories.supabase_user_repository import SupabaseUserRepository
+from services.user_service import UserService
 from models.schedule import TYPES
 
 logger = logging.getLogger()
@@ -52,7 +55,7 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
-    def __init__(self, source=None, schedule_source=None):
+    def __init__(self, source=None, schedule_source=None, user_source=None):
         building_source = (
             source if source is not None else BuildingRepository()
         )
@@ -75,6 +78,24 @@ class Dependencies:
             else None
         )
         self.search = None
+
+        self._user_source = user_source
+        self._users = (
+            UserService(user_source)
+            if user_source is not None
+            else None
+        )
+
+    @property
+    def users(self) -> UserService:
+        if self._users is None:
+            source = (
+                self._user_source
+                if self._user_source is not None
+                else SupabaseUserRepository()
+            )
+            self._users = UserService(source)
+        return self._users
 
 
     @property
@@ -132,6 +153,21 @@ ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
 SCHEDULES = "/api/v1/schedules"
 SCHEDULE_IMPORTS = "POST /api/v1/schedules/imports"
+
+
+USERS_ME = "/api/v1/users/me"
+
+
+def _get_me(deps: Dependencies, p: dict) -> dict:
+    auth_user = p["auth_user"]
+    user = deps.users.get_profile(
+        auth_user["user_id"],
+        auth_token=auth_user.get("token"),
+    )
+    return {
+        "success": True,
+        "data": user.to_dict(),
+    }
 
 
 def _dry_run(params: dict) -> bool:
@@ -207,6 +243,10 @@ ROUTES = {
     SCHEDULE_IMPORTS: Route(
         ("body",),
         lambda deps, p: deps.schedule_imports.import_csv(p["body"], _dry_run(p)),
+    ),
+    f"GET {USERS_ME}": Route(
+        (),
+        _get_me,
     ),
 }
 
@@ -342,10 +382,17 @@ def lambda_handler(event, context):
         return response.preflight()
 
     try:
+        # Every write (create/update/delete schedule, CSV import) is a STAFF action.
+        if method in ("POST", "PUT", "DELETE"):
+            verify_token(event, required_role="STAFF")
+
         route_key, params = _resolve(event, method, path)
 
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
+
+        if route_key == f"GET {USERS_ME}":
+            params["auth_user"] = verify_token(event)
 
         route = ROUTES[route_key]
 

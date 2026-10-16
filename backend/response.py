@@ -36,9 +36,9 @@ def error(exc: AppError) -> dict:
     """
     A failed response, in one consistent shape:
 
-        {"error": {"code": "BUILDING_NOT_FOUND", "message": "..."}}
+        {"success": false, "error": {"code": "BUILDING_NOT_FOUND", "message": "..."}}
     """
-    return ok({"error": exc.to_dict()}, exc.status_code)
+    return ok({"success": False, "error": exc.to_dict()}, exc.status_code)
 
 
 def preflight() -> dict:

@@ -17,7 +17,7 @@ def clean_path(p: str) -> str:
 
 def main():
     default_build = os.path.abspath(os.path.join(os.path.dirname(__file__), "build"))
-    default_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "backend"))
+    default_src = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "backend"))
 
     source_dir = clean_path(sys.argv[1]) if len(sys.argv) > 1 else default_src
     build_dir = clean_path(sys.argv[2]) if len(sys.argv) > 2 else default_build

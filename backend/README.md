@@ -44,6 +44,7 @@ Does it know about AWS? → `repositories/`. Neither? → `services/` or `models
 | `GET /api/v1/floors/{floorId}` | `FloorService.get_details` | floor + presigned SVG URL + room and facility pins — `docs/contract/floor.json` |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}` | `RoomService.get_room` | one room record |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}` | `FacilityService.get_facility` | one facility record |
+| `GET /api/v1/users/me` | `UserService.get_profile` | `{"success": true, "data": {...}}` current authenticated user profile |
 
 `{buildingId}` is case-insensitive (`lc4` and `LC4` both work).
 

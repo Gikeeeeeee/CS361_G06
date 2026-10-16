@@ -4,3 +4,4 @@ boto3==1.43.83
 requests
 jsonschema
 opensearch-py
+PyJWT[crypto]==2.10.1

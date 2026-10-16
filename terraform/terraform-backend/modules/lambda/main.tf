@@ -198,6 +198,10 @@ resource "aws_lambda_function" "this" {
 
       OPENSEARCH_ENDPOINT = var.opensearch_endpoint
       OPENSEARCH_INDEX    = var.opensearch_index
+
+      SUPABASE_URL        = var.supabase_url
+      SUPABASE_JWT_SECRET = var.supabase_jwt_secret
+      SUPABASE_ANON_KEY   = var.supabase_anon_key
     }
   }
 
