@@ -48,7 +48,7 @@ export const ScheduleConflictModal: React.FC<ScheduleConflictModalProps> = ({
             Schedule Conflict Detected
           </h3>
           <p className="text-xs text-slate-500 leading-relaxed">
-            ไม่สามารถบันทึกวิชานี้ได้ เนื่องจากเวลาเรียนชนกับวิชาที่คุณเคยบันทึกไว้ในวันเดียวกัน
+            Cannot bookmark this class because its time overlaps with an existing schedule on the same day.
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export const ScheduleConflictModal: React.FC<ScheduleConflictModalProps> = ({
           <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                วิชาที่คุณพยายามบันทึก
+                Incoming Class (To Bookmark)
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
                 {candidateItem.courseCode || 'New'}
@@ -79,7 +79,7 @@ export const ScheduleConflictModal: React.FC<ScheduleConflictModalProps> = ({
           {/* Versus indicator */}
           <div className="flex items-center justify-center">
             <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-              เวลาชนกับ
+              Overlaps With
             </span>
           </div>
 
@@ -87,7 +87,7 @@ export const ScheduleConflictModal: React.FC<ScheduleConflictModalProps> = ({
           <div className="p-3 rounded-2xl bg-rose-50/60 border border-rose-200">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600">
-                วิชาที่บันทึกไว้แล้ว
+                Existing Booked Class
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-800">
                 {conflictingItem.courseCode || 'Booked'}
@@ -111,7 +111,7 @@ export const ScheduleConflictModal: React.FC<ScheduleConflictModalProps> = ({
           onClick={onClose}
           className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-semibold rounded-xl text-sm shadow-md transition-all cursor-pointer"
         >
-          เข้าใจแล้ว (Dismiss)
+          Understood (Dismiss)
         </button>
       </div>
     </div>

@@ -125,7 +125,7 @@ export default function SavedPage() {
     );
 
     if (selectedItems.length === 0) {
-      showToast('กรุณาเลือกอย่างน้อย 1 รายการเพื่อส่งออก');
+      showToast('Please select at least 1 class to export');
       return;
     }
 
@@ -170,7 +170,7 @@ END:VCALENDAR`;
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast(`ดาวน์โหลด ${selectedItems.length} ตารางเรียนลงปฏิทินสำเร็จ!`);
+    showToast(`Successfully downloaded ${selectedItems.length} classes to calendar (.ics)!`);
   };
 
   return (
@@ -227,11 +227,11 @@ END:VCALENDAR`;
         <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3.5 shadow-2xs">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300/60">
-              Guest Mode (ยังไม่ได้เข้าสู่ระบบ)
+              Guest Mode (Not Signed In)
             </span>
           </div>
           <p className="text-[11px] text-amber-900 font-medium leading-relaxed mb-2.5">
-            ผู้ใช้ Guest จะไม่มีตารางเรียนส่วนตัว กรุณาเข้าสู่ระบบด้วยบัญชีนิสิต (Role: <strong>NON</strong>) เพื่อบันทึกและจัดตารางเรียน
+            Guest users do not have a personal timetable. Please sign in with a student account (Role: <strong>NON</strong>) to save and organize your classes.
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -239,15 +239,15 @@ END:VCALENDAR`;
               onClick={() => navigate('/login')}
               className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs text-center"
             >
-              Sign In (เข้าสู่ระบบ)
+              Sign In
             </button>
             <button
               type="button"
               onClick={loginAsStudentDemo}
               className="py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[11px] font-semibold rounded-xl transition cursor-pointer"
-              title="สลับเป็น Role NON เพื่อทดสอบดูตารางเรียน"
+              title="Switch to Student Role to view sample timetable"
             >
-              ทดลอง Login นิสิต (NON)
+              Try Student Demo (NON)
             </button>
           </div>
         </div>
@@ -267,7 +267,7 @@ END:VCALENDAR`;
             onClick={logoutDemo}
             className="text-[10px] text-slate-500 hover:text-rose-600 font-medium underline cursor-pointer"
           >
-            สลับเป็น Guest
+            Switch to Guest
           </button>
         </div>
       )}
@@ -295,8 +295,8 @@ END:VCALENDAR`;
           </h3>
           <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
             {!isLoggedIn
-              ? 'ผู้ใช้งาน Guest จะยังไม่มีตารางเรียนส่วนตัว กรุณาเข้าสู่ระบบด้วยบัญชีนิสิต (Role: NON) เพื่อบันทึกรายวิชา'
-              : 'สำรวจตารางเรียนตามห้องเรียนแล้วกด Bookmark เพื่อเพิ่มวิชาลงในตารางของคุณ'}
+              ? 'Guest users do not have a personal timetable. Please sign in with a student account (Role: NON) to bookmark classes.'
+              : 'Explore classroom schedules and tap the bookmark icon to add classes to your timetable.'}
           </p>
           {!isLoggedIn ? (
             <div className="flex flex-col gap-2 max-w-xs mx-auto">
@@ -310,7 +310,7 @@ END:VCALENDAR`;
                 onClick={loginAsStudentDemo}
                 className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs transition-colors"
               >
-                ทดลอง Login นิสิต (Role: NON) เพื่อดูตัวอย่าง 12 วิชา
+                Try Student Demo (Role: NON) to view 12 classes
               </button>
             </div>
           ) : (

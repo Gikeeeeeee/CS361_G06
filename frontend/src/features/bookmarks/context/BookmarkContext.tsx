@@ -96,7 +96,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     localStorage.setItem('ku_long_auth_user', JSON.stringify(studentUser));
     setActiveUser(studentUser);
-    setToast({ message: 'เข้าสู่ระบบในฐานะนิสิต (Role: NON) สำเร็จ', type: 'add' });
+    setToast({ message: 'Signed in as Student Demo (Role: NON)', type: 'add' });
     setTimeout(() => setToast(null), 2500);
   }, []);
 
@@ -105,7 +105,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.removeItem('ku_long_auth_user');
     setActiveUser(null);
     setBookmarks([]);
-    setToast({ message: 'เปลี่ยนเป็นสถานะ Guest (ยังไม่ได้เข้าสู่ระบบ)', type: 'remove' });
+    setToast({ message: 'Switched to Guest mode (Signed out)', type: 'remove' });
     setTimeout(() => setToast(null), 2500);
   }, []);
 
@@ -145,7 +145,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         (b) => !(b.entityId === item.entityId && b.entityType === item.entityType)
       );
       setBookmarks(nextBookmarks);
-      showToast('ยกเลิกการบันทึกแล้ว', 'remove');
+      showToast('Removed from bookmarks', 'remove');
 
       try {
         await bookmarkService.removeBookmark(item.entityId, item.entityType, userId);
@@ -154,7 +154,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Rollback state on error
         console.error('Failed to remove bookmark, rolling back:', err);
         setBookmarks(previousBookmarks);
-        showToast('เกิดข้อผิดพลาดในการยกเลิกบันทึก', 'remove');
+        showToast('Failed to remove bookmark', 'remove');
         return true;
       }
     } else {
@@ -170,7 +170,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             conflictingSlot: conflict.conflictingSlot || null,
           });
           showToast(
-            `เวลาชนกับ [${conflict.conflictingItem.courseCode || conflict.conflictingItem.title}]`,
+            `Time conflict with [${conflict.conflictingItem.courseCode || conflict.conflictingItem.title}]`,
             'warning'
           );
           return false;
@@ -184,7 +184,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         savedAt: new Date().toISOString(),
       };
       setBookmarks([optimisticItem, ...bookmarks]);
-      showToast('บันทึกสำเร็จ (Saved to bookmarks)', 'add');
+      showToast('Saved to bookmarks', 'add');
 
       try {
         const saved = await bookmarkService.addBookmark(item, userId);
@@ -196,7 +196,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Rollback state on error
         console.error('Failed to save bookmark, rolling back:', err);
         setBookmarks(previousBookmarks);
-        showToast('เกิดข้อผิดพลาดในการบันทึก', 'remove');
+        showToast('Failed to save bookmark', 'remove');
         return false;
       }
     }

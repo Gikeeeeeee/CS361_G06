@@ -169,7 +169,7 @@ export function detectScheduleConflict(
         candidateSlot.endMinutes > existingSlot.startMinutes;
 
       if (overlaps) {
-        const dayLabel = candidateSlot.dayName || (candidateSlot.dayOfWeek !== undefined ? DAY_NAMES[candidateSlot.dayOfWeek] : 'วันเดียวกัน');
+        const dayLabel = candidateSlot.dayName || (candidateSlot.dayOfWeek !== undefined ? DAY_NAMES[candidateSlot.dayOfWeek] : 'Same Day');
         const existingCode = existing.courseCode || existing.title;
         const candidateCode = candidate.courseCode || candidate.title;
 
@@ -178,7 +178,7 @@ export function detectScheduleConflict(
           conflictingItem: existing,
           candidateSlot,
           conflictingSlot: existingSlot,
-          message: `ไม่สามารถบันทึก [${candidateCode}] ได้ เนื่องจากเวลาชนกับ [${existingCode}] (${dayLabel} ${existingSlot.formattedTime})`,
+          message: `Cannot bookmark [${candidateCode}] because it conflicts with [${existingCode}] (${dayLabel} ${existingSlot.formattedTime})`,
         };
       }
     }
