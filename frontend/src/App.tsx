@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { AuthProvider } from './features/auth/context/AuthContext';
+import { RoleRouteGuard } from './features/auth/guards/RoleRouteGuard';
+import LoginPage from './features/auth/pages/LoginPage';
+import SignUpPage from './features/auth/pages/SignUpPage';
+
 import { UserLayout } from './layouts/UserLayout';
 import HomePage from './features/campus-explorer/pages/HomePage';
 import SavedPage from './features/campus-explorer/pages/SavedPage';
@@ -23,6 +28,10 @@ function DynamicPageTitle() {
     const pathname = location.pathname;
     if (pathname === '/') {
       document.title = 'KU Long';
+    } else if (pathname === '/login') {
+      document.title = 'Sign In | KU Long';
+    } else if (pathname === '/signup') {
+      document.title = 'Sign Up | KU Long';
     } else if (pathname === '/saved') {
       document.title = 'Saved | KU Long';
     } else if (pathname === '/profile') {
@@ -46,27 +55,39 @@ function DynamicPageTitle() {
 function App() {
   return (
     <BrowserRouter>
-      <DynamicPageTitle />
-      <Routes>
-        <Route path="/" element={<UserLayout />}>
-          <Route index element={<HomePage />} />
-          <Route path="saved" element={<SavedPage />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
-          <Route path="rooms/:roomId" element={<RoomDetailPage />} />
-          <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
-        </Route>
-        
-        {/* ส่วนของ Admin: รวมของทุกคนไว้ครบถ้วน */}
-        <Route path="admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="schedules/manage" replace />} />
-          <Route path="schedules" element={<ScheduleManagePage />} />
-          <Route path="schedules/manage" element={<AdminSchedulePage />} />
-          <Route path="add-schedule" element={<AddSchedulePage />} />
-          <Route path="buildings" element={<BuildingsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <DynamicPageTitle />
+        <Routes>
+          {/* Public Auth Routes */}
+          <Route path="login" element={<LoginPage />} />
+          <Route path="signup" element={<SignUpPage />} />
+
+          {/* User Layout Routes (Accessible by all: Guest, Student, Staff) */}
+          <Route path="/" element={<UserLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="saved" element={<SavedPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
+            <Route path="rooms/:roomId" element={<RoomDetailPage />} />
+            <Route path="facilities/:facilityId" element={<FacilityDetailPage />} />
+          </Route>
+          
+          {/* Protected Admin Routes: Accessible ONLY by STAFF / ADMIN roles */}
+          <Route path="admin" element={<RoleRouteGuard allowedRoles={['STAFF', 'ADMIN']} />}>
+            <Route element={<AdminLayout />}>
+              <Route index element={<Navigate to="schedules/manage" replace />} />
+              <Route path="schedules" element={<ScheduleManagePage />} />
+              <Route path="schedules/manage" element={<AdminSchedulePage />} />
+              <Route path="add-schedule" element={<AddSchedulePage />} />
+              <Route path="buildings" element={<BuildingsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+          </Route>
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

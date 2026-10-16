@@ -2,10 +2,43 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { HEADER_CONFIG } from '../../../../shared/config/navigation.config';
 import type { HeaderConfig } from '../../../../shared/types/navigation.types';
+import { useAuth } from '../../../auth/context/AuthContext';
+import { User as UserIcon } from 'lucide-react';
 
 interface MobileHeaderProps {
   config?: HeaderConfig;
 }
+
+const AuthHeaderStatus: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
+
+  if (isAuthenticated && user) {
+    return (
+      <Link
+        to="/profile"
+        className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors"
+        title="View Profile"
+      >
+        <img
+          src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.full_name}`}
+          alt={user.full_name}
+          className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 object-cover"
+        />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      to="/login"
+      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100/90 hover:bg-slate-200/80 text-slate-600 text-xs font-semibold transition-colors"
+      title="Sign In"
+    >
+      <UserIcon className="w-3.5 h-3.5" />
+      <span>Guest</span>
+    </Link>
+  );
+};
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONFIG }) => {
   return (
@@ -30,12 +63,14 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONF
         )}
       </Link>
 
-      {/* Right: Action (if any) */}
-      {config.rightAction && (
-        <div className="absolute right-4 flex items-center">
-          {config.rightAction}
-        </div>
-      )}
+      {/* Right: Action or Auth status */}
+      <div className="absolute right-4 flex items-center">
+        {config.rightAction ? (
+          config.rightAction
+        ) : (
+          <AuthHeaderStatus />
+        )}
+      </div>
     </header>
   );
 };
