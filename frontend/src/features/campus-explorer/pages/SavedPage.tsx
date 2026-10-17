@@ -188,29 +188,6 @@ export default function SavedPage() {
         </div>
       </div>
 
-      {/* Role State Banner (Guest only) */}
-      {!isLoggedIn && (
-        <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3.5 shadow-2xs">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300/60">
-              Guest Mode (Not Signed In)
-            </span>
-          </div>
-          <p className="text-[11px] text-amber-900 font-medium leading-relaxed mb-2.5">
-            Guest users do not have a personal timetable. Please sign in with a student account (Role: <strong>STUDENT</strong>) to save and organize your classes.
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs text-center"
-            >
-              Sign In to save & sync your timetable
-            </button>
-          </div>
-        </div>
-      )}
-
 
 
       {/* EMPTY / GUEST STATE */}
