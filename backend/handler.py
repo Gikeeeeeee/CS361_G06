@@ -205,10 +205,10 @@ def _add_bookmark(deps: Dependencies, p: dict) -> dict:
 
 def _remove_bookmark(deps: Dependencies, p: dict) -> dict:
     auth_user = p["auth_user"]
-    bookmark = deps.bookmarks.remove_bookmark(
+    deps.bookmarks.remove_bookmark(
         auth_user["user_id"], p["entityId"], auth_token=auth_user.get("token")
     )
-    return {"success": True, "data": bookmark.to_dict()}
+    return {"success": True, "message": "Bookmark removed successfully."}
 
 
 def _dry_run(params: dict) -> bool:

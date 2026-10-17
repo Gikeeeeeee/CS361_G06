@@ -30,12 +30,19 @@ def test_add_duplicate_raises_conflict(service):
 
 @pytest.mark.unit
 @pytest.mark.parametrize("body", [
-    {"entity_id": "ROOM-204", "entity_type": "ROOM"},
+    {"entity_id": "ROOM-204", "entity_type": "UNKNOWN"},
     ["SCH-1"],
 ])
-def test_add_rejects_non_schedule_or_non_object(service, body):
+def test_add_rejects_invalid_type_or_non_object(service, body):
     with pytest.raises(InvalidBookmark):
         service.add_bookmark(USER, body)
+
+
+@pytest.mark.unit
+def test_add_room_bookmark(service):
+    bm = service.add_bookmark(USER, {"entity_id": "ROOM-204", "entity_type": "ROOM"})
+    assert bm.entity_type == "ROOM"
+    assert bm.entity_id == "ROOM-204"
 
 
 @pytest.mark.unit

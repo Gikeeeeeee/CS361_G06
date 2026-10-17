@@ -321,7 +321,7 @@ class InvalidBookmark(ValidationError):
     @classmethod
     def bad_type(cls, entity_type: str) -> "InvalidBookmark":
         return cls(
-            f"entity_type '{entity_type}' is not allowed; only SCHEDULE can be bookmarked"
+            f"entity_type '{entity_type}' is not allowed; only ROOM or SCHEDULE can be bookmarked"
         )
 
 
@@ -334,9 +334,9 @@ class AlreadyBookmarked(AppError):
 
 
 class BookmarkNotFound(NotFoundError):
-    code = "BOOKMARK_NOT_FOUND"
+    code = "NOT_FOUND"
 
-    def __init__(self, entity_id: str):
+    def __init__(self, entity_id: str | None = None):
         self.entity_id = entity_id
-        super().__init__(f"Bookmark for '{entity_id}' not found")
+        super().__init__("Bookmark not found.")
 

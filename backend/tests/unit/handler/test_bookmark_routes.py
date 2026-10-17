@@ -66,7 +66,7 @@ def test_student_can_post_list_and_delete():
 
     status, body = _delete("SCH-9988")
     assert status == 200
-    assert body["data"]["entity_id"] == "SCH-9988"
+    assert body == {"success": True, "message": "Bookmark removed successfully."}
     assert _get()[1]["data"] == []
 
 
@@ -83,8 +83,17 @@ def test_duplicate_post_is_409():
 
 @pytest.mark.unit
 @pytest.mark.handler
-def test_room_bookmark_is_400():
+def test_room_bookmark_is_201():
     status, body = _post({"entity_id": "ROOM-204", "entity_type": "ROOM"})
+    assert status == 201
+    assert body["data"]["entity_type"] == "ROOM"
+    assert body["data"]["entity_id"] == "ROOM-204"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_invalid_entity_type_is_400():
+    status, body = _post({"entity_id": "ROOM-204", "entity_type": "INVALID"})
     assert status == 400
     assert body["error"]["code"] == "VALIDATION_ERROR"
 
@@ -94,7 +103,13 @@ def test_room_bookmark_is_400():
 def test_delete_unknown_is_404():
     status, body = _delete("SCH-404")
     assert status == 404
-    assert body["error"]["code"] == "BOOKMARK_NOT_FOUND"
+    assert body == {
+        "success": False,
+        "error": {
+            "code": "NOT_FOUND",
+            "message": "Bookmark not found.",
+        },
+    }
 
 
 @pytest.mark.unit

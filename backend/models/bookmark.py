@@ -10,8 +10,8 @@ from typing import Any
 
 from models.user import format_iso_utc
 
-# Users may only bookmark schedules (V3-US2).
-BOOKMARK_TYPES = ("SCHEDULE",)
+# Allowed bookmark entity types
+BOOKMARK_TYPES = ("ROOM", "SCHEDULE")
 
 
 @dataclass(frozen=True)
