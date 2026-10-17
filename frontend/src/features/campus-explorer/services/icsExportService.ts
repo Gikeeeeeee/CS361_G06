@@ -12,6 +12,8 @@ import { apiClient } from '../../../services/api/apiClient';
 import type { BookmarkItem } from '../../bookmarks/types/bookmark.types';
 
 export interface IcsEventOptions {
+  id?: string | number;
+  scheduleId?: string | number;
   title: string;
   start_at: string;
   end_at?: string | null;
@@ -183,7 +185,11 @@ export function generateVEventBlock(event: IcsEventOptions): string {
       .join('\n')
   );
 
-  const uid = `kulong-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@kulong.ku.th`;
+  const rawId = event.scheduleId ?? event.id;
+  const scheduleId = rawId
+    ? String(rawId).trim()
+    : `${event.course_code || 'schedule'}-${Date.parse(event.start_at) || Date.now()}`;
+  const uid = `${scheduleId}@campus-explorer.app`;
 
   return [
     'BEGIN:VEVENT',
@@ -285,6 +291,77 @@ export function downloadIcsEvent(event: IcsEventOptions): boolean {
 }
 
 /**
+ * Format a Date object into UTC YYYYMMDDTHHMMSSZ string for Google Calendar
+ */
+export function formatGoogleCalendarDate(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+/**
+ * Format location according to US3 requirements: `[room.name - room.building_name]`
+ */
+export function formatGoogleCalendarLocation(event: IcsEventOptions): string {
+  if (event.room?.name && event.room?.building_name) {
+    return `${event.room.name} - ${event.room.building_name}`;
+  }
+  if (event.room?.name) {
+    return event.room.name;
+  }
+  if (event.room?.building_name) {
+    return event.room.building_name;
+  }
+  if (event.location) {
+    return event.location;
+  }
+  return 'Kasetsart University';
+}
+
+/**
+ * Construct a Google Calendar event URL:
+ * https://calendar.google.com/calendar/render?action=TEMPLATE&text=[title]&dates=[start_formatted]/[end_formatted]&details=[description]&location=[room.name+-+room.building_name]
+ */
+export function buildGoogleCalendarUrl(event: IcsEventOptions): string {
+  const startDate = new Date(event.start_at);
+  const validStart = !isNaN(startDate.getTime()) ? startDate : new Date();
+
+  let validEnd: Date;
+  if (event.end_at) {
+    const parsedEnd = new Date(event.end_at);
+    if (!isNaN(parsedEnd.getTime()) && parsedEnd.getTime() > validStart.getTime()) {
+      validEnd = parsedEnd;
+    } else {
+      validEnd = new Date(validStart.getTime() + 60 * 60 * 1000);
+    }
+  } else {
+    validEnd = new Date(validStart.getTime() + 60 * 60 * 1000);
+  }
+
+  const startFormatted = formatGoogleCalendarDate(validStart);
+  const endFormatted = formatGoogleCalendarDate(validEnd);
+
+  const title = [event.course_code, event.title].filter(Boolean).join(' - ');
+  const location = formatGoogleCalendarLocation(event);
+  const description = [
+    event.description,
+    event.organizer ? `Organizer: ${event.organizer}` : null,
+    event.type ? `Event Type: ${event.type}` : null,
+    'Exported from KU Long Campus Companion',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title,
+    dates: `${startFormatted}/${endFormatted}`,
+    details: description,
+    location: location,
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/**
  * Fetch full details for a single schedule from GET /api/v1/rooms/{roomId}/schedules/{scheduleId}
  */
 export async function fetchScheduleDetail(roomId: string, scheduleId: string): Promise<any> {
@@ -295,6 +372,90 @@ export async function fetchScheduleDetail(roomId: string, scheduleId: string): P
     return res.data;
   }
   return res;
+}
+
+/**
+ * Resolves full schedule details from API (or falls back to local item data)
+ */
+export async function getScheduleEventOptions(schedule: any): Promise<IcsEventOptions> {
+  const scheduleId = schedule.entityId || schedule.id || schedule.scheduleId;
+  const roomId = schedule.roomId || schedule.room_id || schedule.roomName || schedule.building || 'room-uuid-1';
+
+  try {
+    const detail = await fetchScheduleDetail(roomId, scheduleId);
+    if (detail && (detail.title || detail.start_at)) {
+      return {
+        id: scheduleId,
+        scheduleId: scheduleId,
+        title: detail.title || schedule.title || 'Schedule',
+        start_at: detail.start_at || schedule.startAt || new Date().toISOString(),
+        end_at: detail.end_at || schedule.endAt,
+        course_code: detail.course_code || schedule.courseCode,
+        description: detail.description || schedule.description || schedule.subtitle,
+        organizer: detail.organizer || schedule.organizer,
+        time_zone: detail.time_zone || 'Asia/Bangkok',
+        type: detail.type || schedule.type,
+        room: detail.room || {
+          id: roomId,
+          name: schedule.roomName || detail.room_name,
+          building_name: schedule.building || detail.building_name,
+        },
+      };
+    }
+  } catch (err) {
+    console.warn(`[Calendar Export] Failed to fetch schedule detail (${roomId}/${scheduleId}), using local bookmark:`, err);
+  }
+
+  return {
+    id: scheduleId,
+    scheduleId: scheduleId,
+    title: schedule.title || 'Schedule',
+    start_at: schedule.startAt || schedule.start_at || new Date().toISOString(),
+    end_at: schedule.endAt || schedule.end_at,
+    course_code: schedule.courseCode || schedule.course_code,
+    description: schedule.description || schedule.subtitle || 'Exported from KU Long Saved Schedules',
+    organizer: schedule.organizer || 'KU Long',
+    time_zone: schedule.time_zone || 'Asia/Bangkok',
+    type: schedule.type,
+    room: {
+      name: schedule.roomName,
+      building_name: schedule.building,
+    },
+  };
+}
+
+/**
+ * Single-Item Export: Google Calendar
+ * 1. Fetch schedule details via GET /api/v1/rooms/{roomId}/schedules/{scheduleId}
+ * 2. Construct Google Calendar URL
+ * 3. Open in new tab (target="_blank")
+ */
+export async function exportScheduleToGoogleCalendar(schedule: any): Promise<boolean> {
+  try {
+    const event = await getScheduleEventOptions(schedule);
+    const url = buildGoogleCalendarUrl(event);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return true;
+  } catch (err) {
+    console.error('Failed to export to Google Calendar:', err);
+    return false;
+  }
+}
+
+/**
+ * Single-Item Export: Outlook / Apple Calendar (.ics)
+ * 1. Fetch schedule details via GET /api/v1/rooms/{roomId}/schedules/{scheduleId}
+ * 2. Generate valid .ics file string
+ * 3. Trigger standard browser download
+ */
+export async function exportScheduleToIcsFile(schedule: any): Promise<boolean> {
+  try {
+    const event = await getScheduleEventOptions(schedule);
+    return downloadIcsEvent(event);
+  } catch (err) {
+    console.error('Failed to export to .ics file:', err);
+    return false;
+  }
 }
 
 /**
@@ -321,6 +482,8 @@ export async function exportSavedSchedules(
         const detail = await fetchScheduleDetail(roomId, scheduleId);
         if (detail && (detail.title || detail.start_at)) {
           return {
+            id: scheduleId,
+            scheduleId: scheduleId,
             title: detail.title || s.title,
             start_at: detail.start_at || s.startAt || new Date().toISOString(),
             end_at: detail.end_at || s.endAt,
@@ -341,6 +504,8 @@ export async function exportSavedSchedules(
 
       // Fallback to bookmark item data
       return {
+        id: scheduleId,
+        scheduleId: scheduleId,
         title: s.title,
         start_at: s.startAt || new Date().toISOString(),
         end_at: s.endAt,

@@ -15,8 +15,11 @@ interface BookmarkButtonProps {
   endAt?: string;
   roomName?: string;
   roomId?: string;
+  type?: string;
+  organizer?: string;
   className?: string;
   iconClassName?: string;
+  textClassName?: string;
   activeColorClass?: string;
   inactiveColorClass?: string;
   size?: number;
@@ -35,8 +38,11 @@ export const BookmarkButton: React.FC<BookmarkButtonProps> = ({
   endAt,
   roomName,
   roomId,
+  type,
+  organizer,
   className = '',
   iconClassName = '',
+  textClassName = '',
   activeColorClass = 'text-blue-600 fill-blue-600',
   inactiveColorClass = 'text-slate-400 hover:text-slate-600',
   size = 20,
@@ -61,6 +67,8 @@ export const BookmarkButton: React.FC<BookmarkButtonProps> = ({
       endAt,
       roomName,
       roomId,
+      type,
+      organizer,
     });
   };
 
@@ -80,8 +88,8 @@ export const BookmarkButton: React.FC<BookmarkButtonProps> = ({
       />
       {showText && (
         <span
-          className={`text-xs font-semibold ${
-            saved ? 'text-blue-600' : 'text-slate-500'
+          className={`${textClassName || 'text-xs font-semibold'} ${
+            saved ? 'text-blue-600' : 'text-slate-600'
           }`}
         >
           {saved ? 'Saved' : 'Save'}
