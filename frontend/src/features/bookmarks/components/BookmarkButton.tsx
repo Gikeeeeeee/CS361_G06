@@ -14,6 +14,7 @@ interface BookmarkButtonProps {
   startAt?: string;
   endAt?: string;
   roomName?: string;
+  roomId?: string;
   className?: string;
   iconClassName?: string;
   activeColorClass?: string;
@@ -33,6 +34,7 @@ export const BookmarkButton: React.FC<BookmarkButtonProps> = ({
   startAt,
   endAt,
   roomName,
+  roomId,
   className = '',
   iconClassName = '',
   activeColorClass = 'text-blue-600 fill-blue-600',
@@ -58,6 +60,7 @@ export const BookmarkButton: React.FC<BookmarkButtonProps> = ({
       startAt,
       endAt,
       roomName,
+      roomId,
     });
   };
 

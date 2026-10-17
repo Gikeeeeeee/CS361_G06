@@ -12,6 +12,7 @@ export interface BookmarkItem {
   startAt?: string;
   endAt?: string;
   roomName?: string;
+  roomId?: string;
   savedAt: string;
 }
 

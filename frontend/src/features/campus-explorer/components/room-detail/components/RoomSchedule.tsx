@@ -253,6 +253,7 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                                   courseCode={event.course_code}
                                   startAt={event.start_at}
                                   endAt={event.end_at}
+                                  roomId={event.room_id || roomId}
                                   size={16}
                                   className={`p-1 rounded-md ${
                                     isMasked ? 'hover:bg-slate-200' : 'hover:bg-blue-100'
@@ -465,6 +466,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                         courseCode={event.course_code || (isMasked ? 'Reserved' : event.type)}
                         startAt={event.start_at}
                         endAt={event.end_at}
+                        roomId={event.room_id || roomId}
                         size={16}
                         className="p-1 hover:bg-slate-100 rounded-md"
                       />
@@ -635,6 +637,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   courseCode={selectedEvent.course_code || (isMaskedSchedule(selectedEvent) ? 'Reserved' : selectedEvent.type)}
                   startAt={selectedEvent.start_at}
                   endAt={selectedEvent.end_at}
+                  roomId={selectedEvent.room_id || roomId}
                   size={18}
                   className="p-2 hover:bg-white/60 rounded-full"
                 />

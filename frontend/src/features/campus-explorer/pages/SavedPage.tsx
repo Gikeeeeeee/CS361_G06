@@ -12,11 +12,12 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   ArrowRight,
   CheckCircle2,
+  Loader2,
+  Check,
 } from 'lucide-react';
+import { exportSavedSchedules } from '../services/icsExportService';
 
 // Color themes matching the Figma timetable design
 const COURSE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -65,14 +66,14 @@ const HOUR_ROW_HEIGHT = 50; // px per hour
 
 export default function SavedPage() {
   const navigate = useNavigate();
-  const { bookmarks, isLoggedIn, activeUser } = useBookmarks();
+  const { bookmarks, isLoggedIn } = useBookmarks();
 
   // View switcher: LIST ('LIST') vs TIMETABLE CALENDAR ('CALENDAR')
   const [viewMode, setViewMode] = useState<'LIST' | 'CALENDAR'>('LIST');
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isExportBarCollapsed, setIsExportBarCollapsed] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -110,19 +111,9 @@ export default function SavedPage() {
     );
   };
 
-  // Calculate actual total hours dynamically
-  const totalHours = useMemo(() => {
-    const selectedItems = savedSchedules.filter((s) =>
-      selectedScheduleIds.includes(s.entityId)
-    );
-    return selectedItems.reduce((acc, curr) => {
-      const slot = parseScheduleTime(curr);
-      return acc + (slot?.durationHours || 3);
-    }, 0);
-  }, [savedSchedules, selectedScheduleIds]);
 
-  // Export timetable as .ics calendar file
-  const handleExportTimetableIcs = () => {
+  // Export timetable as .ics calendar file (US3)
+  const handleExportTimetableIcs = async () => {
     const selectedItems = savedSchedules.filter((s) =>
       selectedScheduleIds.includes(s.entityId)
     );
@@ -132,48 +123,20 @@ export default function SavedPage() {
       return;
     }
 
-    const eventsBlock = selectedItems
-      .map((s) => {
-        const slot = parseScheduleTime(s);
-        const dayOffset = (slot?.dayOfWeek || 1) - 1;
-        const sH = String(Math.floor((slot?.startMinutes || 540) / 60)).padStart(2, '0');
-        const sM = String((slot?.startMinutes || 540) % 60).padStart(2, '0');
-        const eH = String(Math.floor((slot?.endMinutes || 720) / 60)).padStart(2, '0');
-        const eM = String((slot?.endMinutes || 720) % 60).padStart(2, '0');
-        const dayNum = String(14 + Math.max(0, dayOffset)).padStart(2, '0');
-
-        return `BEGIN:VEVENT
-SUMMARY:${s.courseCode || ''} ${s.title}
-DTSTART:202609${dayNum}T${sH}${sM}00
-DTEND:202609${dayNum}T${eH}${eM}00
-LOCATION:${s.roomName || s.building || 'Thammasat University'}
-DESCRIPTION:Exported from KU Long Timetable
-STATUS:CONFIRMED
-END:VEVENT`;
-      })
-      .join('\n');
-
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//KU Long//Student Timetable//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:KU Long Student Timetable
-X-WR-TIMEZONE:Asia/Bangkok
-${eventsBlock}
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'My_Timetable.ics';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    showToast(`Successfully downloaded ${selectedItems.length} classes to calendar (.ics)!`);
+    setIsExporting(true);
+    try {
+      const success = await exportSavedSchedules(selectedItems, 'saved-schedules.ics');
+      if (success) {
+        showToast(`Successfully downloaded ${selectedItems.length} schedule(s) to calendar (.ics)!`);
+      } else {
+        showToast('Export failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Failed to export schedules:', err);
+      showToast('Failed to export schedules. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -225,8 +188,8 @@ END:VCALENDAR`;
         </div>
       </div>
 
-      {/* Role State Banner (Guest vs Student NON) */}
-      {!isLoggedIn ? (
+      {/* Role State Banner (Guest only) */}
+      {!isLoggedIn && (
         <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3.5 shadow-2xs">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300/60">
@@ -246,31 +209,9 @@ END:VCALENDAR`;
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex items-center justify-between bg-blue-50/70 border border-blue-100 rounded-xl px-3 py-1.5 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="font-bold text-slate-800 text-[11px]">
-              {activeUser?.name || 'Student'}
-            </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-              {activeUser?.role || 'STUDENT'}
-            </span>
-          </div>
-        </div>
       )}
 
-      {/* Schedules Count Badge & Subtitle */}
-      <div>
-        <div className="w-full py-2 bg-white border border-blue-200/80 rounded-xl text-center shadow-2xs mb-1.5">
-          <span className="text-xs font-bold text-blue-600">
-            Schedules ({savedSchedules.length})
-          </span>
-        </div>
-        <p className="text-[11px] text-slate-500">
-          Schedules selected - review and export your timetable
-        </p>
-      </div>
+
 
       {/* EMPTY / GUEST STATE */}
       {savedSchedules.length === 0 ? (
@@ -318,20 +259,29 @@ END:VCALENDAR`;
 
           {/* Select All Row */}
           <div className="flex items-center justify-between px-1 text-xs">
-            <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700 select-none">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={handleToggleSelectAll}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-              />
-              <span className="font-semibold">
+            <label className="flex items-center gap-2.5 cursor-pointer font-medium text-slate-700 select-none group">
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={handleToggleSelectAll}
+                  className="sr-only peer"
+                  aria-label="Select all schedules"
+                />
+                <div
+                  className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-1 ${
+                    allSelected
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-xs scale-100'
+                      : 'bg-white border-slate-300 group-hover:border-slate-400'
+                  }`}
+                >
+                  {allSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                </div>
+              </div>
+              <span className="font-semibold text-slate-800 text-xs">
                 Select All ({savedSchedules.length})
               </span>
             </label>
-            <span className="font-bold text-blue-600 text-xs">
-              {totalHours} hours
-            </span>
           </div>
 
           {/* Schedule Cards List */}
@@ -352,12 +302,24 @@ END:VCALENDAR`;
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleSchedule(schedule.entityId)}
-                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-1 cursor-pointer"
-                      />
+                      <label className="relative flex items-center justify-center cursor-pointer select-none mt-1 shrink-0 group">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSchedule(schedule.entityId)}
+                          className="sr-only peer"
+                          aria-label={`Select ${schedule.title}`}
+                        />
+                        <div
+                          className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-1 ${
+                            isChecked
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-xs scale-100'
+                              : 'bg-white border-slate-300 group-hover:border-slate-400'
+                          }`}
+                        >
+                          {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+                      </label>
                       <div>
                         {schedule.courseCode && (
                           <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200 mb-1">
@@ -538,55 +500,35 @@ END:VCALENDAR`;
         </div>
       )}
 
-      {/* Sticky Bottom Summary & Export Bar (Matches Figma Exactly with Minimize Toggle) */}
-      {savedSchedules.length > 0 && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
-          {isExportBarCollapsed ? (
-            /* Collapsed Floating Pill */
+      {/* Sticky Bottom Summary & Export Bar (Hidden when no items are selected) */}
+      {selectedScheduleIds.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3 shadow-lg flex flex-col gap-2 pointer-events-auto transition-all animate-in fade-in slide-in-from-bottom-2">
+            {/* Summary Line */}
+            <div className="flex items-center justify-between text-xs px-0.5">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-900">
+                  {selectedScheduleIds.length} {selectedScheduleIds.length === 1 ? 'Class' : 'Classes'} in Timetable
+                </span>
+                <span className="text-[11px] text-slate-400 font-medium">• Weekly</span>
+              </div>
+            </div>
+
+            {/* Export Button */}
             <button
               type="button"
-              onClick={() => setIsExportBarCollapsed(false)}
-              className="pointer-events-auto bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-4 py-2 rounded-full shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-2"
-              title="Expand export bar"
+              onClick={handleExportTimetableIcs}
+              disabled={isExporting}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export .ics ({selectedScheduleIds.length})</span>
-              <ChevronUp className="w-3.5 h-3.5 text-blue-200" />
-            </button>
-          ) : (
-            /* Expanded Full Action Card */
-            <div className="w-full max-w-md bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl p-3 shadow-lg flex flex-col gap-2 pointer-events-auto transition-all animate-in fade-in">
-              {/* Summary Line with Minimize Button */}
-              <div className="flex items-center justify-between text-xs px-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900">
-                    {selectedScheduleIds.length} Classes in Timetable
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-medium">• Weekly</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsExportBarCollapsed(true)}
-                  className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                  title="Minimize export bar"
-                  aria-label="Minimize export bar"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Export Button */}
-              <button
-                type="button"
-                onClick={handleExportTimetableIcs}
-                disabled={selectedScheduleIds.length === 0}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
                 <Download className="w-4 h-4" />
-                <span>Export Timetable to .ics</span>
-              </button>
-            </div>
-          )}
+              )}
+              <span>{isExporting ? 'Exporting to Calendar...' : 'Export to my Calendar'}</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
