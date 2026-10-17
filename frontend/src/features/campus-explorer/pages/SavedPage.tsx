@@ -65,7 +65,7 @@ const HOUR_ROW_HEIGHT = 50; // px per hour
 
 export default function SavedPage() {
   const navigate = useNavigate();
-  const { bookmarks, isLoggedIn, activeUser, loginAsStudentDemo, logoutDemo } = useBookmarks();
+  const { bookmarks, isLoggedIn, activeUser } = useBookmarks();
 
   // View switcher: LIST ('LIST') vs TIMETABLE CALENDAR ('CALENDAR')
   const [viewMode, setViewMode] = useState<'LIST' | 'CALENDAR'>('LIST');
@@ -146,7 +146,7 @@ export default function SavedPage() {
 SUMMARY:${s.courseCode || ''} ${s.title}
 DTSTART:202609${dayNum}T${sH}${sM}00
 DTEND:202609${dayNum}T${eH}${eM}00
-LOCATION:${s.roomName || s.building || 'KU Campus'}
+LOCATION:${s.roomName || s.building || 'Thammasat University'}
 DESCRIPTION:Exported from KU Long Timetable
 STATUS:CONFIRMED
 END:VEVENT`;
@@ -240,38 +240,23 @@ END:VCALENDAR`;
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs text-center"
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-xs text-center"
             >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={loginAsStudentDemo}
-              className="py-1.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-[11px] font-semibold rounded-xl transition cursor-pointer"
-              title="Switch to Student Role to view sample timetable"
-            >
-              Try Student Demo (Non)
+              Sign In to save & sync your timetable
             </button>
           </div>
         </div>
       ) : (
         <div className="flex items-center justify-between bg-blue-50/70 border border-blue-100 rounded-xl px-3 py-1.5 text-xs">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span className="font-bold text-slate-800 text-[11px]">
-              {activeUser?.name || 'Non'}
+              {activeUser?.name || 'Student'}
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
-              Role: {activeUser?.role || 'STUDENT'}
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+              {activeUser?.role || 'STUDENT'}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={logoutDemo}
-            className="text-[10px] text-slate-500 hover:text-rose-600 font-medium underline cursor-pointer"
-          >
-            Switch to Guest
-          </button>
         </div>
       )}
 
@@ -305,15 +290,9 @@ END:VCALENDAR`;
             <div className="flex flex-col gap-2 max-w-xs mx-auto">
               <button
                 onClick={() => navigate('/login')}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Sign In to Save Classes
-              </button>
-              <button
-                onClick={loginAsStudentDemo}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs transition-colors"
-              >
-                Try Student Demo (Non) to view 12 classes
               </button>
             </div>
           ) : (

@@ -90,7 +90,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loginAsStudentDemo = useCallback(async () => {
     const studentUser = {
       id: 'user-student-01',
-      email: 'non@ku.th',
+      email: 'student@dome.tu.ac.th',
       name: 'Non',
       role: 'STUDENT',
     };

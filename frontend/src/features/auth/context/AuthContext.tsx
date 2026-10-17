@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
 import type { User, UserRole, LoginCredentials, SignUpCredentials } from '../types/auth.types';
 
 interface AuthContextType {
@@ -15,25 +16,65 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize and persist state on mount
+  // Initialize and verify session on mount
   useEffect(() => {
-    const syncUser = () => {
+    let isMounted = true;
+
+    const initAuth = async () => {
       try {
-        const existingUser = authService.getCurrentUser();
-        setUser(existingUser || null);
+        const restoredUser = await authService.restoreSession();
+        if (isMounted) {
+          setUser(restoredUser);
+        }
       } catch (e) {
-        console.error('Failed to restore auth session:', e);
+        console.error('Failed to verify session with backend:', e);
+        if (isMounted) {
+          setUser(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    syncUser();
-    window.addEventListener('storage', syncUser);
-    return () => window.removeEventListener('storage', syncUser);
+    initAuth();
+
+    // Listen to 401 Unauthorized events from API calls to auto-logout
+    const handleUnauthorized = () => {
+      setUser(null);
+      authService.clearSession();
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
+    // Listen to Supabase Auth state changes (token refresh, logout)
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          authService.clearSession();
+          if (isMounted) setUser(null);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          const currentUser = authService.getCurrentUser();
+          if (currentUser) {
+            authService.setSession(currentUser, session.access_token);
+          }
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        window.removeEventListener('auth:unauthorized', handleUnauthorized);
+        subscription.unsubscribe();
+      };
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<User> => {
