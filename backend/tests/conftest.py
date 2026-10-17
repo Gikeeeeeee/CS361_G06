@@ -428,6 +428,44 @@ def fake_schedule_source():
     return FakeScheduleSource
 
 
+class FakeBookmarkSource:
+    """In-memory fake of ports.bookmark_source.BookmarkSource."""
+
+    def __init__(self):
+        self.rows = []
+
+    def list_bookmarks(self, user_id, auth_token=None):
+        return [b for b in reversed(self.rows) if b.user_id == user_id]
+
+    def add_bookmark(self, user_id, entity_id, entity_type, auth_token=None):
+        from errors import AlreadyBookmarked
+        from models.bookmark import Bookmark
+
+        if any(b.user_id == user_id and b.entity_id == entity_id for b in self.rows):
+            raise AlreadyBookmarked()
+        bookmark = Bookmark(
+            id=f"bm-{len(self.rows) + 1}",
+            user_id=user_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            saved_at="2026-10-14T10:30:00Z",
+        )
+        self.rows.append(bookmark)
+        return bookmark
+
+    def remove_bookmark(self, user_id, entity_id, auth_token=None):
+        for b in self.rows:
+            if b.user_id == user_id and b.entity_id == entity_id:
+                self.rows.remove(b)
+                return b
+        return None
+
+
+@pytest.fixture
+def fake_bookmark_source() -> FakeBookmarkSource:
+    return FakeBookmarkSource()
+
+
 @pytest.fixture
 def sample_schedule() -> dict[str, Any]:
     """Sample schedule data for Schedule service tests."""

@@ -40,7 +40,9 @@ from services.search_service import SearchService
 from repositories.room_repository import RoomRepository
 from repositories.facility_repository import FacilityRepository
 from repositories.supabase_user_repository import SupabaseUserRepository
+from repositories.supabase_bookmark_repository import SupabaseBookmarkRepository
 from services.user_service import UserService
+from services.bookmark_service import BookmarkService
 from models.schedule import TYPES
 
 logger = logging.getLogger()
@@ -55,7 +57,7 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
-    def __init__(self, source=None, schedule_source=None, user_source=None):
+    def __init__(self, source=None, schedule_source=None, user_source=None, bookmark_source=None):
         building_source = (
             source if source is not None else BuildingRepository()
         )
@@ -85,6 +87,17 @@ class Dependencies:
             if user_source is not None
             else None
         )
+
+        self._bookmark_source = bookmark_source
+        self._bookmarks = None
+
+    @property
+    def bookmarks(self) -> BookmarkService:
+        if self._bookmarks is None:
+            self._bookmarks = BookmarkService(
+                self._bookmark_source or SupabaseBookmarkRepository()
+            )
+        return self._bookmarks
 
     @property
     def users(self) -> UserService:
@@ -170,6 +183,34 @@ def _get_me(deps: Dependencies, p: dict) -> dict:
     }
 
 
+BOOKMARKS = "/api/v1/bookmarks"
+BOOKMARK = f"{BOOKMARKS}/{{entityId}}"
+
+
+def _list_bookmarks(deps: Dependencies, p: dict) -> dict:
+    auth_user = p["auth_user"]
+    bookmarks = deps.bookmarks.list_bookmarks(
+        auth_user["user_id"], auth_token=auth_user.get("token")
+    )
+    return {"success": True, "data": [b.to_dict() for b in bookmarks]}
+
+
+def _add_bookmark(deps: Dependencies, p: dict) -> dict:
+    auth_user = p["auth_user"]
+    bookmark = deps.bookmarks.add_bookmark(
+        auth_user["user_id"], p["body"], auth_token=auth_user.get("token")
+    )
+    return {"success": True, "data": bookmark.to_dict()}
+
+
+def _remove_bookmark(deps: Dependencies, p: dict) -> dict:
+    auth_user = p["auth_user"]
+    bookmark = deps.bookmarks.remove_bookmark(
+        auth_user["user_id"], p["entityId"], auth_token=auth_user.get("token")
+    )
+    return {"success": True, "data": bookmark.to_dict()}
+
+
 def _dry_run(params: dict) -> bool:
     return params.get("dry_run") == "true"
 
@@ -248,7 +289,19 @@ ROUTES = {
         (),
         _get_me,
     ),
+    f"GET {BOOKMARKS}": Route((), _list_bookmarks),
+    f"POST {BOOKMARKS}": Route(("body",), _add_bookmark),
+    f"DELETE {BOOKMARK}": Route(("entityId",), _remove_bookmark),
 }
+
+# Routes any signed-in user may call (no STAFF role); verified per request.
+USER_ROUTES = {
+    f"GET {USERS_ME}",
+    f"GET {BOOKMARKS}",
+    f"POST {BOOKMARKS}",
+    f"DELETE {BOOKMARK}",
+}
+_USER_WRITE_PATH = re.compile(re.escape(BOOKMARKS) + r"(/[^/]+)?/?$")
 
 
 def _compile(route_key: str) -> tuple[str, re.Pattern]:
@@ -372,6 +425,9 @@ def lambda_handler(event, context):
       - PUT    /api/v1/rooms/{roomId}/schedules/{scheduleId}
       - DELETE /api/v1/rooms/{roomId}/schedules/{scheduleId}
       - POST   /api/v1/schedules/imports[?dry_run=true]
+      - GET    /api/v1/bookmarks
+      - POST   /api/v1/bookmarks
+      - DELETE /api/v1/bookmarks/{entityId}
     """
     method = _method(event)
     path = _path(event)
@@ -382,8 +438,16 @@ def lambda_handler(event, context):
         return response.preflight()
 
     try:
-        # Every write (create/update/delete schedule, CSV import) is a STAFF action.
-        if method in ("POST", "PUT", "DELETE"):
+        # Every write (create/update/delete schedule, CSV import) is a STAFF
+        # action, except a user's own bookmarks.
+        # Decide from the same source _route_key will use, so they cannot disagree.
+        event_key = event.get("routeKey")
+        user_route = (
+            event_key in USER_ROUTES
+            if event_key in ROUTES
+            else bool(_USER_WRITE_PATH.search(path))
+        )
+        if method in ("POST", "PUT", "DELETE") and not user_route:
             verify_token(event, required_role="STAFF")
 
         route_key, params = _resolve(event, method, path)
@@ -391,7 +455,7 @@ def lambda_handler(event, context):
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
 
-        if route_key == f"GET {USERS_ME}":
+        if route_key in USER_ROUTES:
             params["auth_user"] = verify_token(event)
 
         route = ROUTES[route_key]
