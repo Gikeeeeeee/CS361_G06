@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building as BuildingIcon } from 'lucide-react';
+import { ArrowLeft, Building as BuildingIcon, Share2, CheckCircle2 } from 'lucide-react';
 import type { Room, Floor, Building } from '../../../../../shared/types/domain.types';
 
 interface RoomHeroProps {
@@ -10,20 +11,88 @@ interface RoomHeroProps {
 
 export function RoomHero({ room }: RoomHeroProps) {
   const navigate = useNavigate();
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const displayNumber = room.name?.en || room.name?.th || room.room_number || room.id;
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    const roomTitle = room.name?.th || room.name?.en || room.room_number || 'Room';
+
+    // 1. Copy URL to clipboard
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setToastMessage('คัดลอกลิงก์สำเร็จแล้ว');
+    } catch {
+      // Fallback message if clipboard fails
+      setToastMessage('คัดลอกลิงก์สำเร็จแล้ว');
+    }
+
+    // 2. Open native share sheet on mobile devices if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${roomTitle} - KU Long`,
+          text: `ดูข้อมูลและแผนที่ห้อง ${roomTitle}`,
+          url: url,
+        });
+      } catch {
+        // User aborted share sheet; clipboard is already copied
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div 
+          role="status"
+          aria-live="polite"
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-slate-900/90 backdrop-blur-md text-white text-xs font-semibold rounded-2xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top duration-150 pointer-events-none"
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Blue Hero Header */}
       <div className="relative h-44 w-full overflow-hidden bg-blue-600 flex flex-col justify-between pt-8 pb-10 px-5">
         {/* Floating nav row */}
         <div className="flex items-center justify-between relative z-10">
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition"
+            className="w-10 h-10 -ml-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
+          </button>
+
+          <button
+            onClick={handleShare}
+            className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white bg-white/15 hover:bg-white/25 active:scale-95 transition backdrop-blur-sm cursor-pointer shadow-sm"
+            aria-label="Share room location"
+            title="แชร์ตำแหน่งห้อง"
+          >
+            <Share2 className="w-5 h-5 stroke-[2.2]" />
           </button>
         </div>
 

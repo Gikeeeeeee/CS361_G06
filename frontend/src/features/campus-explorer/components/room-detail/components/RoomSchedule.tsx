@@ -21,6 +21,13 @@ const toLocalDateString = (d: Date) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+const isMaskedSchedule = (event?: { title?: string; visibility?: string } | null): boolean => {
+  if (!event) return false;
+  if (event.visibility === 'INTERNAL') return true;
+  const t = (event.title || '').trim().toLowerCase();
+  return t === 'reserved' || t === 'ไม่ว่าง';
+};
+
 export function RoomSchedule({ roomId }: RoomScheduleProps) {
   const [activeTab, setActiveTab] = useState<'COURSE' | 'OTHER'>('OTHER');
   
@@ -173,6 +180,7 @@ function CourseTimetable({ roomId }: { roomId: string }) {
 
             const isBreak = slot.type === 'break';
             const event = overlappingEvents.length > 0 ? overlappingEvents[0] : null;
+            const isMasked = event ? isMaskedSchedule(event) : false;
             
             // Check if this event continues from the previous slot (and previous wasn't a break)
             const isSameAsPrev = event && !isBreak && TIME_SLOTS[idx - 1]?.type !== 'break' && prevEvents.some(p => p.id === event.id);
@@ -196,7 +204,7 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                         <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{slot.title}</span>
                       </div>
                     ) : event ? (
-                      <div className={`bg-blue-50 border-l-4 border-blue-500 flex flex-col justify-start h-full min-h-[44px]
+                      <div className={`${isMasked ? 'bg-slate-50 border-l-4 border-slate-400' : 'bg-blue-50 border-l-4 border-blue-500'} flex flex-col justify-start h-full min-h-[44px]
                         ${!isSameAsPrev && !isSameAsNext ? 'rounded-r-lg shadow-sm' : ''}
                         ${isSameAsPrev && isSameAsNext ? 'border-y-0 rounded-none' : ''}
                         ${!isSameAsPrev && isSameAsNext ? 'rounded-tr-lg rounded-br-none border-b-0' : ''}
@@ -206,8 +214,12 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                         {!isSameAsPrev && (
                           <>
                             <div className="flex justify-between items-start mb-1">
-                              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
-                                {event.course_code || 'COURSE'}
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                isMasked
+                                  ? 'text-slate-700 bg-slate-200/80'
+                                  : 'text-blue-700 bg-blue-100'
+                              }`}>
+                                {isMasked ? (event.title || 'Reserved') : (event.course_code || 'COURSE')}
                               </span>
                               <div className="flex items-center gap-1">
                                 <button
@@ -227,7 +239,9 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                                       type: event.type || 'COURSE',
                                     });
                                   }}
-                                  className="p-1 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                                  className={`p-1 rounded-md transition-colors ${
+                                    isMasked ? 'text-slate-500 hover:bg-slate-200' : 'text-blue-600 hover:bg-blue-100'
+                                  }`}
                                 >
                                   <CalendarPlus className="w-4 h-4" />
                                 </button>
@@ -240,12 +254,16 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                                   startAt={event.start_at}
                                   endAt={event.end_at}
                                   size={16}
-                                  className="p-1 hover:bg-blue-100 rounded-md"
+                                  className={`p-1 rounded-md ${
+                                    isMasked ? 'hover:bg-slate-200' : 'hover:bg-blue-100'
+                                  }`}
                                 />
                               </div>
                             </div>
-                            <h4 className="font-semibold text-slate-800 text-sm truncate">{event.title}</h4>
-                            {event.organizer && (
+                            <h4 className={`font-semibold text-sm truncate ${isMasked ? 'text-slate-600' : 'text-slate-800'}`}>
+                              {event.title}
+                            </h4>
+                            {event.organizer && !isMasked && (
                               <div className="flex items-center mt-2 text-xs text-slate-600">
                                 <User className="w-3 h-3 mr-1" />
                                 <span className="truncate">{event.organizer}</span>
@@ -372,77 +390,99 @@ function ExamCalendar({ roomId }: { roomId: string }) {
           </div>
         ) : selectedDayEvents.length > 0 ? (
           <div className="space-y-3">
-            {selectedDayEvents.map((event: any) => (
-              <div 
-                key={event.id} 
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedEvent(event)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelectedEvent(event);
-                  }
-                }}
-                className="w-full text-left bg-white border border-slate-100 rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden transition-all hover:shadow-md hover:border-slate-200 cursor-pointer"
-              >
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${event.type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'}`}></div>
-                
-                <div className="flex justify-between items-start mb-2 pl-2 w-full">
-                  <Badge variant={event.type === 'EXAM' ? 'destructive' : 'default'} className={event.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : event.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
-                    {event.type}
-                  </Badge>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center text-xs font-medium text-slate-500">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {formatTime(event.start_at)} - {formatTime(event.end_at)}
-                    </div>
-                    <button
-                      type="button"
-                      title="Export to calendar (.ics)"
-                      aria-label="Export to calendar (.ics)"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadIcsEvent({
-                          title: event.title,
-                          start_at: event.start_at,
-                          end_at: event.end_at,
-                          course_code: event.course_code,
-                          description: event.description,
-                          organizer: event.organizer,
-                          location: roomId,
-                          type: event.type,
-                        });
-                      }}
-                      className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+            {selectedDayEvents.map((event: any) => {
+              const isMasked = isMaskedSchedule(event);
+              return (
+                <div 
+                  key={event.id} 
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedEvent(event)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedEvent(event);
+                    }
+                  }}
+                  className={`w-full text-left bg-white border rounded-xl p-4 shadow-sm flex flex-col relative overflow-hidden transition-all hover:shadow-md cursor-pointer ${
+                    isMasked ? 'border-slate-200 bg-slate-50/40' : 'border-slate-100'
+                  }`}
+                >
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                    isMasked 
+                      ? 'bg-slate-400' 
+                      : event.type === 'EXAM' 
+                        ? 'bg-amber-500' 
+                        : 'bg-purple-500'
+                  }`}></div>
+                  
+                  <div className="flex justify-between items-start mb-2 pl-2 w-full">
+                    <Badge 
+                      variant={isMasked ? 'outline' : event.type === 'EXAM' ? 'destructive' : 'default'} 
+                      className={
+                        isMasked
+                          ? 'bg-slate-100 text-slate-600 border-slate-300'
+                          : event.type === 'ACTIVITY' 
+                            ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' 
+                            : event.type === 'EXAM' 
+                              ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' 
+                              : ''
+                      }
                     >
-                      <CalendarPlus className="w-4 h-4" />
-                    </button>
-                    <BookmarkButton
-                      entityId={String(event.id || event.title)}
-                      entityType="SCHEDULE"
-                      title={event.title}
-                      subtitle={`${formatTime(event.start_at)} - ${formatTime(event.end_at)}`}
-                      courseCode={event.course_code || event.type}
-                      startAt={event.start_at}
-                      endAt={event.end_at}
-                      size={16}
-                      className="p-1 hover:bg-slate-100 rounded-md"
-                    />
+                      {isMasked ? 'Reserved' : event.type}
+                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center text-xs font-medium text-slate-500">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {formatTime(event.start_at)} - {formatTime(event.end_at)}
+                      </div>
+                      <button
+                        type="button"
+                        title="Export to calendar (.ics)"
+                        aria-label="Export to calendar (.ics)"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadIcsEvent({
+                            title: event.title,
+                            start_at: event.start_at,
+                            end_at: event.end_at,
+                            course_code: event.course_code,
+                            description: event.description,
+                            organizer: event.organizer,
+                            location: roomId,
+                            type: event.type,
+                          });
+                        }}
+                        className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+                      >
+                        <CalendarPlus className="w-4 h-4" />
+                      </button>
+                      <BookmarkButton
+                        entityId={String(event.id || event.title)}
+                        entityType="SCHEDULE"
+                        title={event.title}
+                        subtitle={`${formatTime(event.start_at)} - ${formatTime(event.end_at)}`}
+                        courseCode={event.course_code || (isMasked ? 'Reserved' : event.type)}
+                        startAt={event.start_at}
+                        endAt={event.end_at}
+                        size={16}
+                        className="p-1 hover:bg-slate-100 rounded-md"
+                      />
+                    </div>
                   </div>
+                  
+                  <h5 className={`font-bold pl-2 ${isMasked ? 'text-slate-700' : 'text-slate-800'}`}>{event.title}</h5>
+                  {event.description && !isMasked && <p className="text-sm text-slate-600 mt-1 pl-2 truncate w-full">{event.description}</p>}
+                  
+                  {event.organizer && !isMasked && (
+                    <div className="flex items-center mt-3 pt-3 border-t border-slate-50 text-xs text-slate-500 pl-2">
+                      <User className="w-3 h-3 mr-1" />
+                      <span className="truncate">{event.organizer}</span>
+                    </div>
+                  )}
                 </div>
-                
-                <h5 className="font-bold text-slate-800 pl-2">{event.title}</h5>
-                {event.description && <p className="text-sm text-slate-600 mt-1 pl-2 truncate w-full">{event.description}</p>}
-                
-                {event.organizer && (
-                  <div className="flex items-center mt-3 pt-3 border-t border-slate-50 text-xs text-slate-500 pl-2">
-                    <User className="w-3 h-3 mr-1" />
-                    <span className="truncate">{event.organizer}</span>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-slate-100 border-dashed">
@@ -532,14 +572,37 @@ function ExamCalendar({ roomId }: { roomId: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className={`px-6 py-5 border-b flex justify-between items-center ${selectedEvent.type === 'EXAM' ? 'bg-amber-500/10 border-amber-100' : 'bg-purple-500/10 border-purple-100'}`}>
+            <div className={`px-6 py-5 border-b flex justify-between items-center ${
+              isMaskedSchedule(selectedEvent)
+                ? 'bg-slate-100 border-slate-200'
+                : selectedEvent.type === 'EXAM' 
+                  ? 'bg-amber-500/10 border-amber-100' 
+                  : 'bg-purple-500/10 border-purple-100'
+            }`}>
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${selectedEvent.type === 'EXAM' ? 'bg-amber-500 text-white' : 'bg-purple-500 text-white'}`}>
+                <div className={`p-2 rounded-lg ${
+                  isMaskedSchedule(selectedEvent)
+                    ? 'bg-slate-600 text-white'
+                    : selectedEvent.type === 'EXAM' 
+                      ? 'bg-amber-500 text-white' 
+                      : 'bg-purple-500 text-white'
+                }`}>
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div>
-                  <Badge variant={selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} className={selectedEvent.type === 'ACTIVITY' ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' : selectedEvent.type === 'EXAM' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' : ''}>
-                    {selectedEvent.type}
+                  <Badge 
+                    variant={isMaskedSchedule(selectedEvent) ? 'outline' : selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} 
+                    className={
+                      isMaskedSchedule(selectedEvent)
+                        ? 'bg-white text-slate-700 border-slate-300'
+                        : selectedEvent.type === 'ACTIVITY' 
+                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' 
+                          : selectedEvent.type === 'EXAM' 
+                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' 
+                            : ''
+                    }
+                  >
+                    {isMaskedSchedule(selectedEvent) ? 'Reserved / ไม่ว่าง' : selectedEvent.type}
                   </Badge>
                 </div>
               </div>
@@ -569,7 +632,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   entityType="SCHEDULE"
                   title={selectedEvent.title}
                   subtitle={`${formatTime(selectedEvent.start_at)} - ${formatTime(selectedEvent.end_at)}`}
-                  courseCode={selectedEvent.course_code || selectedEvent.type}
+                  courseCode={selectedEvent.course_code || (isMaskedSchedule(selectedEvent) ? 'Reserved' : selectedEvent.type)}
                   startAt={selectedEvent.start_at}
                   endAt={selectedEvent.end_at}
                   size={18}
@@ -587,7 +650,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
             {/* Modal Body */}
             <div className="p-6">
               <h3 className="text-xl font-bold text-slate-800 mb-1">{selectedEvent.title}</h3>
-              {selectedEvent.course_code && (
+              {selectedEvent.course_code && !isMaskedSchedule(selectedEvent) && (
                 <p className="text-sm font-medium text-slate-500 mb-4">{selectedEvent.course_code}</p>
               )}
               
@@ -607,7 +670,21 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   </div>
                 </div>
 
-                {selectedEvent.organizer && (
+                {isMaskedSchedule(selectedEvent) && (
+                  <div className="flex items-start gap-3 pt-2">
+                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
+                      <Info className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Visibility</p>
+                      <p className="text-sm text-slate-600">
+                        รายการนี้เป็นการจองภายใน หรือข้อมูลถูกสงวนไว้ (Internal / Reserved schedule)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedEvent.organizer && !isMaskedSchedule(selectedEvent) && (
                   <div className="flex items-start gap-3">
                     <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
                       <User className="w-4 h-4" />
@@ -619,7 +696,7 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                   </div>
                 )}
 
-                {selectedEvent.description && (
+                {selectedEvent.description && !isMaskedSchedule(selectedEvent) && (
                   <div className="flex items-start gap-3 pt-2">
                     <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
                       <Info className="w-4 h-4" />

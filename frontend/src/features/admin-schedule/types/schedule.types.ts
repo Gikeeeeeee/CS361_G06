@@ -1,5 +1,6 @@
 export type ScheduleType = 'COURSE' | 'EXAM' | 'ACTIVITY';
 export type ScheduleStatus = 'CONFIRM' | 'CANCELLED';
+export type ScheduleVisibility = 'PUBLIC' | 'INTERNAL';
 
 export interface ScheduleItem {
   id: string;
@@ -14,6 +15,7 @@ export interface ScheduleItem {
   recurrence_rule: string | null;
   room_id: string;
   status: ScheduleStatus;
+  visibility?: ScheduleVisibility;
 }
 
 export interface ScheduleResponse {
@@ -44,4 +46,5 @@ export interface UpdateSchedulePayload {
   time_zone: string;
   recurrence_rule: string | null;
   status: ScheduleStatus;
+  visibility?: ScheduleVisibility;
 }

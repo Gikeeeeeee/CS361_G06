@@ -7,6 +7,7 @@ export interface CreateSchedulePayload {
   end_at: string;
   time_zone: string;
   status: 'CONFIRM' | 'TENTATIVE' | 'CANCELLED';
+  visibility?: 'PUBLIC' | 'INTERNAL';
   course_code?: string;
   organizer?: string;
   description?: string;
