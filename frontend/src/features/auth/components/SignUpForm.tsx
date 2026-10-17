@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Lock, Eye, EyeOff, AlertCircle, Building2, CheckCircle2 } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
+import type { UserRole } from '../types/auth.types';
 
 export const SignUpForm: React.FC = () => {
   const { signUp, isLoading } = useAuth();
@@ -9,9 +10,11 @@ export const SignUpForm: React.FC = () => {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState<UserRole>('STUDENT');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -21,174 +24,230 @@ export const SignUpForm: React.FC = () => {
     setSuccessMessage('');
 
     if (!fullName.trim()) {
-      setErrorMessage('กรุณากรอกชื่อ-นามสกุล (Full Name is required)');
+      setErrorMessage('Please enter your full name.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('กรุณากรอกอีเมลให้ถูกต้อง (Valid email is required)');
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
     if (password.length < 6) {
-      setErrorMessage('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร (Minimum 6 characters)');
+      setErrorMessage('Password must be at least 6 characters long.');
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMessage('รหัสผ่านทั้งสองช่องไม่ตรงกัน (Passwords do not match)');
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      await signUp({
+      const newUser = await signUp({
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
+        role: role,
       });
 
-      setSuccessMessage('สร้างบัญชีสำเร็จ! กำลังเข้าสู่ระบบ...');
+      setSuccessMessage('Account created successfully! Signing in...');
       setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 1200);
+        if (newUser.role === 'STAFF' || newUser.role === 'ADMIN') {
+          navigate('/admin/schedules/manage', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      }, 1000);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'การสมัครสมาชิกล้มเหลว กรุณาลองใหม่อีกครั้ง');
+      setErrorMessage(err?.message || 'Sign up failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col justify-center py-4 px-2 sm:px-4">
-      {/* Header (Shown on mobile, desktop showcases it on left panel) */}
-      <div className="flex md:hidden items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <Building2 className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 leading-tight">Create Account</h1>
-          <p className="text-xs text-slate-500">Join KU Long to organize campus life</p>
-        </div>
-      </div>
+    <div className="w-full flex-1 flex flex-col justify-between p-6 sm:p-8">
+      <div>
+        {/* Top Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer"
+            aria-label="Back to login"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
 
-      {/* Messages */}
-      {errorMessage && (
-        <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-2.5 text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="font-medium">{errorMessage}</span>
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="mb-4 p-3.5 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-start gap-2.5 text-xs">
-          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-green-600" />
-          <span className="font-medium">{successMessage}</span>
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-3.5">
-        {/* Full Name */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <User className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              id="signup-name-input"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Non Chayanon"
-              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-              required
-            />
+          <div className="flex items-center gap-2">
+            <img src="/ku_long_logo.svg" alt="KU Long" className="h-7 w-auto object-contain" />
+            <span className="font-bold text-sm text-slate-800 tracking-tight">KU Long</span>
           </div>
         </div>
 
-        {/* Email */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">University Email</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Mail className="w-4 h-4" />
-            </div>
-            <input
-              type="email"
-              id="signup-email-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="student@ku.th"
-              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-              required
-            />
-          </div>
+        {/* Title */}
+        <div className="mb-5">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Create Account</h1>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Create an account to search classrooms and manage schedules.
+          </p>
         </div>
 
-        {/* Password */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Lock className="w-4 h-4" />
+        {/* Messages */}
+        {errorMessage && (
+          <div className="mb-4 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-2.5 text-xs animate-in fade-in duration-150">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-medium flex-1">{errorMessage}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 p-3.5 rounded-xl bg-green-50 border border-green-200 text-green-700 flex items-start gap-2.5 text-xs animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-green-600" />
+            <span className="font-medium flex-1">{successMessage}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Role Selection Tabs */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Account Type
+            </label>
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setRole('STUDENT')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  role === 'STUDENT'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('STAFF')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  role === 'STAFF'
+                    ? 'bg-white text-purple-600 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Staff
+              </button>
             </div>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              id="signup-password-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
-              required
-            />
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Full Name
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <UserIcon className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                id="signup-name-input"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. Somchai Jaidee"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Email
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Mail className="w-4 h-4" />
+              </div>
+              <input
+                type="email"
+                id="signup-email-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. student@dome.tu.ac.th"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Lock className="w-4 h-4" />
+              </div>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="signup-password-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Lock className="w-4 h-4" />
+              </div>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="signup-confirm-password-input"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="pt-2">
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-xl text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {(isSubmitting || isLoading) && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isSubmitting || isLoading ? 'Creating Account...' : 'Create Account'}</span>
             </button>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Must be at least 6 characters long</p>
-        </div>
-
-        {/* Confirm Password */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Lock className="w-4 h-4" />
-            </div>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              id="signup-confirm-password-input"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password"
-              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Terms */}
-        <p className="text-[11px] text-slate-500 pt-1 leading-relaxed">
-          By signing up, you agree to the KU Long Terms of Service & Privacy Policy.
-        </p>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          id="signup-submit-button"
-          disabled={isLoading}
-          className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-xl text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isLoading ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            'Create Account'
-          )}
-        </button>
-      </form>
+        </form>
+      </div>
 
       {/* Switch to Sign In */}
-      <div className="mt-6 text-center text-xs text-slate-600">
+      <div className="pt-6 text-center text-xs text-slate-500">
         Already have an account?{' '}
         <Link to="/login" className="font-semibold text-blue-600 hover:underline">
           Sign In

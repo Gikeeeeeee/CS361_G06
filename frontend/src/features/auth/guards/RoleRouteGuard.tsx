@@ -43,7 +43,7 @@ export const RoleRouteGuard: React.FC<RoleRouteGuardProps> = ({
         to={`${redirectPath}?error=unauthorized`}
         replace
         state={{
-          unauthorizedMessage: 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Unauthorized access)',
+          unauthorizedMessage: 'You do not have permission to access this page.',
         }}
       />
     );

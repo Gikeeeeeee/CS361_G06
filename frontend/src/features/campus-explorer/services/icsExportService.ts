@@ -82,8 +82,8 @@ export function generateSingleEventIcs(event: IcsEventOptions): string {
   const eventSummary = [event.course_code, event.title].filter(Boolean).join(' - ');
   const escapedSummary = escapeIcsText(eventSummary);
   const rawLoc = event.location
-    ? (event.location.toLowerCase().includes('kasetsart') ? event.location : `Room ${event.location}, Kasetsart University`)
-    : 'Kasetsart University';
+    ? (event.location.toLowerCase().includes('thammasat') ? event.location : `Room ${event.location}, Thammasat University`)
+    : 'Thammasat University';
   const escapedLocation = escapeIcsText(rawLoc);
   const escapedOrganizer = escapeIcsText(event.organizer || 'KU Long');
   const escapedDescription = escapeIcsText(
@@ -97,7 +97,7 @@ export function generateSingleEventIcs(event: IcsEventOptions): string {
       .join('\n')
   );
 
-  const uid = `kulong-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@kulong.ku.th`;
+  const uid = `kulong-${Date.now()}-${Math.random().toString(36).substring(2, 9)}@kulong.dome.tu.ac.th`;
 
   return [
     'BEGIN:VCALENDAR',
@@ -123,7 +123,7 @@ export function generateSingleEventIcs(event: IcsEventOptions): string {
     `SUMMARY:${escapedSummary}`,
     `LOCATION:${escapedLocation}`,
     `DESCRIPTION:${escapedDescription}`,
-    `ORGANIZER;CN=${escapedOrganizer}:mailto:no-reply@ku.th`,
+    `ORGANIZER;CN=${escapedOrganizer}:mailto:no-reply@dome.tu.ac.th`,
     'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',

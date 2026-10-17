@@ -130,11 +130,17 @@ export const scheduleApi = {
       visibility: data.visibility,
     };
 
+    const token = localStorage.getItem('ku_long_auth_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -150,8 +156,15 @@ export const scheduleApi = {
   },
 
   deleteSchedule: async (roomId: string, scheduleId: string): Promise<string> => {
+    const token = localStorage.getItem('ku_long_auth_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'DELETE',
+      headers,
     });
 
     if (!response.ok) {

@@ -25,15 +25,25 @@ interface CustomRequestInit extends RequestInit {
 async function request<T>(endpoint: string, options: CustomRequestInit = {}): Promise<T> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
-  // ต่อ API_VERSION (เช่น /api/v1) เข้าไปอัตโนมัติ ตามที่เพื่อนในทีมเซ็ตไว้
+  // ต่อ API_VERSION เข้าไปอัตโนมัติหากยังไม่มี (ป้องกัน duplicate /api/v1/api/v1)
+  const pathWithVersion = cleanEndpoint.startsWith(API_VERSION)
+    ? cleanEndpoint
+    : `${API_VERSION}${cleanEndpoint}`;
+
   const url = BASE_URL.endsWith(API_VERSION) 
-    ? `${BASE_URL}${cleanEndpoint}`
-    : `${BASE_URL}${API_VERSION}${cleanEndpoint}`;
+    ? `${BASE_URL}${cleanEndpoint.startsWith(API_VERSION) ? cleanEndpoint.slice(API_VERSION.length) : cleanEndpoint}`
+    : `${BASE_URL}${pathWithVersion}`;
 
   // ตั้งค่า Headers พื้นฐาน (แต่ยอมให้เขียนทับได้)
   const headers = new Headers({
     'Accept': 'application/json',
   });
+
+  // แนบ Bearer token อัตโนมัติถ้ามีใน localStorage
+  const token = localStorage.getItem('ku_long_auth_token');
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   // ถ้าไม่ได้ส่ง body เป็นไฟล์ดิบ ให้ใช้ JSON เป็นค่าเริ่มต้น
   if (!(options.body instanceof File)) {
@@ -54,6 +64,10 @@ async function request<T>(endpoint: string, options: CustomRequestInit = {}): Pr
 
   // กรณีเกิด Error (4xx, 5xx)
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
+
     let errorBody;
     try {
       // พยายามอ่าน JSON Body ที่ Backend ส่งมา (ที่มี code, message, details)

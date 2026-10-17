@@ -14,7 +14,7 @@ export const UserLayout: React.FC = () => {
     const errorParam = searchParams.get('error');
     const stateMsg = (location.state as any)?.unauthorizedMessage;
     if (errorParam === 'unauthorized' || stateMsg) {
-      setUnauthorizedToast(stateMsg || 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (Staff access only)');
+      setUnauthorizedToast(stateMsg || 'You do not have permission to access this page (Staff access only).');
       // Clean up search param
       searchParams.delete('error');
       setSearchParams(searchParams, { replace: true });
