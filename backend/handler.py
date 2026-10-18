@@ -75,7 +75,7 @@ class Dependencies:
 
         self._schedule_source = schedule_source
         self._schedules = (
-            ScheduleService(schedule_source)
+            ScheduleService(schedule_source, room_service=self.rooms)
             if schedule_source is not None
             else None
         )
@@ -119,12 +119,14 @@ class Dependencies:
                 if self._schedule_source is not None
                 else ScheduleRepository()
             )
-            self._schedules = ScheduleService(source)
+            self._schedules = ScheduleService(source, room_service=self.rooms)
         return self._schedules
 
     @schedules.setter
     def schedules(self, value: ScheduleService):
         self._schedules = value
+        if self._schedules is not None and getattr(self._schedules, "room_service", None) is None:
+            self._schedules.room_service = self.rooms
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
@@ -211,6 +213,47 @@ def _remove_bookmark(deps: Dependencies, p: dict) -> dict:
     return {"success": True, "message": "Bookmark removed successfully."}
 
 
+def _extract_user_role(event: dict) -> str:
+    """Extract user role from request context claims or Authorization token, defaulting to GUEST."""
+    request_context = event.get("requestContext") or {}
+    authorizer = request_context.get("authorizer") or {}
+    jwt_data = authorizer.get("jwt") or {}
+    claims = jwt_data.get("claims") or authorizer.get("claims") or {}
+
+    app_metadata = claims.get("app_metadata") or {}
+    user_metadata = claims.get("user_metadata") or {}
+    if isinstance(app_metadata, str):
+        try:
+            app_metadata = json.loads(app_metadata)
+        except Exception:
+            app_metadata = {}
+    if isinstance(user_metadata, str):
+        try:
+            user_metadata = json.loads(user_metadata)
+        except Exception:
+            user_metadata = {}
+
+    role = (
+        claims.get("role")
+        or (app_metadata.get("role") if isinstance(app_metadata, dict) else None)
+        or (user_metadata.get("role") if isinstance(user_metadata, dict) else None)
+    )
+    if role:
+        return str(role).upper()
+
+    headers = event.get("headers") or {}
+    auth_header = headers.get("authorization") or headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            auth_user = verify_token(event)
+            if auth_user and auth_user.get("role"):
+                return str(auth_user["role"]).upper()
+        except Exception:
+            pass
+
+    return "GUEST"
+
+
 def _dry_run(params: dict) -> bool:
     return params.get("dry_run") == "true"
 
@@ -243,7 +286,11 @@ ROUTES = {
     f"GET {ROOM_SCHEDULES}": Route(
         ("roomId", "start", "end"),
         lambda deps, p: deps.ensure_schedules().get_room_schedules(
-            p["roomId"], p["start"], p["end"], p.get("type")
+            p["roomId"],
+            p["start"],
+            p["end"],
+            p.get("type"),
+            user_role=p.get("user_role") or "GUEST",
         ),
     ),
     f"GET {SCHEDULES}": Route(
@@ -255,6 +302,26 @@ ROUTES = {
     f"POST {ROOM_SCHEDULES}": Route(
         ("roomId", "body"),
         lambda deps, p: deps.ensure_schedules().create_schedule(p["roomId"], p["body"]),
+    ),
+    f"GET {SCHEDULE}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: {
+            "success": True,
+            "data": deps.ensure_schedules().get_schedule(
+                p.get("roomId") or p.get("room_id"),
+                p.get("scheduleId") or p.get("schedule_id"),
+            ),
+        },
+    ),
+    "GET /api/v1/rooms/{room_id}/schedules/{schedule_id}": Route(
+        ("roomId", "scheduleId"),
+        lambda deps, p: {
+            "success": True,
+            "data": deps.ensure_schedules().get_schedule(
+                p.get("roomId") or p.get("room_id"),
+                p.get("scheduleId") or p.get("schedule_id"),
+            ),
+        },
     ),
     f"PUT {SCHEDULE}": Route(
         ("roomId", "scheduleId"),
@@ -395,6 +462,15 @@ def _resolve(
     params.update(event.get("queryStringParameters") or {})
     route_key = _route_key(event, method, path, params)
 
+    if "room_id" in params and "roomId" not in params:
+        params["roomId"] = params["room_id"]
+    if "schedule_id" in params and "scheduleId" not in params:
+        params["scheduleId"] = params["schedule_id"]
+    if "roomId" in params and "room_id" not in params:
+        params["room_id"] = params["roomId"]
+    if "scheduleId" in params and "schedule_id" not in params:
+        params["schedule_id"] = params["scheduleId"]
+
     # Route first: the CSV import body is raw bytes, not JSON.
     if event.get("body"):
         params["body"] = (
@@ -454,6 +530,9 @@ def lambda_handler(event, context):
 
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
+
+        if route_key == f"GET {ROOM_SCHEDULES}":
+            params["user_role"] = _extract_user_role(event)
 
         if route_key in USER_ROUTES:
             params["auth_user"] = verify_token(event)

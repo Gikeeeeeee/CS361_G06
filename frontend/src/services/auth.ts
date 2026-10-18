@@ -1,8 +1,15 @@
 import { supabase } from '../lib/supabase';
 
+function getClient() {
+    if (!supabase) {
+        throw new Error('Supabase client is not configured. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+    }
+    return supabase;
+}
+
 // Signup with dummy email & role
 export async function signUpWithDummyEmail(email: string, pass: string, fullName: string, role: 'STUDENT' | 'STAFF' = 'STUDENT') {
-    return await supabase.auth.signUp({
+    return await getClient().auth.signUp({
         email,
         password: pass,
         options: {
@@ -16,7 +23,7 @@ export async function signUpWithDummyEmail(email: string, pass: string, fullName
 
 // Signin returns session containing the JWT access token
 export async function signIn(email: string, pass: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await getClient().auth.signInWithPassword({
         email,
         password: pass,
     });

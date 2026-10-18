@@ -42,6 +42,7 @@ export default function ManualEntryForm() {
   const [title, setTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'INTERNAL'>('PUBLIC');
   const [organizer, setOrganizer] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -205,6 +206,7 @@ export default function ManualEntryForm() {
       end_at: finalEndAt,
       time_zone: 'Asia/Bangkok',
       status: backendStatus,
+      visibility: visibility,
       course_code: courseCode.trim() || undefined,
       organizer: organizer.trim() || undefined,
       description: description.trim() || undefined,
@@ -221,6 +223,7 @@ export default function ManualEntryForm() {
       setTitle('');
       setCourseCode('');
       setStatus('Active');
+      setVisibility('PUBLIC');
       setOrganizer('');
       setDescription('');
       setStartDate(null);
@@ -377,6 +380,18 @@ export default function ManualEntryForm() {
             onChange={(e) => setOrganizer(e.target.value)}
             placeholder={organizerMeta.placeholder}
             className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="col-span-1 space-y-1">
+          <label className="text-sm font-medium text-slate-700">Visibility</label>
+          <CustomSelect
+            value={visibility}
+            onChange={(val) => setVisibility(val as 'PUBLIC' | 'INTERNAL')}
+            options={[
+              { value: 'PUBLIC', label: 'Public (Everyone)' },
+              { value: 'INTERNAL', label: 'Internal (Confidential / Masked)' }
+            ]}
           />
         </div>
 

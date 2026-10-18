@@ -3,7 +3,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import { X, Loader2 } from 'lucide-react';
-import type { ScheduleItem, ScheduleStatus } from '../types/schedule.types';
+import type { ScheduleItem, ScheduleStatus, ScheduleVisibility } from '../types/schedule.types';
 import { CascadingRoomSelector } from './CascadingRoomSelector';
 import { facilityCache } from '../services/facilityCache';
 
@@ -49,6 +49,7 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
   const [title, setTitle] = useState('');
   const [courseCode, setCourseCode] = useState('');
   const [status, setStatus] = useState<ScheduleStatus>('CONFIRM');
+  const [visibility, setVisibility] = useState<ScheduleVisibility>('PUBLIC');
   const [organizer, setOrganizer] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -112,6 +113,7 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
       setTitle(schedule.title || '');
       setCourseCode(schedule.course_code || '');
       setStatus(schedule.status || 'CONFIRM');
+      setVisibility(schedule.visibility || 'PUBLIC');
       setOrganizer(schedule.organizer || '');
       setDescription(schedule.description || '');
 
@@ -220,6 +222,7 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
       end_at: formatIsoWithTimezone(endDate),
       time_zone: 'Asia/Bangkok',
       status: status,
+      visibility: visibility,
       course_code: courseCode.trim() || null,
       organizer: organizer.trim() || '',
       description: description.trim() || '',
@@ -375,6 +378,18 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
               />
             </div>
 
+            <div className="col-span-1 space-y-1">
+              <label className="text-sm font-medium text-slate-700">Visibility</label>
+              <select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value as ScheduleVisibility)}
+                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+              >
+                <option value="PUBLIC">Public (Everyone)</option>
+                <option value="INTERNAL">Internal (Confidential / Masked)</option>
+              </select>
+            </div>
+
             <div className="col-span-1 sm:col-span-2 space-y-2">
               <label className="text-sm font-medium text-slate-700">Recurring Schedule</label>
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5">
@@ -505,6 +520,12 @@ export const EditScheduleDrawer: React.FC<EditScheduleDrawerProps> = ({
               <div className="grid grid-cols-3 gap-2">
                 <span className="font-medium text-slate-500">Status:</span>
                 <span className="col-span-2 capitalize">{pendingPayload.status.toLowerCase()}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="font-medium text-slate-500">Visibility:</span>
+                <span className="col-span-2 font-medium">
+                  {pendingPayload.visibility === 'INTERNAL' ? 'Internal (Confidential / Masked)' : 'Public (Everyone)'}
+                </span>
               </div>
             </div>
             <div className="p-5 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">

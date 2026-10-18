@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, Building2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
 export const LoginForm: React.FC = () => {
   const { login, isLoading } = useAuth();
@@ -14,8 +14,9 @@ export const LoginForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(
-    reason === 'unauthenticated' ? 'กรุณาเข้าสู่ระบบก่อนเข้าใช้งานหน้านี้' : ''
+    reason === 'unauthenticated' ? 'Please sign in to access this page.' : ''
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,13 +24,15 @@ export const LoginForm: React.FC = () => {
     setErrorMessage('');
 
     if (!email.trim() || !password) {
-      setErrorMessage('กรุณากรอกอีเมลและรหัสผ่าน');
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const loggedInUser = await login({ email: email.trim(), password, rememberMe });
-      // If Admin / Staff, navigate directly to Admin Console
+      
+      // If Staff, route to Admin Console; otherwise to homepage or safe redirect
       if (loggedInUser.role === 'STAFF' || loggedInUser.role === 'ADMIN') {
         navigate('/admin/schedules/manage', { replace: true });
       } else {
@@ -38,161 +41,152 @@ export const LoginForm: React.FC = () => {
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Helper for 1-click test fill
-  const fillCredentials = (mockEmail: string) => {
-    setEmail(mockEmail);
-    setPassword('123456');
-    setErrorMessage('');
-  };
-
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col justify-center py-4 px-2 sm:px-4">
-      {/* App Logo & Header (Shown on mobile, desktop showcases it on left panel) */}
-      <div className="flex md:hidden items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <Building2 className="w-5 h-5" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 leading-tight">KU Long</h1>
-          <p className="text-xs text-slate-500">Your university campus companion</p>
-        </div>
-      </div>
-
-      {/* Title */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
-        <p className="text-sm text-slate-500 mt-1">Sign in to keep your campus life in sync.</p>
-      </div>
-
-      {/* Quick Fill Demo Badges (High UX convenience) */}
-      <div className="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200">
-        <p className="text-[11px] font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">
-          Demo Mock Accounts (Click to fill):
-        </p>
-        <div className="flex flex-wrap gap-2">
+    <div className="w-full flex-1 flex flex-col justify-between p-6 sm:p-8">
+      <div>
+        {/* Top Navigation */}
+        <div className="flex items-center justify-between mb-8">
           <button
             type="button"
-            onClick={() => fillCredentials('non@ku.th')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-medium transition-colors"
+            onClick={() => navigate('/')}
+            className="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 active:scale-95 transition-all cursor-pointer"
+            aria-label="Back to home"
           >
-            <span>👨‍🎓 Non (Student)</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <button
-            type="button"
-            onClick={() => fillCredentials('admin@ku.th')}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-medium transition-colors"
-          >
-            <span>🛡️ Admin (Staff)</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Error Alert Box */}
-      {errorMessage && (
-        <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-2.5 text-xs animate-shake">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="font-medium">{errorMessage}</span>
-        </div>
-      )}
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email Field */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Mail className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              id="login-email-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. non@ku.th or admin@ku.th"
-              className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
-              autoComplete="email"
-            />
+          <div className="flex items-center gap-2">
+            <img src="/ku_long_logo.svg" alt="KU Long" className="h-7 w-auto object-contain" />
+            <span className="font-bold text-sm text-slate-800 tracking-tight">KU Long</span>
           </div>
         </div>
 
-        {/* Password Field */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Lock className="w-4 h-4" />
+        {/* Title & Subtitle */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Sign In</h1>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            Sign in to manage schedules, save favorite rooms, and sync calendar.
+          </p>
+        </div>
+
+        {/* Error Alert Box */}
+        {errorMessage && (
+          <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-start gap-2.5 text-xs animate-in fade-in duration-150">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-medium flex-1">{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email Field */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Email
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Mail className="w-4 h-4" />
+              </div>
+              <input
+                type="email"
+                id="login-email-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. student@dome.tu.ac.th"
+                className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all"
+                autoComplete="email"
+                required
+              />
             </div>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              id="login-password-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
-              autoComplete="current-password"
-            />
+          </div>
+
+          {/* Password Field */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <Lock className="w-4 h-4" />
+              </div>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="login-password-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Remember Me */}
+          <div className="flex items-center justify-between text-xs pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+              />
+              <span>Remember me</span>
+            </label>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-2">
             <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-xl text-sm shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {(isSubmitting || isLoading) && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isSubmitting || isLoading ? 'Signing in...' : 'Sign In'}</span>
             </button>
           </div>
+        </form>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-100" />
+          </div>
+          <div className="relative flex justify-center text-[11px] uppercase">
+            <span className="bg-white px-3 text-slate-400 font-medium tracking-wider">or</span>
+          </div>
         </div>
 
-        {/* Remember Me & Forgot Password */}
-        <div className="flex items-center justify-between text-xs pt-1">
-          <label className="flex items-center gap-2 cursor-pointer text-slate-600 select-none">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-            />
-            <span>Remember me</span>
-          </label>
-          <span className="text-blue-600 font-medium hover:underline cursor-pointer">
-            Forgot password?
-          </span>
-        </div>
-
-        {/* Submit Button */}
+        {/* Continue as Guest */}
         <button
-          type="submit"
-          id="login-submit-button"
-          disabled={isLoading}
-          className="w-full mt-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold rounded-xl text-sm shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          type="button"
+          onClick={() => navigate('/')}
+          className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-[0.99] text-slate-700 font-semibold rounded-xl text-xs transition-all cursor-pointer text-center"
         >
-          {isLoading ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            'Sign In'
-          )}
+          Continue as Guest
         </button>
-      </form>
-
-      {/* Don't have an account? Sign Up */}
-      <div className="mt-6 text-center text-xs text-slate-600">
-        Don't have an account?{' '}
-        <Link to="/signup" className="font-semibold text-blue-600 hover:underline">
-          Sign Up
-        </Link>
       </div>
 
-      {/* Explore as Guest */}
-      <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-        <p className="text-xs text-slate-400 mb-2">Just looking around?</p>
-        <Link
-          to="/"
-          className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-        >
-          Explore as a guest
+      {/* Footer Navigation */}
+      <div className="pt-8 text-center text-xs text-slate-500">
+        Don&apos;t have an account?{' '}
+        <Link to="/signup" className="text-blue-600 font-semibold hover:underline">
+          Create Account
         </Link>
       </div>
     </div>

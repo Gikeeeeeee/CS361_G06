@@ -1,6 +1,9 @@
 import {
   generateSingleEventIcs,
+  generateMultiEventIcs,
   formatBangkokDateString,
+  formatDateTimeInTimeZone,
+  formatIcsLocation,
   escapeIcsText,
 } from '../icsExportService';
 
@@ -81,6 +84,86 @@ export function runIcsExportServiceTests(): boolean {
     passed = false;
   }
 
+  // Test 5: Format location as `[room.name] - [room.building_name]` per US3 spec
+  try {
+    const locationWithRoom = formatIcsLocation({
+      title: 'Operating Systems',
+      start_at: '2026-10-19T09:00:00+07:00',
+      room: {
+        name: 'LC4-201',
+        building_name: 'LC4',
+      },
+    });
+
+    if (locationWithRoom !== 'LC4-201 - LC4') {
+      console.error('Test 5 Failed: location should be formatted as [room.name] - [room.building_name]', { locationWithRoom });
+      passed = false;
+    }
+  } catch (e) {
+    console.error('Test 5 Threw exception:', e);
+    passed = false;
+  }
+
+  // Test 6: Multi-event .ics calendar generation contains all events and correct structure
+  try {
+    const multiIcs = generateMultiEventIcs([
+      {
+        title: 'Software Engineering',
+        course_code: 'CS361',
+        start_at: '2026-10-19T09:00:00+07:00',
+        end_at: '2026-10-19T12:00:00+07:00',
+        room: { name: 'LC4-210', building_name: 'LC4' },
+        organizer: 'Dr. Somchai',
+        description: 'Core SE course',
+      },
+      {
+        title: 'Database Systems',
+        course_code: 'CS365',
+        start_at: '2026-10-20T13:00:00+07:00',
+        end_at: '2026-10-20T15:00:00+07:00',
+        room: { name: 'LC4-205', building_name: 'LC4' },
+      },
+    ], 'Saved Schedules');
+
+    if (!multiIcs.includes('BEGIN:VCALENDAR') || !multiIcs.includes('END:VCALENDAR')) {
+      console.error('Test 6 Failed: Missing VCALENDAR wrapper');
+      passed = false;
+    }
+    if (!multiIcs.includes('SUMMARY:CS361 - Software Engineering') || !multiIcs.includes('SUMMARY:CS365 - Database Systems')) {
+      console.error('Test 6 Failed: Event summaries missing in multi-event ICS');
+      passed = false;
+    }
+    if (!multiIcs.includes('LOCATION:LC4-210 - LC4') || !multiIcs.includes('LOCATION:LC4-205 - LC4')) {
+      console.error('Test 6 Failed: Locations missing or misformatted in multi-event ICS');
+      passed = false;
+    }
+    if (!multiIcs.includes('ORGANIZER;CN=Dr. Somchai:mailto:no-reply@ku.th')) {
+      console.error('Test 6 Failed: Organizer missing in multi-event ICS');
+      passed = false;
+    }
+    // Check that there are 2 events
+    const eventCount = (multiIcs.match(/BEGIN:VEVENT/g) || []).length;
+    if (eventCount !== 2) {
+      console.error(`Test 6 Failed: Expected 2 VEVENT blocks, got ${eventCount}`);
+      passed = false;
+    }
+  } catch (e) {
+    console.error('Test 6 Threw exception:', e);
+    passed = false;
+  }
+
+  // Test 7: Custom time_zone parameter is respected
+  try {
+    const formattedBangkok = formatDateTimeInTimeZone(new Date('2026-10-19T02:00:00Z'), 'Asia/Bangkok');
+    if (formattedBangkok !== '20261019T090000') {
+      console.error('Test 7 Failed: Bangkok timezone conversion error', { formattedBangkok });
+      passed = false;
+    }
+  } catch (e) {
+    console.error('Test 7 Threw exception:', e);
+    passed = false;
+  }
+
   return passed;
 }
 
@@ -90,7 +173,7 @@ const isDirectRun = typeof proc !== 'undefined' && proc.argv && proc.argv[1] && 
 if (isDirectRun) {
   const allPassed = runIcsExportServiceTests();
   console.log(`\n========================================`);
-  console.log(`ICS Export Service Tests: ${allPassed ? 'ALL PASSED (4/4)' : 'FAILED'}`);
+  console.log(`ICS Export Service Tests: ${allPassed ? 'ALL PASSED (7/7)' : 'FAILED'}`);
   console.log(`========================================\n`);
   if (!allPassed && proc?.exit) {
     proc.exit(1);

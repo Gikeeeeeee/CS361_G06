@@ -11,6 +11,7 @@ export interface ScheduleEvent {
   start_at: string;
   end_at: string;
   course_code?: string;
+  visibility?: 'PUBLIC' | 'INTERNAL';
 }
 
 export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTIVITY', startDate?: Date, endDate?: Date) {

@@ -86,6 +86,16 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
     }
   };
 
+  const getVisibilityPill = (visibility?: string) => {
+    switch (visibility?.toUpperCase()) {
+      case 'INTERNAL':
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Internal</span>;
+      case 'PUBLIC':
+      default:
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Public</span>;
+    }
+  };
+
   const formatTimePattern = (item: ScheduleItem) => {
     const start = new Date(item.start_at);
     const end = new Date(item.end_at);
@@ -119,6 +129,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">ROOM</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">DATE & TIME</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">STATUS</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">VISIBILITY</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider text-right">ACTIONS</th>
             </tr>
           </thead>
@@ -137,6 +148,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
                   </td>
                   <td className="px-4 py-3 text-slate-600">{formatTimePattern(schedule)}</td>
                   <td className="px-4 py-3">{getStatusPill(schedule.status)}</td>
+                  <td className="px-4 py-3">{getVisibilityPill(schedule.visibility)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -157,7 +169,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   No schedules found matching your criteria.
                 </td>
               </tr>

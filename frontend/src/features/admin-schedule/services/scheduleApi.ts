@@ -127,13 +127,20 @@ export const scheduleApi = {
       time_zone: data.time_zone,
       recurrence_rule: data.recurrence_rule,
       status: data.status,
+      visibility: data.visibility,
     };
+
+    const token = localStorage.getItem('ku_long_auth_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -149,8 +156,15 @@ export const scheduleApi = {
   },
 
   deleteSchedule: async (roomId: string, scheduleId: string): Promise<string> => {
+    const token = localStorage.getItem('ku_long_auth_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${roomId}/schedules/${scheduleId}`, {
       method: 'DELETE',
+      headers,
     });
 
     if (!response.ok) {
@@ -162,5 +176,14 @@ export const scheduleApi = {
       return response.json();
     }
     return response.text();
+  },
+
+  getScheduleById: async (roomId: string, scheduleId: string): Promise<any> => {
+    const cleanRoomId = roomId.includes('_') ? roomId.substring(roomId.indexOf('_') + 1) : roomId;
+    const response = await fetch(`${API_BASE_URL}/api/v1/rooms/${cleanRoomId}/schedules/${scheduleId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch schedule: ${response.statusText}`);
+    }
+    return response.json();
   }
 };
