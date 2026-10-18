@@ -10,17 +10,16 @@ interface BookmarkContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
   activeUser: { id: string; name?: string; role?: string; email?: string } | null;
-  isBookmarked: (entityId: string, entityType: BookmarkEntityType) => boolean;
+  isBookmarked: (entityId: string, entityType?: BookmarkEntityType) => boolean;
   toggleBookmark: (item: Omit<BookmarkItem, 'id' | 'savedAt'>) => Promise<boolean>;
   openAuthModal: () => void;
-  loginAsStudentDemo: () => void;
-  logoutDemo: () => void;
+  refreshBookmarks: () => Promise<void>;
 }
 
 const BookmarkContext = createContext<BookmarkContextType | undefined>(undefined);
 
 export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user: authUser, logout: authLogout } = useAuth();
+  const { user: authUser } = useAuth();
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -39,8 +38,6 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return null;
   }, [authUser]);
 
-
-
   // Helper to check if user is logged in
   const isUserLoggedIn = useCallback((): boolean => {
     return Boolean(activeUser?.id);
@@ -50,66 +47,38 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return activeUser?.id;
   }, [activeUser]);
 
+  // Load bookmarks function
+  const loadBookmarks = useCallback(async () => {
+    const userId = activeUser?.id;
+    if (!userId) {
+      setBookmarks([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await bookmarkService.getBookmarks(userId);
+      setBookmarks(data);
+    } catch (e) {
+      console.warn('Failed to load user bookmarks:', e);
+      setBookmarks([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeUser]);
+
   // Load bookmarks whenever active user changes
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const userId = activeUser?.id;
-        const data = await bookmarkService.getBookmarks(userId);
-        if (mounted) {
-          setBookmarks(data);
-        }
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
+    const run = async () => {
+      if (mounted) await loadBookmarks();
     };
-    load();
+    run();
     return () => {
       mounted = false;
     };
-  }, [activeUser]);
-
-  // Demo login as student (Non) to test logged-in timetable
-  const loginAsStudentDemo = useCallback(async () => {
-    const studentUser = {
-      id: 'user-student-01',
-      email: 'student@dome.tu.ac.th',
-      name: 'Non',
-      role: 'STUDENT',
-    };
-    localStorage.setItem(
-      'ku_long_auth_user',
-      JSON.stringify({
-        id: studentUser.id,
-        email: studentUser.email,
-        full_name: studentUser.name,
-        role: studentUser.role,
-      })
-    );
-    localStorage.setItem('ku_long_auth_token', 'mock-jwt-student-token');
-    window.dispatchEvent(new Event('storage'));
-    setToast({ message: 'Signed in as Student Non', type: 'add' });
-    setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  // Logout back to Guest mode
-  const logoutDemo = useCallback(async () => {
-    if (authLogout) {
-      try {
-        await authLogout();
-      } catch (err) {
-        console.warn(err);
-      }
-    }
-    localStorage.removeItem('ku_long_auth_user');
-    localStorage.removeItem('ku_long_auth_token');
-    setBookmarks([]);
-    window.dispatchEvent(new Event('storage'));
-    setToast({ message: 'Switched to Guest mode (Signed out)', type: 'remove' });
-    setTimeout(() => setToast(null), 2500);
-  }, [authLogout]);
+  }, [loadBookmarks]);
 
   const showToast = (message: string, type: 'add' | 'remove' | 'warning') => {
     setToast({ message, type });
@@ -119,7 +88,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const isBookmarked = useCallback(
-    (entityId: string, entityType: BookmarkEntityType): boolean => {
+    (entityId: string, entityType: BookmarkEntityType = 'SCHEDULE'): boolean => {
       return bookmarkService.isBookmarked(bookmarks, entityId, entityType);
     },
     [bookmarks]
@@ -144,7 +113,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (currentlySaved) {
       // Optimistic Unsave: Remove from state immediately
       const nextBookmarks = bookmarks.filter(
-        (b) => !(b.entityId === item.entityId && b.entityType === item.entityType)
+        (b) => b.entityId !== item.entityId
       );
       setBookmarks(nextBookmarks);
       showToast('Removed from bookmarks', 'remove');
@@ -163,7 +132,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Optimistic Save: Add to state immediately
       const optimisticItem: BookmarkItem = {
         ...item,
-        id: `bm-${item.entityType.toLowerCase()}-${item.entityId}`,
+        id: `bm-${item.entityId}`,
         savedAt: new Date().toISOString(),
       };
       setBookmarks([optimisticItem, ...bookmarks]);
@@ -172,7 +141,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const saved = await bookmarkService.addBookmark(item, userId);
         setBookmarks((current) =>
-          current.map((b) => (b.id === optimisticItem.id ? saved : b))
+          current.map((b) => (b.entityId === item.entityId ? saved : b))
         );
         return true;
       } catch (err) {
@@ -195,8 +164,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isBookmarked,
         toggleBookmark,
         openAuthModal: () => setIsAuthModalOpen(true),
-        loginAsStudentDemo,
-        logoutDemo,
+        refreshBookmarks: loadBookmarks,
       }}
     >
       {children}
@@ -206,8 +174,6 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
-
-
 
       {/* Snappy Toast Feedback */}
       {toast && (
