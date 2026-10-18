@@ -33,18 +33,18 @@ export function RoomHero({ room }: RoomHeroProps) {
         document.execCommand('copy');
         document.body.removeChild(textArea);
       }
-      setToastMessage('คัดลอกลิงก์สำเร็จแล้ว');
+      setToastMessage('Link copied to clipboard');
     } catch {
       // Fallback message if clipboard fails
-      setToastMessage('คัดลอกลิงก์สำเร็จแล้ว');
+      setToastMessage('Link copied to clipboard');
     }
 
     // 2. Open native share sheet on mobile devices if available
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${roomTitle} - KU Long`,
-          text: `ดูข้อมูลและแผนที่ห้อง ${roomTitle}`,
+          title: `${roomTitle} - Kulong`,
+          text: `View details and floor map for ${roomTitle}`,
           url: url,
         });
       } catch {
@@ -90,7 +90,7 @@ export function RoomHero({ room }: RoomHeroProps) {
             onClick={handleShare}
             className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white bg-white/15 hover:bg-white/25 active:scale-95 transition backdrop-blur-sm cursor-pointer shadow-sm"
             aria-label="Share room location"
-            title="แชร์ตำแหน่งห้อง"
+            title="Share room location"
           >
             <Share2 className="w-5 h-5 stroke-[2.2]" />
           </button>

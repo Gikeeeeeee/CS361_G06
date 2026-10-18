@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { User as UserIcon, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
-import type { UserRole } from '../types/auth.types';
 
 export const SignUpForm: React.FC = () => {
   const { signUp, isLoading } = useAuth();
@@ -10,7 +9,6 @@ export const SignUpForm: React.FC = () => {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<UserRole>('STUDENT');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,20 +40,16 @@ export const SignUpForm: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const newUser = await signUp({
+      await signUp({
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
-        role: role,
+        role: 'STUDENT',
       });
 
       setSuccessMessage('Account created successfully! Signing in...');
       setTimeout(() => {
-        if (newUser.role === 'STAFF' || newUser.role === 'ADMIN') {
-          navigate('/admin/schedules/manage', { replace: true });
-        } else {
-          navigate('/', { replace: true });
-        }
+        navigate('/', { replace: true });
       }, 1000);
     } catch (err: any) {
       setErrorMessage(err?.message || 'Sign up failed. Please try again.');
@@ -79,8 +73,11 @@ export const SignUpForm: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <img src="/ku_long_logo.svg" alt="KU Long" className="h-7 w-auto object-contain" />
-            <span className="font-bold text-sm text-slate-800 tracking-tight">KU Long</span>
+            <svg viewBox="0 0 400 300" className="h-7 w-auto shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="50,40 200,40 145,145 200,250 50,250" fill="#90132B" />
+              <path fillRule="evenodd" fill="#C49A4D" d="M 207,40 L 360,40 L 360,173.5 A 76.5,76.5 0 0,1 207,173.5 Z M 283.5,150 A 22,22 0 1,0 283.5,194 A 22,22 0 1,0 283.5,150 Z" />
+            </svg>
+            <span className="font-bold text-sm text-slate-800 tracking-tight">Kulong</span>
           </div>
         </div>
 
@@ -109,36 +106,6 @@ export const SignUpForm: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          {/* Role Selection Tabs */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Account Type
-            </label>
-            <div className="flex bg-slate-100 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setRole('STUDENT')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  role === 'STUDENT'
-                    ? 'bg-white text-blue-600 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Student
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('STAFF')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                  role === 'STAFF'
-                    ? 'bg-white text-purple-600 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Staff
-              </button>
-            </div>
-          </div>
 
           {/* Full Name */}
           <div>

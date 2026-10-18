@@ -27,25 +27,25 @@ function DynamicPageTitle() {
   useEffect(() => {
     const pathname = location.pathname;
     if (pathname === '/') {
-      document.title = 'KU Long';
+      document.title = 'Kulong';
     } else if (pathname === '/login') {
-      document.title = 'Sign In | KU Long';
+      document.title = 'Sign In | Kulong';
     } else if (pathname === '/signup') {
-      document.title = 'Sign Up | KU Long';
+      document.title = 'Sign Up | Kulong';
     } else if (pathname === '/saved') {
-      document.title = 'My Timetable | KU Long';
+      document.title = 'My Timetable | Kulong';
     } else if (pathname === '/profile') {
-      document.title = 'Profile | KU Long';
+      document.title = 'Profile | Kulong';
     } else if (pathname.startsWith('/buildings/')) {
-      document.title = 'Building Details | KU Long';
+      document.title = 'Building Details | Kulong';
     } else if (pathname.startsWith('/rooms/')) {
-      document.title = 'Room Details | KU Long';
+      document.title = 'Room Details | Kulong';
     } else if (pathname.startsWith('/facilities/')) {
-      document.title = 'Facility Details | KU Long';
+      document.title = 'Facility Details | Kulong';
     } else if (pathname.startsWith('/admin')) {
-      document.title = 'Admin | KU Long';
+      document.title = 'Admin | Kulong';
     } else {
-      document.title = 'KU Long';
+      document.title = 'Kulong';
     }
   }, [location]);
 

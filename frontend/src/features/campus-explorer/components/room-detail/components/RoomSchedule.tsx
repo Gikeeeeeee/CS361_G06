@@ -24,7 +24,6 @@ const toLocalDateString = (d: Date) => {
 
 const isMaskedSchedule = (event?: { title?: string; visibility?: string } | null): boolean => {
   if (!event) return false;
-  if (event.visibility === 'INTERNAL') return true;
   const t = (event.title || '').trim().toLowerCase();
   return t === 'reserved' || t === 'ไม่ว่าง';
 };

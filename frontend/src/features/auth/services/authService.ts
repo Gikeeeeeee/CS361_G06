@@ -120,7 +120,7 @@ export const authService = {
       options: {
         data: {
           full_name: trimmedName,
-          role: role,
+          role: 'STUDENT',
         },
       },
     });
