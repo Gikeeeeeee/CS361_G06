@@ -61,8 +61,11 @@ export const LoginForm: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <img src="/ku_long_logo.svg" alt="KU Long" className="h-7 w-auto object-contain" />
-            <span className="font-bold text-sm text-slate-800 tracking-tight">KU Long</span>
+            <svg viewBox="0 0 400 300" className="h-7 w-auto shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="50,40 200,40 145,145 200,250 50,250" fill="#90132B" />
+              <path fillRule="evenodd" fill="#C49A4D" d="M 207,40 L 360,40 L 360,173.5 A 76.5,76.5 0 0,1 207,173.5 Z M 283.5,150 A 22,22 0 1,0 283.5,194 A 22,22 0 1,0 283.5,150 Z" />
+            </svg>
+            <span className="font-bold text-sm text-slate-800 tracking-tight">Kulong</span>
           </div>
         </div>
 
