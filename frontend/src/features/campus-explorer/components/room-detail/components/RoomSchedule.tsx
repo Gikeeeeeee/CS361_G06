@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useRoomSchedule } from '../hooks/useRoomSchedule';
-import { Calendar, Clock, User, ChevronLeft, ChevronRight, X, Info, CalendarPlus } from 'lucide-react';
+import { Calendar, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '../../../../../shared/components/Badge';
 import { BookmarkButton } from '../../../../bookmarks/components/BookmarkButton';
-import { downloadIcsEvent } from '../../../services/icsExportService';
+import { ScheduleDetailsModal } from '../../../../../components/shared/ScheduleDetailsModal';
+import { AddToCalendarButton } from '../../../../../components/shared/AddToCalendarButton';
 
 interface RoomScheduleProps {
   roomId: string;
@@ -222,29 +223,14 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                                 {isMasked ? (event.title || 'Reserved') : (event.course_code || 'COURSE')}
                               </span>
                               <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  title="Export to calendar (.ics)"
-                                  aria-label="Export to calendar (.ics)"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    downloadIcsEvent({
-                                      title: event.title,
-                                      start_at: event.start_at,
-                                      end_at: event.end_at,
-                                      course_code: event.course_code,
-                                      description: event.description,
-                                      organizer: event.organizer,
-                                      location: roomId,
-                                      type: event.type || 'COURSE',
-                                    });
-                                  }}
-                                  className={`p-1 rounded-md transition-colors ${
+                                <AddToCalendarButton
+                                  roomId={roomId}
+                                  scheduleId={event.id || event.course_code}
+                                  scheduleData={event}
+                                  buttonClassName={`p-1 rounded-md transition-colors cursor-pointer ${
                                     isMasked ? 'text-slate-500 hover:bg-slate-200' : 'text-blue-600 hover:bg-blue-100'
                                   }`}
-                                >
-                                  <CalendarPlus className="w-4 h-4" />
-                                </button>
+                                />
                                 <BookmarkButton
                                   entityId={String(event.id || event.course_code || event.title)}
                                   entityType="SCHEDULE"
@@ -253,6 +239,9 @@ function CourseTimetable({ roomId }: { roomId: string }) {
                                   courseCode={event.course_code}
                                   startAt={event.start_at}
                                   endAt={event.end_at}
+                                  roomId={event.room_id || roomId}
+                                  type={event.type || 'COURSE'}
+                                  organizer={event.organizer || (event as any).instructor}
                                   size={16}
                                   className={`p-1 rounded-md ${
                                     isMasked ? 'hover:bg-slate-200' : 'hover:bg-blue-100'
@@ -436,27 +425,6 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                         <Clock className="w-3 h-3 mr-1" />
                         {formatTime(event.start_at)} - {formatTime(event.end_at)}
                       </div>
-                      <button
-                        type="button"
-                        title="Export to calendar (.ics)"
-                        aria-label="Export to calendar (.ics)"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadIcsEvent({
-                            title: event.title,
-                            start_at: event.start_at,
-                            end_at: event.end_at,
-                            course_code: event.course_code,
-                            description: event.description,
-                            organizer: event.organizer,
-                            location: roomId,
-                            type: event.type,
-                          });
-                        }}
-                        className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
-                      >
-                        <CalendarPlus className="w-4 h-4" />
-                      </button>
                       <BookmarkButton
                         entityId={String(event.id || event.title)}
                         entityType="SCHEDULE"
@@ -465,6 +433,9 @@ function ExamCalendar({ roomId }: { roomId: string }) {
                         courseCode={event.course_code || (isMasked ? 'Reserved' : event.type)}
                         startAt={event.start_at}
                         endAt={event.end_at}
+                        roomId={event.room_id || roomId}
+                        type={event.type}
+                        organizer={event.organizer}
                         size={16}
                         className="p-1 hover:bg-slate-100 rounded-md"
                       />
@@ -565,182 +536,12 @@ function ExamCalendar({ roomId }: { roomId: string }) {
       </div>
 
       {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSelectedEvent(null)}>
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className={`px-6 py-5 border-b flex justify-between items-center ${
-              isMaskedSchedule(selectedEvent)
-                ? 'bg-slate-100 border-slate-200'
-                : selectedEvent.type === 'EXAM' 
-                  ? 'bg-amber-500/10 border-amber-100' 
-                  : 'bg-purple-500/10 border-purple-100'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
-                  isMaskedSchedule(selectedEvent)
-                    ? 'bg-slate-600 text-white'
-                    : selectedEvent.type === 'EXAM' 
-                      ? 'bg-amber-500 text-white' 
-                      : 'bg-purple-500 text-white'
-                }`}>
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <Badge 
-                    variant={isMaskedSchedule(selectedEvent) ? 'outline' : selectedEvent.type === 'EXAM' ? 'destructive' : 'default'} 
-                    className={
-                      isMaskedSchedule(selectedEvent)
-                        ? 'bg-white text-slate-700 border-slate-300'
-                        : selectedEvent.type === 'ACTIVITY' 
-                          ? 'bg-purple-100 text-purple-700 hover:bg-purple-100' 
-                          : selectedEvent.type === 'EXAM' 
-                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-none' 
-                            : ''
-                    }
-                  >
-                    {isMaskedSchedule(selectedEvent) ? 'Reserved / ไม่ว่าง' : selectedEvent.type}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  title="Export to calendar (.ics)"
-                  aria-label="Export to calendar (.ics)"
-                  onClick={() => {
-                    downloadIcsEvent({
-                      title: selectedEvent.title,
-                      start_at: selectedEvent.start_at,
-                      end_at: selectedEvent.end_at,
-                      course_code: selectedEvent.course_code,
-                      description: selectedEvent.description,
-                      organizer: selectedEvent.organizer,
-                      location: selectedEvent.room_id || roomId,
-                      type: selectedEvent.type,
-                    });
-                  }}
-                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-white/60 rounded-full transition-colors"
-                >
-                  <CalendarPlus className="w-5 h-5" />
-                </button>
-                <BookmarkButton
-                  entityId={String(selectedEvent.id || selectedEvent.title)}
-                  entityType="SCHEDULE"
-                  title={selectedEvent.title}
-                  subtitle={`${formatTime(selectedEvent.start_at)} - ${formatTime(selectedEvent.end_at)}`}
-                  courseCode={selectedEvent.course_code || (isMaskedSchedule(selectedEvent) ? 'Reserved' : selectedEvent.type)}
-                  startAt={selectedEvent.start_at}
-                  endAt={selectedEvent.end_at}
-                  size={18}
-                  className="p-2 hover:bg-white/60 rounded-full"
-                />
-                <button 
-                  onClick={() => setSelectedEvent(null)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/50 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            
-            {/* Modal Body */}
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-1">{selectedEvent.title}</h3>
-              {selectedEvent.course_code && !isMaskedSchedule(selectedEvent) && (
-                <p className="text-sm font-medium text-slate-500 mb-4">{selectedEvent.course_code}</p>
-              )}
-              
-              <div className="space-y-4 mt-6">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Time</p>
-                    <p className="text-sm font-medium text-slate-800">
-                      {formatTime(selectedEvent.start_at)} - {formatTime(selectedEvent.end_at)}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {new Date(selectedEvent.start_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-
-                {isMaskedSchedule(selectedEvent) && (
-                  <div className="flex items-start gap-3 pt-2">
-                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
-                      <Info className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Visibility</p>
-                      <p className="text-sm text-slate-600">
-                        รายการนี้เป็นการจองภายใน หรือข้อมูลถูกสงวนไว้ (Internal / Reserved schedule)
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedEvent.organizer && !isMaskedSchedule(selectedEvent) && (
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Organizer</p>
-                      <p className="text-sm font-medium text-slate-800">{selectedEvent.organizer}</p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedEvent.description && !isMaskedSchedule(selectedEvent) && (
-                  <div className="flex items-start gap-3 pt-2">
-                    <div className="p-2 bg-slate-50 rounded-lg text-slate-500">
-                      <Info className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Details</p>
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedEvent.description}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  downloadIcsEvent({
-                    title: selectedEvent.title,
-                    start_at: selectedEvent.start_at,
-                    end_at: selectedEvent.end_at,
-                    course_code: selectedEvent.course_code,
-                    description: selectedEvent.description,
-                    organizer: selectedEvent.organizer,
-                    location: selectedEvent.room_id || roomId,
-                    type: selectedEvent.type,
-                  });
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-              >
-                <CalendarPlus className="w-4 h-4" />
-                <span>Add to Calendar (.ics)</span>
-              </button>
-              <button 
-                onClick={() => setSelectedEvent(null)}
-                className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ScheduleDetailsModal
+        isOpen={Boolean(selectedEvent)}
+        onClose={() => setSelectedEvent(null)}
+        schedule={selectedEvent}
+        roomId={roomId}
+      />
     </div>
   );
 }

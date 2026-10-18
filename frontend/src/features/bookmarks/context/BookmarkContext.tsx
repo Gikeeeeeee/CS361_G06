@@ -2,8 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { bookmarkService } from '../services/bookmarkService';
 import type { BookmarkItem, BookmarkEntityType } from '../types/bookmark.types';
 import { AuthPromptModal } from '../components/AuthPromptModal';
-import { ScheduleConflictModal } from '../components/ScheduleConflictModal';
-import { detectScheduleConflict, type ParsedTimeSlot } from '../utils/scheduleConflictUtils';
 import { CheckCircle2, BookmarkX, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../auth/context/AuthContext';
 
@@ -41,20 +39,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return null;
   }, [authUser]);
 
-  // State for Schedule Conflict Modal
-  const [conflictModal, setConflictModal] = useState<{
-    isOpen: boolean;
-    candidateItem: Omit<BookmarkItem, 'id' | 'savedAt'> | BookmarkItem | null;
-    conflictingItem: BookmarkItem | null;
-    candidateSlot: ParsedTimeSlot | null;
-    conflictingSlot: ParsedTimeSlot | null;
-  }>({
-    isOpen: false,
-    candidateItem: null,
-    conflictingItem: null,
-    candidateSlot: null,
-    conflictingSlot: null,
-  });
+
 
   // Helper to check if user is logged in
   const isUserLoggedIn = useCallback((): boolean => {
@@ -175,25 +160,6 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return true;
       }
     } else {
-      // 2. Schedule Conflict Check: prevent booking if times overlap on the same day
-      if (item.entityType === 'SCHEDULE') {
-        const conflict = detectScheduleConflict(item, bookmarks);
-        if (conflict.hasConflict && conflict.conflictingItem) {
-          setConflictModal({
-            isOpen: true,
-            candidateItem: item,
-            conflictingItem: conflict.conflictingItem,
-            candidateSlot: conflict.candidateSlot || null,
-            conflictingSlot: conflict.conflictingSlot || null,
-          });
-          showToast(
-            `Time conflict with [${conflict.conflictingItem.courseCode || conflict.conflictingItem.title}]`,
-            'warning'
-          );
-          return false;
-        }
-      }
-
       // Optimistic Save: Add to state immediately
       const optimisticItem: BookmarkItem = {
         ...item,
@@ -241,17 +207,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         onClose={() => setIsAuthModalOpen(false)}
       />
 
-      {/* Schedule Conflict Modal */}
-      <ScheduleConflictModal
-        isOpen={conflictModal.isOpen}
-        onClose={() =>
-          setConflictModal((prev) => ({ ...prev, isOpen: false }))
-        }
-        candidateItem={conflictModal.candidateItem}
-        conflictingItem={conflictModal.conflictingItem}
-        candidateSlot={conflictModal.candidateSlot}
-        conflictingSlot={conflictModal.conflictingSlot}
-      />
+
 
       {/* Snappy Toast Feedback */}
       {toast && (
