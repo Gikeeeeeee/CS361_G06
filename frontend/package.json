@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:auth": "node test_auth_integration.mjs",
+    "test:bookmarks": "node test_bookmarks_integration.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

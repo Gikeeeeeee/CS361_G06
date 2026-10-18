@@ -1,243 +1,181 @@
+import { apiClient } from '../../../services/api/apiClient';
 import type { BookmarkItem, BookmarkEntityType } from '../types/bookmark.types';
 
-const BOOKMARK_STORAGE_KEY_PREFIX = 'ku_long_bookmarks_';
+export interface BackendBookmarkRecord {
+  id: string;
+  user_id: string;
+  entity_id: string;
+  entity_type: BookmarkEntityType;
+  saved_at: string;
+}
 
-// Initial pre-seeded mock bookmarks matching Figma Timetable design
-const INITIAL_DEMO_BOOKMARKS: BookmarkItem[] = [
-  {
-    id: 'bm-sched-CS361',
-    entityId: 'sched-CS361',
-    entityType: 'SCHEDULE',
-    title: 'Software Architecture',
-    subtitle: 'Mon 09:00 - 12:00',
-    courseCode: 'CS361',
-    building: 'LC4',
-    roomName: 'LC4-210',
-    startAt: '2026-09-14T09:00:00+07:00',
-    endAt: '2026-09-14T12:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS366',
-    entityId: 'sched-CS366',
-    entityType: 'SCHEDULE',
-    title: 'Software Testing & QA',
-    subtitle: 'Mon 13:00 - 15:00',
-    courseCode: 'CS366',
-    building: 'LC4',
-    roomName: 'LC4-210',
-    startAt: '2026-09-14T13:00:00+07:00',
-    endAt: '2026-09-14T15:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS371',
-    entityId: 'sched-CS371',
-    entityType: 'SCHEDULE',
-    title: 'Mobile Application Development',
-    subtitle: 'Mon 15:00 - 17:00',
-    courseCode: 'CS371',
-    building: 'LC4',
-    roomName: 'LC4-215',
-    startAt: '2026-09-14T15:00:00+07:00',
-    endAt: '2026-09-14T17:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS367',
-    entityId: 'sched-CS367',
-    entityType: 'SCHEDULE',
-    title: 'Artificial Intelligence',
-    subtitle: 'Tue 09:00 - 11:00',
-    courseCode: 'CS367',
-    building: 'LC4',
-    roomName: 'LC4-205',
-    startAt: '2026-09-15T09:00:00+07:00',
-    endAt: '2026-09-15T11:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS362',
-    entityId: 'sched-CS362',
-    entityType: 'SCHEDULE',
-    title: 'Human-Computer Interaction',
-    subtitle: 'Tue 13:00 - 15:00',
-    courseCode: 'CS362',
-    building: 'LC4',
-    roomName: 'LC4-205',
-    startAt: '2026-09-15T13:00:00+07:00',
-    endAt: '2026-09-15T15:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS372',
-    entityId: 'sched-CS372',
-    entityType: 'SCHEDULE',
-    title: 'Cloud Computing Architecture',
-    subtitle: 'Tue 16:00 - 18:00',
-    courseCode: 'CS372',
-    building: 'LC4',
-    roomName: 'LC4-210',
-    startAt: '2026-09-15T16:00:00+07:00',
-    endAt: '2026-09-15T18:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS363',
-    entityId: 'sched-CS363',
-    entityType: 'SCHEDULE',
-    title: 'Data Structures & Algorithms',
-    subtitle: 'Wed 10:00 - 12:00',
-    courseCode: 'CS363',
-    building: 'LC4',
-    roomName: 'LC4-210',
-    startAt: '2026-09-16T10:00:00+07:00',
-    endAt: '2026-09-16T12:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS368',
-    entityId: 'sched-CS368',
-    entityType: 'SCHEDULE',
-    title: 'Information Security',
-    subtitle: 'Wed 14:00 - 17:00',
-    courseCode: 'CS368',
-    building: 'LC4',
-    roomName: 'LC4-215',
-    startAt: '2026-09-16T14:00:00+07:00',
-    endAt: '2026-09-16T17:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS369',
-    entityId: 'sched-CS369',
-    entityType: 'SCHEDULE',
-    title: 'Web Services Development',
-    subtitle: 'Thu 10:00 - 12:00',
-    courseCode: 'CS369',
-    building: 'LC4',
-    roomName: 'LC4-210',
-    startAt: '2026-09-17T10:00:00+07:00',
-    endAt: '2026-09-17T12:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS364',
-    entityId: 'sched-CS364',
-    entityType: 'SCHEDULE',
-    title: 'Computer Networks',
-    subtitle: 'Thu 14:00 - 17:00',
-    courseCode: 'CS364',
-    building: 'LC4',
-    roomName: 'LC4-215',
-    startAt: '2026-09-17T14:00:00+07:00',
-    endAt: '2026-09-17T17:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS365',
-    entityId: 'sched-CS365',
-    entityType: 'SCHEDULE',
-    title: 'Database Systems',
-    subtitle: 'Fri 09:00 - 11:00',
-    courseCode: 'CS365',
-    building: 'LC4',
-    roomName: 'LC4-205',
-    startAt: '2026-09-18T09:00:00+07:00',
-    endAt: '2026-09-18T11:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: 'bm-sched-CS370',
-    entityId: 'sched-CS370',
-    entityType: 'SCHEDULE',
-    title: 'Distributed Systems',
-    subtitle: 'Fri 13:00 - 15:00',
-    courseCode: 'CS370',
-    building: 'LC4',
-    roomName: 'LC4-205',
-    startAt: '2026-09-18T13:00:00+07:00',
-    endAt: '2026-09-18T15:00:00+07:00',
-    savedAt: new Date().toISOString(),
-  },
-];
+export interface BackendBookmarkListResponse {
+  success: boolean;
+  data: BackendBookmarkRecord[];
+}
 
-function getStorageKey(userId?: string): string {
-  return `${BOOKMARK_STORAGE_KEY_PREFIX}${userId || 'local'}`;
+const META_STORAGE_KEY_PREFIX = 'ku_long_bookmark_meta_';
+
+function getMetaKey(entityId: string): string {
+  return `${META_STORAGE_KEY_PREFIX}${entityId}`;
 }
 
 export const bookmarkService = {
   /**
-   * Get all bookmarked items for the user
+   * Get all bookmarked items for the authenticated user from Backend API
    */
   async getBookmarks(userId?: string): Promise<BookmarkItem[]> {
-    // Guest (unauthenticated) users do not have saved bookmarks
+    // Guest (unauthenticated) users do not have saved bookmarks in the database
     if (!userId) {
       return [];
     }
 
     try {
-      const key = getStorageKey(userId);
-      const raw = localStorage.getItem(key);
-      if (!raw) {
-        // Initialize with realistic demo bookmarks for authenticated student
-        localStorage.setItem(key, JSON.stringify(INITIAL_DEMO_BOOKMARKS));
-        return INITIAL_DEMO_BOOKMARKS;
+      const res = await apiClient.get<BackendBookmarkListResponse>('/bookmarks');
+      const records = res?.data || [];
+      if (!Array.isArray(records) || records.length === 0) {
+        return [];
       }
-      const parsed: BookmarkItem[] = JSON.parse(raw);
-      // Auto-upgrade if student has old short mock items
-      if (parsed.length <= 4 && parsed.some((p) => p.entityId === 'sched-CS361')) {
-        localStorage.setItem(key, JSON.stringify(INITIAL_DEMO_BOOKMARKS));
-        return INITIAL_DEMO_BOOKMARKS;
+
+      // Check which records need metadata enrichment
+      const missingIds: string[] = [];
+      const items: BookmarkItem[] = records.map((record) => {
+        const cached = localStorage.getItem(getMetaKey(record.entity_id));
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            return {
+              ...parsed,
+              id: record.id,
+              entityId: record.entity_id,
+              entityType: record.entity_type,
+              savedAt: record.saved_at,
+            };
+          } catch {
+            // ignore cache parse error
+          }
+        }
+        missingIds.push(record.entity_id);
+        return {
+          id: record.id,
+          entityId: record.entity_id,
+          entityType: record.entity_type,
+          title: `Schedule ${record.entity_id.slice(0, 8)}`,
+          savedAt: record.saved_at,
+        };
+      });
+
+      // If any records were missing metadata, fetch schedules from backend to hydrate them
+      if (missingIds.length > 0) {
+        try {
+          const schedRes = await apiClient.get<any>('/schedules?pageSize=100');
+          const scheduleList = schedRes?.data || [];
+          if (Array.isArray(scheduleList)) {
+            const schedMap = new Map<string, any>(scheduleList.map((s: any) => [s.id, s]));
+            for (const item of items) {
+              const matched = schedMap.get(item.entityId);
+              if (matched) {
+                const sDate = matched.start_at ? new Date(matched.start_at) : null;
+                const eDate = matched.end_at ? new Date(matched.end_at) : null;
+                const dayStr = sDate ? sDate.toLocaleDateString('en-US', { weekday: 'short' }) : '';
+                const timeStr =
+                  sDate && eDate
+                    ? `${sDate.toTimeString().slice(0, 5)} - ${eDate.toTimeString().slice(0, 5)}`
+                    : '';
+
+                item.title = matched.title || item.title;
+                item.courseCode = matched.course_code || undefined;
+                item.startAt = matched.start_at;
+                item.endAt = matched.end_at;
+                item.roomId = matched.room_id;
+                item.type = matched.type;
+                item.organizer = matched.organizer;
+                item.subtitle = dayStr && timeStr ? `${dayStr} ${timeStr}` : undefined;
+
+                localStorage.setItem(getMetaKey(item.entityId), JSON.stringify(item));
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to hydrate schedules metadata:', e);
+        }
       }
-      return parsed;
+
+      return items;
     } catch (e) {
-      console.warn('Failed to load bookmarks from storage:', e);
+      console.warn('Failed to load bookmarks from backend API:', e);
       return [];
     }
   },
 
   /**
-   * Add a new bookmark
+   * Add a new bookmark via POST /api/v1/bookmarks
    */
   async addBookmark(
     item: Omit<BookmarkItem, 'id' | 'savedAt'>,
     userId?: string
   ): Promise<BookmarkItem> {
-    const bookmarks = await this.getBookmarks(userId);
-    const existing = bookmarks.find(
-      (b) => b.entityId === item.entityId && b.entityType === item.entityType
-    );
-    if (existing) {
-      return existing;
+    if (!userId) {
+      throw new Error('Please sign in to save bookmarks');
     }
 
-    const newBookmark: BookmarkItem = {
-      ...item,
-      id: `bm-${item.entityType.toLowerCase()}-${item.entityId}`,
-      savedAt: new Date().toISOString(),
-    };
+    // Save full item metadata to local cache
+    try {
+      localStorage.setItem(getMetaKey(item.entityId), JSON.stringify(item));
+    } catch {
+      // ignore storage error
+    }
 
-    bookmarks.unshift(newBookmark);
-    const key = getStorageKey(userId);
-    localStorage.setItem(key, JSON.stringify(bookmarks));
-    return newBookmark;
+    try {
+      const res = await apiClient.post<{ success: boolean; data: BackendBookmarkRecord }>('/bookmarks', {
+        entity_id: item.entityId,
+        entity_type: item.entityType || 'SCHEDULE',
+      });
+
+      return {
+        ...item,
+        id: res?.data?.id || `bm-${item.entityId}`,
+        savedAt: res?.data?.saved_at || new Date().toISOString(),
+      };
+    } catch (err: any) {
+      // 409 Conflict means already saved in DB
+      if (err?.status === 409 || err?.body?.error?.code === 'ALREADY_BOOKMARKED') {
+        return {
+          ...item,
+          id: `bm-${item.entityId}`,
+          savedAt: new Date().toISOString(),
+        };
+      }
+      throw err;
+    }
   },
 
   /**
-   * Remove a bookmark by entity ID and type
+   * Remove a bookmark via DELETE /api/v1/bookmarks/:entity_id
    */
   async removeBookmark(
     entityId: string,
-    entityType: BookmarkEntityType,
+    _entityType: BookmarkEntityType,
     userId?: string
   ): Promise<void> {
-    const bookmarks = await this.getBookmarks(userId);
-    const updated = bookmarks.filter(
-      (b) => !(b.entityId === entityId && b.entityType === entityType)
-    );
-    const key = getStorageKey(userId);
-    localStorage.setItem(key, JSON.stringify(updated));
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/bookmarks/${encodeURIComponent(entityId)}`);
+    } catch (err: any) {
+      // If 404, it was already removed, so treat as success
+      if (err?.status !== 404) {
+        throw err;
+      }
+    } finally {
+      try {
+        localStorage.removeItem(getMetaKey(entityId));
+      } catch {
+        // ignore storage error
+      }
+    }
   },
 
   /**
@@ -246,10 +184,8 @@ export const bookmarkService = {
   isBookmarked(
     bookmarks: BookmarkItem[],
     entityId: string,
-    entityType: BookmarkEntityType
+    _entityType: BookmarkEntityType
   ): boolean {
-    return bookmarks.some(
-      (b) => b.entityId === entityId && b.entityType === entityType
-    );
+    return bookmarks.some((b) => b.entityId === entityId);
   },
 };
