@@ -14,7 +14,6 @@ export interface ScheduleDetailsModalProps {
 
 const isMaskedSchedule = (event?: any): boolean => {
   if (!event) return false;
-  if (event.visibility === 'INTERNAL') return true;
   const t = (event.title || '').trim().toLowerCase();
   return t === 'reserved' || t === 'ไม่ว่าง';
 };
@@ -182,7 +181,7 @@ export const ScheduleDetailsModal: React.FC<ScheduleDetailsModalProps> = ({
                     : 'bg-blue-100 text-blue-700 hover:bg-blue-100 border-none'
                 }
               >
-                {isMasked ? 'Reserved / ไม่ว่าง' : type}
+                {isMasked ? 'Reserved' : type}
               </Badge>
             </div>
           </div>
@@ -255,7 +254,7 @@ export const ScheduleDetailsModal: React.FC<ScheduleDetailsModalProps> = ({
                     Visibility
                   </p>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    รายการนี้เป็นการจองภายใน หรือข้อมูลถูกสงวนไว้ (Internal / Reserved schedule)
+                    This schedule is internal. Details are hidden for guests.
                   </p>
                 </div>
               </div>

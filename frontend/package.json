@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test:auth": "node test_auth_integration.mjs",
+    "test:us4": "node test_us4_share_and_masking.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

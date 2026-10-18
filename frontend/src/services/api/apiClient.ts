@@ -96,7 +96,8 @@ export const apiClient = {
 
   // GET Method เดิม
   async get<T>(endpoint: string, options: CustomRequestInit = {}): Promise<T> {
-    const cacheKey = `GET_${endpoint}`;
+    const authRole = localStorage.getItem('ku_long_auth_role') || (localStorage.getItem('ku_long_auth_token') ? 'AUTH' : 'GUEST');
+    const cacheKey = `GET_${authRole}_${endpoint}`;
     
     // หากไม่ต้องการข้ามแคช ให้ลองดึงจากแคชก่อน
     if (!options.skipCache) {

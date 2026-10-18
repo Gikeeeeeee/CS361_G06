@@ -12,8 +12,8 @@ export default function RoomDetailPage() {
 
   useEffect(() => {
     if (room) {
-      const roomTitle = room.room_number || room.name.th;
-      document.title = `${roomTitle} | KU Long`;
+      const roomTitle = room.room_number || room.name.en || room.name.th;
+      document.title = `${roomTitle} | Kulong`;
     }
   }, [room]);
 

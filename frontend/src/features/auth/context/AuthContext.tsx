@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
+import { ApiCache } from '../../../services/api/apiCache';
 import type { User, UserRole, LoginCredentials, SignUpCredentials } from '../types/auth.types';
 
 interface AuthContextType {
@@ -45,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen to 401 Unauthorized events from API calls to auto-logout
     const handleUnauthorized = () => {
+      ApiCache.clearAll();
       setUser(null);
       authService.clearSession();
     };
@@ -54,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (supabase) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT' || !session) {
+          ApiCache.clearAll();
           authService.clearSession();
           if (isMounted) setUser(null);
         } else if (event === 'TOKEN_REFRESHED' && session) {
@@ -81,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const { user: loggedInUser } = await authService.login(credentials);
+      ApiCache.clearAll();
       setUser(loggedInUser);
       return loggedInUser;
     } finally {
@@ -92,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const { user: registeredUser } = await authService.signUp(credentials);
+      ApiCache.clearAll();
       setUser(registeredUser);
       return registeredUser;
     } finally {
@@ -103,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       await authService.logout();
+      ApiCache.clearAll();
       setUser(null);
     } finally {
       setIsLoading(false);
