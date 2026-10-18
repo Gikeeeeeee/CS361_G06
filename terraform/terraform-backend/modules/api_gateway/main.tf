@@ -141,6 +141,30 @@ resource "aws_apigatewayv2_route" "get_users_me" {
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_bookmarks" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/bookmarks"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_bookmarks" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "POST /api/v1/bookmarks"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "delete_bookmark" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "DELETE /api/v1/bookmarks/{entityId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "default" {
   api_id = aws_apigatewayv2_api.this.id
 
