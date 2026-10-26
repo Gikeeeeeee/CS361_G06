@@ -441,6 +441,89 @@ def test_update_schedule_not_found(fake_schedule_source):
 
 
 @pytest.mark.unit
+def test_update_schedule_moves_room_when_url_room_differs(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    result = service.update_schedule(
+        "room-lc3-302",
+        "schedule-001",
+        _course(title="CS361 Moved"),
+    )
+
+    assert result == "updated"
+    assert len(source.schedules) == 1
+    [stored] = source.schedules
+    assert stored["id"] == "schedule-001"
+    assert stored["room_id"] == "room-lc3-302"
+    assert stored["title"] == "CS361 Moved"
+    assert stored["created_at"] == sample_schedule["created_at"]
+
+
+@pytest.mark.unit
+def test_update_schedule_moves_room_when_body_specifies_new_room(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    payload = _course(title="CS361 Moved Body")
+    payload["room_id"] = "room-lc3-302"
+
+    result = service.update_schedule(
+        "room-lc3-301",
+        "schedule-001",
+        payload,
+    )
+
+    assert result == "updated"
+    assert len(source.schedules) == 1
+    [stored] = source.schedules
+    assert stored["id"] == "schedule-001"
+    assert stored["room_id"] == "room-lc3-302"
+    assert stored["title"] == "CS361 Moved Body"
+
+
+@pytest.mark.unit
+def test_update_schedule_moves_room_rejects_conflict_in_new_room(sample_schedule, fake_schedule_source):
+    # Room 301 has schedule-001 on Mondays
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    # Room 302 has a conflicting schedule on Mondays
+    conflicting = _course(
+        start_at="2026-09-14T09:00:00+07:00",
+        end_at="2026-09-14T12:00:00+07:00",
+        recurrence_rule="FREQ=WEEKLY;BYDAY=MO;COUNT=15",
+    )
+    service.create_schedule("room-lc3-302", conflicting)
+    assert len(source.schedules) == 2
+
+    # Moving schedule-001 to Room 302 should fail due to conflict
+    with pytest.raises(ScheduleConflict):
+        service.update_schedule(
+            "room-lc3-302",
+            "schedule-001",
+            conflicting,
+        )
+
+    # schedule-001 must still remain in room-lc3-301 without being deleted
+    original = source.get_schedule("room-lc3-301", "schedule-001")
+    assert original is not None
+    assert original["room_id"] == "room-lc3-301"
+
+
+@pytest.mark.unit
+def test_delete_schedule_with_fallback_by_id(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    # Calling delete with a different room ID should fall back to finding by schedule_id
+    result = service.delete_schedule("wrong-room-id", "schedule-001")
+
+    assert result == "deleted"
+    assert source.schedules == []
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "payload",
     [

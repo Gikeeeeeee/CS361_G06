@@ -164,6 +164,23 @@ class ScheduleRepository(ScheduleSource):
 
         return self._to_dict(item) if item else None
 
+    def get_schedule_by_id(
+        self,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch a single schedule item across all rooms using GSI0."""
+        try:
+            response = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("SCHEDULE")
+                & Key("GSI0SK").eq(schedule_id),
+                Limit=1,
+            )
+            items = response.get("Items", [])
+            return self._to_dict(items[0]) if items else None
+        except ClientError as exc:
+            raise self._upstream(exc, "querying GSI0 for") from exc
+
     def delete_schedule(
         self,
         room_id: str,
