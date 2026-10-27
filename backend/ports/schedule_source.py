@@ -19,6 +19,13 @@ class ScheduleSource(Protocol):
         """Fetch a single schedule by room and schedule id."""
         ...
 
+    def get_schedule_by_id(
+        self,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch a single schedule across all rooms by schedule id."""
+        ...
+
     def save_schedule(self, schedule: dict[str, Any]) -> None:
         """Create or fully replace one schedule (a series is one item)."""
         ...

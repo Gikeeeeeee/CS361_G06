@@ -214,6 +214,15 @@ class FakeScheduleSource:
                 return s
         return None
 
+    def get_schedule_by_id(
+        self,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        for s in self.schedules:
+            if s.get("id") == schedule_id:
+                return s
+        return None
+
     def delete_schedule(
         self,
         room_id: str,

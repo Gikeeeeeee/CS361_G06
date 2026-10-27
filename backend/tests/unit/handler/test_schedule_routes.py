@@ -253,6 +253,21 @@ def test_put_schedule_returns_updated(invoke_handler, schedule_source):
 
 @pytest.mark.unit
 @pytest.mark.handler
+def test_put_schedule_moves_room(invoke_handler, schedule_source):
+    event = _item("PUT", {**BODY, "title": "Moved room"})
+    event["pathParameters"]["roomId"] = "room-uuid-2"
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 200
+    assert json.loads(result["body"]) == "updated"
+    assert len(schedule_source.schedules) == 1
+    assert schedule_source.schedules[0]["room_id"] == "room-uuid-2"
+    assert schedule_source.schedules[0]["title"] == "Moved room"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
 def test_put_schedule_unknown_id_returns_404(invoke_handler):
     event = _item("PUT", BODY)
     event["pathParameters"]["scheduleId"] = "nope"

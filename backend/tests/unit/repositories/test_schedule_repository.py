@@ -156,3 +156,18 @@ def test_save_schedules_client_error_becomes_upstream_error():
 
     with pytest.raises(UpstreamError):
         ScheduleRepository(table=_FailingTable()).save_schedules([schedule])
+
+
+@pytest.mark.unit
+def test_get_schedule_by_id_queries_gsi0():
+    table = _PagedTable([
+        {
+            "Items": [{"id": "s1", "room_id": "r1", "PK": "ROOM#r1", "SK": "SCHEDULE#s1", "GSI0PK": "SCHEDULE", "GSI0SK": "s1"}]
+        }
+    ])
+
+    item = ScheduleRepository(table=table).get_schedule_by_id("s1")
+
+    assert item == {"id": "s1", "room_id": "r1"}
+    assert table.queries[0]["IndexName"] == "GSI0"
+    assert table.queries[0]["Limit"] == 1

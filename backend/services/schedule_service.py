@@ -191,22 +191,35 @@ class ScheduleService:
     ) -> str:
         """AP22: full replace of an existing schedule, same rules as create."""
         existing = self.source.get_schedule(room_id, schedule_id)
+        target_room_id = payload.get("room_id") or room_id
+        old_room_id = room_id
+        is_room_changed = False
 
         if existing is None:
-            raise ScheduleNotFound(schedule_id)
+            existing = self.source.get_schedule_by_id(schedule_id)
+            if existing is None:
+                raise ScheduleNotFound(schedule_id)
+            old_room_id = existing.get("room_id") or room_id
+
+        if existing.get("room_id") and existing.get("room_id") != target_room_id:
+            is_room_changed = True
+            old_room_id = existing.get("room_id")
 
         schedule = validate(payload)
-        self._reject_conflicts(room_id, schedule, ignore_id=schedule_id)
+        self._reject_conflicts(target_room_id, schedule, ignore_id=schedule_id)
 
         self.source.save_schedule(
             {
                 **schedule,
                 "id": schedule_id,
-                "room_id": room_id,
+                "room_id": target_room_id,
                 "created_at": existing.get("created_at"),
                 "updated_at": _now(),
             }
         )
+
+        if is_room_changed and old_room_id != target_room_id:
+            self.source.delete_schedule(old_room_id, schedule_id)
 
         return "updated"
 
@@ -216,10 +229,15 @@ class ScheduleService:
         schedule_id: str,
     ) -> str:
         """AP23: delete an existing schedule."""
-        if self.source.get_schedule(room_id, schedule_id) is None:
-            raise ScheduleNotFound(schedule_id)
+        existing = self.source.get_schedule(room_id, schedule_id)
+        target_room_id = room_id
+        if existing is None:
+            existing = self.source.get_schedule_by_id(schedule_id)
+            if existing is None:
+                raise ScheduleNotFound(schedule_id)
+            target_room_id = existing.get("room_id") or room_id
 
-        self.source.delete_schedule(room_id, schedule_id)
+        self.source.delete_schedule(target_room_id, schedule_id)
 
         return "deleted"
 
