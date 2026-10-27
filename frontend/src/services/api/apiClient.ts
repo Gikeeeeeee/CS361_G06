@@ -91,6 +91,8 @@ async function request<T>(endpoint: string, options: CustomRequestInit = {}): Pr
   return JSON.parse(text);
 }
 
+const inFlightRequests = new Map<string, Promise<any>>();
+
 export const apiClient = {
   request,
 
@@ -105,16 +107,30 @@ export const apiClient = {
       if (cachedData) {
         return cachedData;
       }
+
+      // Deduplicate concurrent in-flight requests for the same cache key
+      const inFlight = inFlightRequests.get(cacheKey);
+      if (inFlight) {
+        return inFlight as Promise<T>;
+      }
     }
 
-    const data = await request<T>(endpoint, { ...options, method: 'GET' });
-    
-    // บันทึกข้อมูลลงแคช
+    const fetchPromise = request<T>(endpoint, { ...options, method: 'GET' })
+      .then((data) => {
+        if (!options.skipCache) {
+          ApiCache.set(cacheKey, data);
+        }
+        return data;
+      })
+      .finally(() => {
+        inFlightRequests.delete(cacheKey);
+      });
+
     if (!options.skipCache) {
-      ApiCache.set(cacheKey, data);
+      inFlightRequests.set(cacheKey, fetchPromise);
     }
-    
-    return data;
+
+    return fetchPromise;
   },
 
   // POST Method ที่เพิ่มใหม่ (รองรับทั้ง JSON และการส่งไฟล์ดิบ)

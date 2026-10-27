@@ -34,6 +34,30 @@ export interface Room {
   };
 }
 
+const inFlightRequests = new Map<string, Promise<any>>();
+
+async function fetchJsonWithDedup<T>(url: string): Promise<T> {
+  const existing = inFlightRequests.get(url);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+      return await response.json();
+    } finally {
+      inFlightRequests.delete(url);
+    }
+  })();
+
+  inFlightRequests.set(url, promise);
+  return promise;
+}
+
 export const scheduleApi = {
   getAllSchedules: async (nextToken?: string): Promise<import('../types/schedule.types').GlobalScheduleResponse> => {
     const url = new URL(`${API_BASE_URL}/api/v1/schedules`);
@@ -42,11 +66,7 @@ export const scheduleApi = {
       url.searchParams.append('nextToken', nextToken);
     }
 
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error(`Failed to fetch all schedules: ${response.statusText}`);
-    }
-    return response.json();
+    return fetchJsonWithDedup<import('../types/schedule.types').GlobalScheduleResponse>(url.toString());
   },
 
   getSchedulesByType: async (type: string, nextToken?: string): Promise<import('../types/schedule.types').GlobalScheduleResponse> => {
@@ -58,35 +78,20 @@ export const scheduleApi = {
       url.searchParams.append('nextToken', nextToken);
     }
 
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error(`Failed to fetch schedules by type: ${response.statusText}`);
-    }
-    return response.json();
+    return fetchJsonWithDedup<import('../types/schedule.types').GlobalScheduleResponse>(url.toString());
   },
 
   getBuildings: async (): Promise<{ buildings: Building[] }> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/buildings`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch buildings: ${response.statusText}`);
-    }
-    return response.json();
+    return fetchJsonWithDedup<{ buildings: Building[] }>(`${API_BASE_URL}/api/v1/buildings`);
   },
 
   getBuildingFloors: async (buildingId: string): Promise<{ floors: Floor[] }> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/buildings/${buildingId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch building floors: ${response.statusText}`);
-    }
-    return response.json();
+    return fetchJsonWithDedup<{ floors: Floor[] }>(`${API_BASE_URL}/api/v1/buildings/${buildingId}`);
   },
 
-  getFloorRooms: async (floorId: string): Promise<{ rooms: Room[] }> => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/floors/${floorId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch floor rooms: ${response.statusText}`);
-    }
-    return response.json();
+  getFloorRooms: async (floorId: string, label?: string): Promise<{ rooms: Room[] }> => {
+    const query = label ? `?floor=${encodeURIComponent(label)}` : '';
+    return fetchJsonWithDedup<{ rooms: Room[] }>(`${API_BASE_URL}/api/v1/floors/${floorId}${query}`);
   },
 
   getRoom: async (roomId: string): Promise<any> => {

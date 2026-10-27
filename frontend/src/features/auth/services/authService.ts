@@ -24,41 +24,58 @@ export interface BackendUserMeResponse {
   };
 }
 
+let inFlightProfilePromise: { token: string; promise: Promise<User> } | null = null;
+
 export const authService = {
   /**
    * Fetch current user profile & verified role from Backend API: GET /api/v1/users/me
    */
   async fetchUserProfile(token: string): Promise<User> {
-    const url = `${API_BASE_URL}/api/v1/users/me`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
-      },
-    });
-
-    if (response.status === 401) {
-      await this.logout();
-      throw new Error('Session expired. Please sign in again.');
+    if (inFlightProfilePromise && inFlightProfilePromise.token === token) {
+      return inFlightProfilePromise.promise;
     }
 
-    const body: BackendUserMeResponse = await response.json();
-    if (!response.ok || !body.success || !body.data) {
-      throw new Error(body?.error?.message || 'Failed to retrieve user profile from the system.');
-    }
+    const fetchPromise = (async () => {
+      try {
+        const url = `${API_BASE_URL}/api/v1/users/me`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
 
-    const profile = body.data;
-    const user: User = {
-      id: profile.id,
-      email: profile.email,
-      full_name: profile.full_name || profile.email.split('@')[0],
-      role: profile.role || 'STUDENT',
-      avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.full_name || profile.email)}`,
-      created_at: profile.created_at,
-    };
+        if (response.status === 401) {
+          await this.logout();
+          throw new Error('Session expired. Please sign in again.');
+        }
 
-    return user;
+        const body: BackendUserMeResponse = await response.json();
+        if (!response.ok || !body.success || !body.data) {
+          throw new Error(body?.error?.message || 'Failed to retrieve user profile from the system.');
+        }
+
+        const profile = body.data;
+        const user: User = {
+          id: profile.id,
+          email: profile.email,
+          full_name: profile.full_name || profile.email.split('@')[0],
+          role: profile.role || 'STUDENT',
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(profile.full_name || profile.email)}`,
+          created_at: profile.created_at,
+        };
+
+        return user;
+      } finally {
+        if (inFlightProfilePromise?.token === token) {
+          inFlightProfilePromise = null;
+        }
+      }
+    })();
+
+    inFlightProfilePromise = { token, promise: fetchPromise };
+    return fetchPromise;
   },
 
   /**

@@ -24,6 +24,8 @@ export const useFacilitySelector = () => {
       try {
         const { buildings } = await facilityCache.getBuildings();
         setBuildings(buildings);
+        // Preload campus rooms in background so schedule tables have instant room data without individual requests
+        facilityCache.preloadCampusRooms();
       } catch (err: any) {
         setError(err.message || 'Failed to fetch buildings');
       } finally {
