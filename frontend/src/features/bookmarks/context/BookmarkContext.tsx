@@ -25,32 +25,36 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'add' | 'remove' | 'warning' } | null>(null);
 
+  const authUserId = authUser?.id;
+  const authUserRole = authUser?.role;
+  const authUserFullName = authUser?.full_name;
+  const authUserEmail = authUser?.email;
+
   // Active User State derived directly from AuthContext authUser
   const activeUser = useMemo(() => {
-    if (authUser) {
+    if (authUserId) {
       return {
-        id: authUser.id,
-        name: authUser.full_name,
-        role: authUser.role,
-        email: authUser.email,
+        id: authUserId,
+        name: authUserFullName,
+        role: authUserRole,
+        email: authUserEmail,
       };
     }
     return null;
-  }, [authUser]);
+  }, [authUserId, authUserFullName, authUserRole, authUserEmail]);
 
   // Helper to check if user is logged in
   const isUserLoggedIn = useCallback((): boolean => {
-    return Boolean(activeUser?.id);
-  }, [activeUser]);
+    return Boolean(authUserId);
+  }, [authUserId]);
 
   const getActiveUserId = useCallback((): string | undefined => {
-    return activeUser?.id;
-  }, [activeUser]);
+    return authUserId;
+  }, [authUserId]);
 
   // Load bookmarks function
   const loadBookmarks = useCallback(async () => {
-    const userId = activeUser?.id;
-    if (!userId) {
+    if (!authUserId) {
       setBookmarks([]);
       setIsLoading(false);
       return;
@@ -58,7 +62,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     setIsLoading(true);
     try {
-      const data = await bookmarkService.getBookmarks(userId);
+      const data = await bookmarkService.getBookmarks(authUserId);
       setBookmarks(data);
     } catch (e) {
       console.warn('Failed to load user bookmarks:', e);
@@ -66,7 +70,7 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       setIsLoading(false);
     }
-  }, [activeUser]);
+  }, [authUserId]);
 
   // Load bookmarks whenever active user changes
   useEffect(() => {
@@ -154,19 +158,26 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const openAuthModal = useCallback(() => {
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const contextValue = useMemo<BookmarkContextType>(
+    () => ({
+      bookmarks,
+      isLoading,
+      isLoggedIn: Boolean(authUserId),
+      activeUser,
+      isBookmarked,
+      toggleBookmark,
+      openAuthModal,
+      refreshBookmarks: loadBookmarks,
+    }),
+    [bookmarks, isLoading, authUserId, activeUser, isBookmarked, toggleBookmark, openAuthModal, loadBookmarks]
+  );
+
   return (
-    <BookmarkContext.Provider
-      value={{
-        bookmarks,
-        isLoading,
-        isLoggedIn: isUserLoggedIn(),
-        activeUser,
-        isBookmarked,
-        toggleBookmark,
-        openAuthModal: () => setIsAuthModalOpen(true),
-        refreshBookmarks: loadBookmarks,
-      }}
-    >
+    <BookmarkContext.Provider value={contextValue}>
       {children}
 
       {/* Auth Guard Modal for Guests */}
