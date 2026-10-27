@@ -56,8 +56,12 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Load bookmarks function
   const loadBookmarks = useCallback(async () => {
+<<<<<<< HEAD
     // Bookmarks are strictly for student/user flows; skip fetching when in admin console
     if (!authUserId || location.pathname.startsWith('/admin')) {
+=======
+    if (!authUserId) {
+>>>>>>> cfc57947eb359158978c9deaba58ae568631d286
       setBookmarks([]);
       setIsLoading(false);
       return;
@@ -73,7 +77,11 @@ export const BookmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       setIsLoading(false);
     }
+<<<<<<< HEAD
   }, [authUserId, location.pathname]);
+=======
+  }, [authUserId]);
+>>>>>>> cfc57947eb359158978c9deaba58ae568631d286
 
   // Load bookmarks whenever active user changes
   useEffect(() => {
