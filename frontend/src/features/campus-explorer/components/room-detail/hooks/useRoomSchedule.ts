@@ -54,7 +54,7 @@ export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTI
         }
 
         const data = await apiClient.get<ScheduleEvent[]>(`/rooms/${cleanId}/schedules?${query.toString()}`, {
-          skipCache: true,
+          cacheTtl: 60 * 1000,
         });
         
         if (isMounted) {

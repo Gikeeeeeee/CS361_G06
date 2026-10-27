@@ -84,18 +84,21 @@ const TIME_SLOTS = [
 ];
 
 function CourseTimetable({ roomId }: { roomId: string }) {
-  const today = new Date();
-  const currentDay = today.getDay();
-  const diffToMonday = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
-  
-  // Clone today before modifying to avoid weird side effects
-  const monday = new Date(today.getTime());
-  monday.setDate(diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  
-  const sunday = new Date(monday.getTime());
-  sunday.setDate(sunday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  const { monday, sunday } = useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const diffToMonday = today.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+    
+    // Clone today before modifying to avoid weird side effects
+    const mon = new Date(today.getTime());
+    mon.setDate(diffToMonday);
+    mon.setHours(0, 0, 0, 0);
+    
+    const sun = new Date(mon.getTime());
+    sun.setDate(sun.getDate() + 6);
+    sun.setHours(23, 59, 59, 999);
+    return { monday: mon, sunday: sun };
+  }, []);
 
   const [selectedDayOffset, setSelectedDayOffset] = useState<number>(() => {
     const d = new Date().getDay();

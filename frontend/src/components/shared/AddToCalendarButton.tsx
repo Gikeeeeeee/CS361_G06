@@ -50,8 +50,21 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loadingType, setLoadingType] = useState<'GOOGLE' | 'ICS' | null>(null);
+  const [computedPlacement, setComputedPlacement] = useState<'bottom' | 'top'>(menuPlacement);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { isExported, markAsExported } = useExportedSchedules();
+
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const rect = dropdownRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 220 && rect.top > 220) {
+        setComputedPlacement('top');
+      } else {
+        setComputedPlacement(menuPlacement);
+      }
+    }
+  }, [isOpen, menuPlacement]);
 
   // Resolve scheduleId and roomId from props or fallback scheduleData
   const scheduleId = useMemo(() => {
@@ -250,7 +263,7 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({
           className={`absolute ${
             align === 'right' ? 'right-0' : 'left-0'
           } ${
-            menuPlacement === 'top'
+            computedPlacement === 'top'
               ? 'bottom-full mb-2 origin-bottom'
               : 'mt-1.5 origin-top'
           } w-60 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95`}

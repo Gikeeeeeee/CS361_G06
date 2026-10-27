@@ -10,13 +10,24 @@ interface ScheduleTableProps {
   roomMap?: Record<string, string>;
 }
 
+const EMPTY_ROOM_MAP: Record<string, string> = {};
 
-const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> = ({ roomId, roomMap }) => {
-  const [label, setLabel] = useState<string | null>(roomMap[roomId] || null);
+const RoomLabel: React.FC<{ roomId: string; roomMap?: Record<string, string> }> = ({ roomId, roomMap = EMPTY_ROOM_MAP }) => {
+  const mappedName = roomMap[roomId];
+  const [label, setLabel] = useState<string | null>(() => {
+    if (mappedName) return mappedName;
+    if (facilityCache.roomMeta.has(roomId)) {
+      const meta = facilityCache.roomMeta.get(roomId)!;
+      const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
+      const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+      return `${buildingCode}${roomNum}${meta.nameEn}`.trim();
+    }
+    return null;
+  });
 
   useEffect(() => {
-    if (roomMap[roomId]) {
-      setLabel(roomMap[roomId]);
+    if (mappedName) {
+      setLabel(mappedName);
       return;
     }
     
@@ -24,28 +35,41 @@ const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> =
     if (facilityCache.roomMeta.has(roomId)) {
       const meta = facilityCache.roomMeta.get(roomId)!;
       const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
-      setLabel(`${buildingCode}${meta.roomNumber} ${meta.nameEn}`.trim());
+      const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+      setLabel(`${buildingCode}${roomNum}${meta.nameEn}`.trim());
       return;
     }
     
     let isMounted = true;
     
-    facilityCache.getRoom(roomId)
-      .then(room => {
-        if (isMounted && room) {
-          const buildingCode = room.building?.code ? `${room.building.code} - ` : '';
-          const name = room.name?.en || '';
-          setLabel(`${buildingCode}${room.room_number} ${name}`.trim());
-        }
-      })
-      .catch(() => {
-        // fallback to UUID behavior implicitly since label will remain null
-      });
+    // Preload all rooms from floors once rather than firing individual requests per room
+    facilityCache.preloadCampusRooms().then(() => {
+      if (!isMounted) return;
+      if (facilityCache.roomMeta.has(roomId)) {
+        const meta = facilityCache.roomMeta.get(roomId)!;
+        const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
+        const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+        setLabel(`${buildingCode}${roomNum}${meta.nameEn}`.trim());
+        return;
+      }
+
+      // Fallback for custom/unmapped room IDs
+      facilityCache.getRoom(roomId)
+        .then(room => {
+          if (isMounted && room) {
+            const buildingCode = room.building?.code ? `${room.building.code} - ` : '';
+            const roomNum = room.room_number ? `${room.room_number} ` : '';
+            const name = room.name?.en || '';
+            setLabel(`${buildingCode}${roomNum}${name}`.trim());
+          }
+        })
+        .catch(() => {});
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [roomId, roomMap]);
+  }, [roomId, mappedName]);
 
   const display = label || (roomId.length > 15 ? `${roomId.slice(0, 8)}...` : roomId);
   const fullTitle = label || roomId;
@@ -60,7 +84,7 @@ const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> =
   );
 };
 
-export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit, onDelete, roomMap = {} }) => {
+export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit, onDelete, roomMap = EMPTY_ROOM_MAP }) => {
   const getTypePill = (type: string) => {
     switch (type) {
       case 'COURSE':

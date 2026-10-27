@@ -16,8 +16,23 @@ export interface BackendBookmarkListResponse {
 
 const META_STORAGE_KEY_PREFIX = 'ku_long_bookmark_meta_';
 
-function getMetaKey(entityId: string): string {
-  return `${META_STORAGE_KEY_PREFIX}${entityId}`;
+function getMetaKey(entityId: string, userId?: string): string {
+  const role = localStorage.getItem('ku_long_auth_role') || 'AUTH';
+  const uid = userId || localStorage.getItem('ku_long_auth_user_id') || 'shared';
+  return `${META_STORAGE_KEY_PREFIX}${uid}_${role}_${entityId}`;
+}
+
+function removeMetaKeys(entityId: string): void {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.includes(`_${entityId}`) || key === `${META_STORAGE_KEY_PREFIX}${entityId}`)) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // ignore storage cleanup error
+  }
 }
 
 export const bookmarkService = {
@@ -40,7 +55,7 @@ export const bookmarkService = {
       // Check which records need metadata enrichment
       const missingIds: string[] = [];
       const items: BookmarkItem[] = records.map((record) => {
-        const cached = localStorage.getItem(getMetaKey(record.entity_id));
+        const cached = localStorage.getItem(getMetaKey(record.entity_id, userId));
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
@@ -92,7 +107,7 @@ export const bookmarkService = {
                 item.organizer = matched.organizer;
                 item.subtitle = dayStr && timeStr ? `${dayStr} ${timeStr}` : undefined;
 
-                localStorage.setItem(getMetaKey(item.entityId), JSON.stringify(item));
+                localStorage.setItem(getMetaKey(item.entityId, userId), JSON.stringify(item));
               }
             }
           }
@@ -121,7 +136,7 @@ export const bookmarkService = {
 
     // Save full item metadata to local cache
     try {
-      localStorage.setItem(getMetaKey(item.entityId), JSON.stringify(item));
+      localStorage.setItem(getMetaKey(item.entityId, userId), JSON.stringify(item));
     } catch {
       // ignore storage error
     }
@@ -155,13 +170,9 @@ export const bookmarkService = {
    */
   async removeBookmark(
     entityId: string,
-    _entityType: BookmarkEntityType,
-    userId?: string
-  ): Promise<void> {
-    if (!userId) {
-      return;
-    }
-
+    _entityType?: BookmarkEntityType,
+    _userId?: string
+  ): Promise<boolean> {
     try {
       await apiClient.delete(`/bookmarks/${encodeURIComponent(entityId)}`);
     } catch (err: any) {
@@ -170,12 +181,9 @@ export const bookmarkService = {
         throw err;
       }
     } finally {
-      try {
-        localStorage.removeItem(getMetaKey(entityId));
-      } catch {
-        // ignore storage error
-      }
+      removeMetaKeys(entityId);
     }
+    return true;
   },
 
   /**

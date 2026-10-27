@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { authService } from '../services/authService';
 import { supabase } from '../services/supabaseClient';
 import { ApiCache } from '../../../services/api/apiCache';
@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (credentials: LoginCredentials): Promise<User> => {
+  const login = useCallback(async (credentials: LoginCredentials): Promise<User> => {
     setIsLoading(true);
     try {
       const { user: loggedInUser } = await authService.login(credentials);
@@ -90,9 +90,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const signUp = async (credentials: SignUpCredentials): Promise<User> => {
+  const signUp = useCallback(async (credentials: SignUpCredentials): Promise<User> => {
     setIsLoading(true);
     try {
       const { user: registeredUser } = await authService.signUp(credentials);
@@ -102,9 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setIsLoading(true);
     try {
       await authService.logout();
@@ -113,17 +113,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const value: AuthContextType = {
-    user,
-    role: user?.role || null,
-    isAuthenticated: Boolean(user),
-    isLoading,
-    login,
-    signUp,
-    logout,
-  };
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      role: user?.role || null,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      signUp,
+      logout,
+    }),
+    [user, isLoading, login, signUp, logout]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
