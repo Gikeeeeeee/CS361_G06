@@ -1,7 +1,10 @@
-aws_region  = "us-east-1"
+aws_region  = "ap-southeast-1"
 bucket_name = "cs361-g06-building-data-yourname-dev"
 
 project_name          = "CS361-G06-yourname"
 environment           = "dev"
 dynamodb_table_name   = "CS361-G06-yourname-data-dynamodb"
 opensearch_index      = "university-yourname"
+
+supabase_url          = "https://<project-id>.supabase.co"
+supabase_jwt_secret   = "<Supabase -> Settings -> JWT Keys -> Legacy JWT secret>"

@@ -129,16 +129,57 @@ class ScheduleRepository(ScheduleSource):
         room_id: str,
         schedule_id: str,
     ) -> dict[str, Any] | None:
-        """AP13: fetch a single schedule item."""
+        """Fetch a single schedule item by room and schedule id."""
         try:
             item = self.table.get_item(
                 Key=self._key(room_id, schedule_id)
             ).get("Item")
-
         except ClientError as exc:
-            raise self._upstream(exc, "reading from") from exc
+            if exc.response.get("Error", {}).get("Code") == "ValidationException":
+                try:
+                    item = self.table.get_item(
+                        Key={"room_id": room_id, "id": schedule_id}
+                    ).get("Item")
+                except ClientError as inner_exc:
+                    raise self._upstream(inner_exc, "reading from") from inner_exc
+            else:
+                raise self._upstream(exc, "reading from") from exc
+        except Exception:
+            try:
+                item = self.table.get_item(
+                    Key={"room_id": room_id, "id": schedule_id}
+                ).get("Item")
+            except Exception as exc:
+                if isinstance(exc, ClientError):
+                    raise self._upstream(exc, "reading from") from exc
+                raise
+
+        if item is None:
+            try:
+                res = self.table.get_item(Key={"room_id": room_id, "id": schedule_id})
+                if res and res.get("Item"):
+                    item = res.get("Item")
+            except Exception:
+                pass
 
         return self._to_dict(item) if item else None
+
+    def get_schedule_by_id(
+        self,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch a single schedule item across all rooms using GSI0."""
+        try:
+            response = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("SCHEDULE")
+                & Key("GSI0SK").eq(schedule_id),
+                Limit=1,
+            )
+            items = response.get("Items", [])
+            return self._to_dict(items[0]) if items else None
+        except ClientError as exc:
+            raise self._upstream(exc, "querying GSI0 for") from exc
 
     def delete_schedule(
         self,

@@ -4,6 +4,12 @@ import pytest
 
 from tests.conftest import make_apigw_event
 
+
+@pytest.fixture(autouse=True)
+def _skip_auth(monkeypatch):
+    """These tests cover routing/validation; the auth guard has its own tests."""
+    monkeypatch.setattr("handler.verify_token", lambda *a, **k: {})
+
 PATH = "/api/v1/rooms/room-uuid-1/schedules"
 GET_KEY = "GET /api/v1/rooms/{roomId}/schedules"
 POST_KEY = "POST /api/v1/rooms/{roomId}/schedules"
@@ -247,6 +253,21 @@ def test_put_schedule_returns_updated(invoke_handler, schedule_source):
 
 @pytest.mark.unit
 @pytest.mark.handler
+def test_put_schedule_moves_room(invoke_handler, schedule_source):
+    event = _item("PUT", {**BODY, "title": "Moved room"})
+    event["pathParameters"]["roomId"] = "room-uuid-2"
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 200
+    assert json.loads(result["body"]) == "updated"
+    assert len(schedule_source.schedules) == 1
+    assert schedule_source.schedules[0]["room_id"] == "room-uuid-2"
+    assert schedule_source.schedules[0]["title"] == "Moved room"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
 def test_put_schedule_unknown_id_returns_404(invoke_handler):
     event = _item("PUT", BODY)
     event["pathParameters"]["scheduleId"] = "nope"
@@ -265,6 +286,63 @@ def test_delete_schedule_returns_deleted(invoke_handler, schedule_source):
     assert result["statusCode"] == 200
     assert json.loads(result["body"]) == "deleted"
     assert schedule_source.schedules == []
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_schedule_by_id_success(invoke_handler, schedule_source):
+    result = invoke_handler(_item("GET"))
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["success"] is True
+    assert body["data"]["id"] == SCHEDULE_ID
+    assert "room" in body["data"]
+    assert body["data"]["room"]["id"] == "room-uuid-1"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_schedule_by_id_unknown_id_returns_404(invoke_handler):
+    event = _item("GET")
+    event["pathParameters"]["scheduleId"] = "nope"
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 404
+    body = json.loads(result["body"])
+    assert body["success"] is False
+    assert body["error"]["code"] == "SCHEDULE_NOT_FOUND"
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_room_schedules_masks_internal_for_unauthenticated_guest(invoke_handler, schedule_source):
+    schedule_source.schedules[0]["visibility"] = "INTERNAL"
+    result = invoke_handler(_get())
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["data"][0]["title"] == "Reserved"
+    assert body["data"][0]["description"] is None
+    assert body["data"][0]["organizer"] is None
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_room_schedules_shows_unmasked_internal_for_staff(invoke_handler, schedule_source, monkeypatch):
+    schedule_source.schedules[0]["visibility"] = "INTERNAL"
+    monkeypatch.setattr("handler.verify_token", lambda *a, **k: {"role": "STAFF"})
+    event = _get(headers={"authorization": "Bearer staff-token"})
+
+    result = invoke_handler(event)
+
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["data"][0]["title"] == "Software Engineering"
+    assert body["data"][0]["organizer"] == "Aj. Example"
+
+
 
 
 # -- POST /api/v1/schedules/imports --------------------------------------------

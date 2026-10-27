@@ -88,7 +88,7 @@ def test_all_routes_registered_and_routable(campus_source: FakeBuildingSource):
 def test_integration_error_propagation_format(campus_source: FakeBuildingSource):
     """
     Ensure typed domain errors raised from deep in services properly bubble up
-    and format into the standard API error contract { error: { code, message } }.
+    and format into the standard API error contract { success: false, error: { code, message } }.
     """
     import handler
 
@@ -106,6 +106,7 @@ def test_integration_error_propagation_format(campus_source: FakeBuildingSource)
         assert res["statusCode"] == 404
         body = json.loads(res["body"])
         assert body == {
+            "success": False,
             "error": {
                 "code": "BUILDING_NOT_FOUND",
                 "message": "Building 'UNKNOWN' not found",

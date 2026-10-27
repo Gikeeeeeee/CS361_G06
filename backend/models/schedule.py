@@ -31,9 +31,20 @@ from errors import (
 
 TYPES = {"COURSE", "EXAM", "ACTIVITY"}
 STATUSES = {"CONFIRM", "TENTATIVE", "CANCELLED"}
+VISIBILITIES = {"PUBLIC", "INTERNAL"}
 
-_REQUIRED = ("type", "title", "start_at", "end_at", "time_zone", "status")
-_OPTIONAL = ("description", "course_code", "organizer", "recurrence_rule")
+DEFAULT_TIME_ZONE = "Asia/Bangkok"
+DEFAULT_VISIBILITY = "PUBLIC"
+
+_REQUIRED = ("type", "title", "start_at", "end_at", "status")
+_OPTIONAL = (
+    "time_zone",
+    "description",
+    "course_code",
+    "organizer",
+    "recurrence_rule",
+    "visibility",
+)
 
 CONTRACT_FIELDS = (
     "id",
@@ -48,6 +59,7 @@ CONTRACT_FIELDS = (
     "recurrence_rule",
     "room_id",
     "status",
+    "visibility",
 )
 
 MAX_OCCURRENCES = 200
@@ -155,11 +167,23 @@ def validate(payload: Any) -> dict[str, Any]:
     schedule["type"] = str(schedule["type"]).upper()
     schedule["status"] = str(schedule["status"]).upper()
 
+    # Inject default timezone for requests that omit it.
+    if not schedule.get("time_zone"):
+        schedule["time_zone"] = DEFAULT_TIME_ZONE
+
+    if not schedule.get("visibility"):
+        schedule["visibility"] = DEFAULT_VISIBILITY
+    else:
+        schedule["visibility"] = str(schedule["visibility"]).upper()
+
     if schedule["type"] not in TYPES:
         raise ValidationError(f"type must be one of: {', '.join(sorted(TYPES))}")
 
     if schedule["status"] not in STATUSES:
         raise ValidationError(f"status must be one of: {', '.join(sorted(STATUSES))}")
+
+    if schedule["visibility"] not in VISIBILITIES:
+        raise ValidationError(f"visibility must be one of: {', '.join(sorted(VISIBILITIES))}")
 
     if not isinstance(schedule["title"], str) or not schedule["title"].strip():
         raise ValidationError("title must be a non-empty string")
@@ -176,8 +200,15 @@ def validate(payload: Any) -> dict[str, Any]:
 
 
 def to_contract(item: dict[str, Any]) -> dict[str, Any]:
-    """Stored schedule -> API object."""
-    return {name: item.get(name) for name in CONTRACT_FIELDS}
+    """Stored schedule -> API object, with safe fallbacks for legacy V2 records."""
+    contract = {name: item.get(name) for name in CONTRACT_FIELDS}
+    # Legacy V2 items in DynamoDB will not have time_zone; apply the default
+    # so the API response always carries a valid timezone string.
+    if not contract.get("time_zone"):
+        contract["time_zone"] = DEFAULT_TIME_ZONE
+    if not contract.get("visibility"):
+        contract["visibility"] = DEFAULT_VISIBILITY
+    return contract
 
 
 def can_share(a_type: str | None, b_type: str | None) -> bool:

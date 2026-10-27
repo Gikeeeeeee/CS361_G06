@@ -7,8 +7,8 @@ export const BottomNavbar: React.FC = () => {
     <nav className="w-full h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] flex items-center justify-around shrink-0">
       <ul className="flex items-center justify-around w-full h-full px-3">
         {BOTTOM_NAV_ITEMS.map((item) => {
-          const isComingSoon = item.path === '/saved' || item.path === '/profile';
-          const label = isComingSoon ? 'coming soon' : item.label;
+          const isComingSoon = false;
+          const label = item.label;
 
           return (
             <li key={item.path} className="flex-1 h-full">

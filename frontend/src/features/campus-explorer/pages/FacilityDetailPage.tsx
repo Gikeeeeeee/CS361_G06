@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFacilityDetail } from '../components/room-detail/hooks/useFacilityDetail';
-import { ArrowLeft, Bookmark, MapPin, Info } from 'lucide-react';
+import { ArrowLeft, MapPin, Info } from 'lucide-react';
 
 export default function FacilityDetailPage() {
   const { facilityId } = useParams<{ facilityId: string }>();
@@ -43,12 +43,6 @@ export default function FacilityDetailPage() {
             aria-label="Go back"
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
-          <button
-            className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition"
-            aria-label="Bookmark"
-          >
-            <Bookmark className="w-5 h-5 stroke-[2]" />
           </button>
         </div>
 

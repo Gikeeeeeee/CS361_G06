@@ -28,37 +28,107 @@ def api_base_url(request) -> str:
         pytest.skip("Neither --api-url CLI argument nor API_BASE_URL env var was provided")
     return url.rstrip("/")
 
-
 class FakeBuildingSource:
-    """In-memory fake implementation of ports.building_source.BuildingSource."""
+    """In-memory fake source for building, floor, room and facility tests."""
 
-    def __init__(self, buildings: dict[str, dict[str, Any]] | None = None):
+    def __init__(
+        self,
+        buildings: dict[str, dict[str, Any]] | None = None,
+    ):
         self._buildings = buildings or {}
 
     def list_buildings(self) -> list[dict[str, Any]]:
         return list(self._buildings.values())
 
     def get_building(self, building_id: str) -> dict[str, Any] | None:
-        for candidate in [building_id, building_id.upper(), building_id.lower()]:
+        # Support lookup by dictionary key or building ID.
+        for candidate in (
+            building_id,
+            building_id.upper(),
+            building_id.lower(),
+        ):
             if candidate in self._buildings:
                 return self._buildings[candidate]
+
+        for building in self._buildings.values():
+            if str(building.get("id")) == str(building_id):
+                return building
+
+        return None
+
+    def _iter_entities(self):
+        """Yield rooms and facilities with their parent IDs."""
+        for building in self._buildings.values():
+            building_id = building.get("id")
+
+            for floor in building.get("floors") or []:
+                floor_id = floor.get("id")
+
+                for room in floor.get("rooms") or []:
+                    yield "ROOM", {
+                        **room,
+                        "building_id": room.get(
+                            "building_id", building_id
+                        ),
+                        "floor_id": room.get("floor_id", floor_id),
+                    }
+
+                for facility in floor.get("facilities") or []:
+                    yield "FACILITY", {
+                        **facility,
+                        "building_id": facility.get(
+                            "building_id", building_id
+                        ),
+                        "floor_id": facility.get("floor_id", floor_id),
+                    }
+
+    def get_room(self, room_id: str) -> dict[str, Any] | None:
+        for entity_type, entity in self._iter_entities():
+            if entity_type != "ROOM":
+                continue
+
+            if str(entity.get("id")) == str(room_id):
+                return entity
+
+            # Compatibility with legacy tests that use room_number.
+            if str(entity.get("room_number")) == str(room_id):
+                return entity
+
+        return None
+
+    def get_facility(self, facility_id: str) -> dict[str, Any] | None:
+        for entity_type, entity in self._iter_entities():
+            if entity_type != "FACILITY":
+                continue
+
+            if str(entity.get("id")) == str(facility_id):
+                return entity
+
         return None
 
     def get_floor(self, floor_id: str) -> dict[str, Any] | None:
-        """
-        Walks the buildings in insertion order, mirroring the real adapter's
-        scan -- so a test can assert the search does not stop at the first
-        building that lacks the floor.
-        """
         for building in self._buildings.values():
             for floor in building.get("floors") or []:
                 if str(floor.get("id")) == str(floor_id):
-                    return floor
+                    return {
+                        **floor,
+                        "building_id": floor.get(
+                            "building_id", building.get("id")
+                        ),
+                    }
+
         return None
 
-    def presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        return f"https://mock-bucket.s3.amazonaws.com/{key}?expires={expires_in}"
-
+    def presigned_url(
+        self,
+        key: str,
+        expires_in: int = 3600,
+    ) -> str:
+        # Retained for unrelated legacy tests.
+        return (
+            f"https://mock-bucket.s3.amazonaws.com/"
+            f"{key}?expires={expires_in}"
+        )
 
 class FakeScheduleSource:
     """
@@ -141,6 +211,15 @@ class FakeScheduleSource:
     ) -> dict[str, Any] | None:
         for s in self.schedules:
             if s.get("room_id") == room_id and s.get("id") == schedule_id:
+                return s
+        return None
+
+    def get_schedule_by_id(
+        self,
+        schedule_id: str,
+    ) -> dict[str, Any] | None:
+        for s in self.schedules:
+            if s.get("id") == schedule_id:
                 return s
         return None
 
@@ -358,6 +437,44 @@ def fake_schedule_source():
     return FakeScheduleSource
 
 
+class FakeBookmarkSource:
+    """In-memory fake of ports.bookmark_source.BookmarkSource."""
+
+    def __init__(self):
+        self.rows = []
+
+    def list_bookmarks(self, user_id, auth_token=None):
+        return [b for b in reversed(self.rows) if b.user_id == user_id]
+
+    def add_bookmark(self, user_id, entity_id, entity_type, auth_token=None):
+        from errors import AlreadyBookmarked
+        from models.bookmark import Bookmark
+
+        if any(b.user_id == user_id and b.entity_id == entity_id for b in self.rows):
+            raise AlreadyBookmarked()
+        bookmark = Bookmark(
+            id=f"bm-{len(self.rows) + 1}",
+            user_id=user_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            saved_at="2026-10-14T10:30:00Z",
+        )
+        self.rows.append(bookmark)
+        return bookmark
+
+    def remove_bookmark(self, user_id, entity_id, auth_token=None):
+        for b in self.rows:
+            if b.user_id == user_id and b.entity_id == entity_id:
+                self.rows.remove(b)
+                return b
+        return None
+
+
+@pytest.fixture
+def fake_bookmark_source() -> FakeBookmarkSource:
+    return FakeBookmarkSource()
+
+
 @pytest.fixture
 def sample_schedule() -> dict[str, Any]:
     """Sample schedule data for Schedule service tests."""
@@ -379,3 +496,4 @@ def sample_schedule() -> dict[str, Any]:
         "series_end_at": "2026-12-21T05:00:00+00:00",
         "created_at": "2026-09-01T00:00:00+00:00",
     }
+

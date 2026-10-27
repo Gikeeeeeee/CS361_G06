@@ -7,10 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test:auth": "node test_auth_integration.mjs",
+    "test:bookmarks": "node test_bookmarks_integration.mjs",
+    "test:us4": "node test_us4_share_and_masking.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.3.3",
+    "@supabase/supabase-js": "^2.118.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^13.1.1",

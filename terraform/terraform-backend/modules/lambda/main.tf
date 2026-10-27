@@ -3,6 +3,7 @@ data "aws_caller_identity" "current" {}
 resource "terraform_data" "build" {
   triggers_replace = concat(
     [
+      filesha256("${path.module}/build.py"),
       filesha256("${var.source_dir}/requirements.txt")
     ],
     [
@@ -12,30 +13,7 @@ resource "terraform_data" "build" {
   )
 
   provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-
-      rm -rf "${path.module}/build"
-      mkdir -p "${path.module}/build"
-
-      docker run --rm --platform linux/amd64 \
-        --user "$(id -u):$(id -g)" \
-        --entrypoint /bin/sh \
-        -e HOME=/tmp \
-        -v "${abspath(var.source_dir)}:/src:ro" \
-        -v "${abspath("${path.module}/build")}:/out" \
-        public.ecr.aws/lambda/python:3.12 \
-        -c 'python -m pip install -r /src/requirements.txt -t /out'
-
-      cp -r "${var.source_dir}/." "${path.module}/build/"
-
-      rm -rf "${path.module}/build/env"
-      rm -rf "${path.module}/build/venv"
-      rm -rf "${path.module}/build/.venv"
-      rm -rf "${path.module}/build/__pycache__"
-      rm -rf "${path.module}/build/.pytest_cache"
-      rm -rf "${path.module}/build/tests"
-    EOT
+    command = "python ${path.module}/build.py || python3 ${path.module}/build.py"
   }
 }
 
@@ -220,6 +198,10 @@ resource "aws_lambda_function" "this" {
 
       OPENSEARCH_ENDPOINT = var.opensearch_endpoint
       OPENSEARCH_INDEX    = var.opensearch_index
+
+      SUPABASE_URL        = var.supabase_url
+      SUPABASE_JWT_SECRET = var.supabase_jwt_secret
+      SUPABASE_ANON_KEY   = var.supabase_anon_key
     }
   }
 

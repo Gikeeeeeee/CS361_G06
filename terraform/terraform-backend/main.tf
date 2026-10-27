@@ -212,6 +212,11 @@ module "lambda" {
   opensearch_collection_name = module.opensearch.collection_name
   opensearch_endpoint        = module.opensearch.collection_endpoint
   opensearch_index           = var.opensearch_index
+
+  #Supabase
+  supabase_url        = var.supabase_url
+  supabase_jwt_secret = var.supabase_jwt_secret
+  supabase_anon_key   = var.supabase_anon_key
 }
 
 module "api_gateway" {

@@ -2,6 +2,7 @@ import pytest
 
 from errors import (
     MissingParameters,
+    NotFoundError,
     ScheduleConflict,
     ScheduleNotFound,
     ValidationError,
@@ -309,7 +310,7 @@ def test_create_schedule_allows_overlaps_in_a_different_room(schedule_source):
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "missing_field", ["type", "title", "start_at", "end_at", "time_zone", "status"]
+    "missing_field", ["type", "title", "start_at", "end_at", "status"]
 )
 def test_create_schedule_rejects_missing_required_fields(
     schedule_source, missing_field
@@ -440,6 +441,89 @@ def test_update_schedule_not_found(fake_schedule_source):
 
 
 @pytest.mark.unit
+def test_update_schedule_moves_room_when_url_room_differs(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    result = service.update_schedule(
+        "room-lc3-302",
+        "schedule-001",
+        _course(title="CS361 Moved"),
+    )
+
+    assert result == "updated"
+    assert len(source.schedules) == 1
+    [stored] = source.schedules
+    assert stored["id"] == "schedule-001"
+    assert stored["room_id"] == "room-lc3-302"
+    assert stored["title"] == "CS361 Moved"
+    assert stored["created_at"] == sample_schedule["created_at"]
+
+
+@pytest.mark.unit
+def test_update_schedule_moves_room_when_body_specifies_new_room(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    payload = _course(title="CS361 Moved Body")
+    payload["room_id"] = "room-lc3-302"
+
+    result = service.update_schedule(
+        "room-lc3-301",
+        "schedule-001",
+        payload,
+    )
+
+    assert result == "updated"
+    assert len(source.schedules) == 1
+    [stored] = source.schedules
+    assert stored["id"] == "schedule-001"
+    assert stored["room_id"] == "room-lc3-302"
+    assert stored["title"] == "CS361 Moved Body"
+
+
+@pytest.mark.unit
+def test_update_schedule_moves_room_rejects_conflict_in_new_room(sample_schedule, fake_schedule_source):
+    # Room 301 has schedule-001 on Mondays
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    # Room 302 has a conflicting schedule on Mondays
+    conflicting = _course(
+        start_at="2026-09-14T09:00:00+07:00",
+        end_at="2026-09-14T12:00:00+07:00",
+        recurrence_rule="FREQ=WEEKLY;BYDAY=MO;COUNT=15",
+    )
+    service.create_schedule("room-lc3-302", conflicting)
+    assert len(source.schedules) == 2
+
+    # Moving schedule-001 to Room 302 should fail due to conflict
+    with pytest.raises(ScheduleConflict):
+        service.update_schedule(
+            "room-lc3-302",
+            "schedule-001",
+            conflicting,
+        )
+
+    # schedule-001 must still remain in room-lc3-301 without being deleted
+    original = source.get_schedule("room-lc3-301", "schedule-001")
+    assert original is not None
+    assert original["room_id"] == "room-lc3-301"
+
+
+@pytest.mark.unit
+def test_delete_schedule_with_fallback_by_id(sample_schedule, fake_schedule_source):
+    source = fake_schedule_source([sample_schedule])
+    service = ScheduleService(source)
+
+    # Calling delete with a different room ID should fall back to finding by schedule_id
+    result = service.delete_schedule("wrong-room-id", "schedule-001")
+
+    assert result == "deleted"
+    assert source.schedules == []
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "payload",
     [
@@ -531,3 +615,138 @@ def test_validate_accepts_the_v2_contract_example():
 
     assert schedule["recurrence_rule"] == WEEKLY_15
     assert schedule["organizer"] == "Aj. Example"
+
+
+@pytest.mark.unit
+def test_get_schedule_returns_contract_with_nested_room(schedule_source):
+    schedule_id = schedule_source.schedules[0]["id"]
+    room_id = schedule_source.schedules[0]["room_id"]
+
+    class MockRoomService:
+        def get_room(self, rid):
+            return {
+                "id": rid,
+                "name": "LAB102",
+                "building": {"name": "LC4"},
+            }
+
+    service = ScheduleService(schedule_source, room_service=MockRoomService())
+    result = service.get_schedule(room_id, schedule_id)
+
+    assert result["id"] == schedule_id
+    assert result["room_id"] == room_id
+    assert result["room"] == {
+        "id": room_id,
+        "name": "LAB102",
+        "building_name": "LC4",
+    }
+
+
+@pytest.mark.unit
+def test_get_schedule_unknown_id_raises_not_found_error(empty_source):
+    service = ScheduleService(empty_source)
+    with pytest.raises(NotFoundError):
+        service.get_schedule(ROOM, "non-existent-id")
+
+
+@pytest.mark.unit
+def test_get_schedule_wrong_room_raises_not_found_error(schedule_source):
+    schedule_id = schedule_source.schedules[0]["id"]
+    service = ScheduleService(schedule_source)
+    with pytest.raises(NotFoundError):
+        service.get_schedule("wrong-room-id", schedule_id)
+
+
+@pytest.mark.unit
+def test_get_room_schedules_masks_internal_for_guest(empty_source):
+    empty_source.schedules.append({
+        "id": "s-internal",
+        "room_id": ROOM,
+        "type": "ACTIVITY",
+        "title": "Private Meeting",
+        "description": "Confidential strategy discussion",
+        "organizer": "Director",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "INTERNAL",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="GUEST")
+    [item] = result["data"]
+
+    assert item["title"] == "Reserved"
+    assert item["description"] is None
+    assert item["organizer"] is None
+    assert item["visibility"] == "INTERNAL"
+
+
+@pytest.mark.unit
+def test_get_room_schedules_does_not_mask_internal_for_staff(empty_source):
+    empty_source.schedules.append({
+        "id": "s-internal",
+        "room_id": ROOM,
+        "type": "ACTIVITY",
+        "title": "Private Meeting",
+        "description": "Confidential strategy discussion",
+        "organizer": "Director",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "INTERNAL",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="STAFF")
+    [item] = result["data"]
+
+    assert item["title"] == "Private Meeting"
+    assert item["description"] == "Confidential strategy discussion"
+    assert item["organizer"] == "Director"
+    assert item["visibility"] == "INTERNAL"
+
+
+@pytest.mark.unit
+def test_get_room_schedules_does_not_mask_public_for_guest(empty_source):
+    empty_source.schedules.append({
+        "id": "s-public",
+        "room_id": ROOM,
+        "type": "COURSE",
+        "title": "Public Lecture",
+        "description": "Open to all",
+        "organizer": "Prof. Smith",
+        "start_at": "2026-09-17T09:00:00+07:00",
+        "end_at": "2026-09-17T11:00:00+07:00",
+        "time_zone": "Asia/Bangkok",
+        "status": "CONFIRM",
+        "visibility": "PUBLIC",
+    })
+    service = ScheduleService(empty_source)
+    window = ("2026-09-17T00:00:00+07:00", "2026-09-18T00:00:00+07:00")
+
+    result = service.get_room_schedules(ROOM, *window, user_role="GUEST")
+    [item] = result["data"]
+
+    assert item["title"] == "Public Lecture"
+    assert item["description"] == "Open to all"
+    assert item["organizer"] == "Prof. Smith"
+    assert item["visibility"] == "PUBLIC"
+
+
+@pytest.mark.unit
+def test_validate_enforces_visibility_and_defaults_to_public():
+    valid_default = validate(_payload())
+    assert valid_default["visibility"] == "PUBLIC"
+
+    valid_internal = validate(_payload(visibility="internal"))
+    assert valid_internal["visibility"] == "INTERNAL"
+
+    with pytest.raises(ValidationError, match="visibility"):
+        validate(_payload(visibility="SECRET"))
+
+

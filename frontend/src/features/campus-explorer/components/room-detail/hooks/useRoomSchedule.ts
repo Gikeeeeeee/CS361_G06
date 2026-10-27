@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../../../../services/api/apiClient';
+import { useAuth } from '../../../../auth/context/AuthContext';
 
 export interface ScheduleEvent {
   id: string;
@@ -11,12 +12,14 @@ export interface ScheduleEvent {
   start_at: string;
   end_at: string;
   course_code?: string;
+  visibility?: 'PUBLIC' | 'INTERNAL';
 }
 
 export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTIVITY', startDate?: Date, endDate?: Date) {
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { role, isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (!roomId || !startDate || !endDate) return;
@@ -50,7 +53,9 @@ export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTI
           query.append('type', type);
         }
 
-        const data = await apiClient.get<ScheduleEvent[]>(`/rooms/${cleanId}/schedules?${query.toString()}`);
+        const data = await apiClient.get<ScheduleEvent[]>(`/rooms/${cleanId}/schedules?${query.toString()}`, {
+          cacheTtl: 60 * 1000,
+        });
         
         if (isMounted) {
           if (Array.isArray(data)) {
@@ -80,7 +85,7 @@ export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTI
     return () => {
       isMounted = false;
     };
-  }, [roomId, type, startDate?.toISOString(), endDate?.toISOString()]);
+  }, [roomId, type, startDate?.toISOString(), endDate?.toISOString(), role, isAuthenticated]);
 
   return { schedules, isLoading, error };
 }

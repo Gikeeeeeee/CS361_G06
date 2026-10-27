@@ -17,7 +17,7 @@ Resolves **#49** (directory structure) under **#43** (repeated checks in the han
 | `ports/building_source.py` | port (owned by the core) | The `BuildingSource` interface the services depend on. | nothing |
 | `models/` | domain | Data models and pure rules: `find_floor`, `find_room`, `find_facility`, `room_pin`, `facility_pin`, `Building.summary()`. | `models` |
 | `services/` | application | One module per aggregate. Orchestrates the domain, raises typed errors. | `models`, `ports`, `errors` |
-| `repositories/building_repository.py` | driven adapter | The **only** module that imports `boto3` or knows a bucket exists. I/O only — no domain filtering, no business rules. Addressing a record by its identifier *is* I/O: `get_floor` finds a floor by uuid, which on S3-JSON means a scan. | `errors` |
+| `repositories/building_repository.py` | driven adapter | Reads building data from DynamoDB and generates presigned URLs for assets via S3.| `errors` |
 | `smoke_local.py` | dev tool | Manual pre-deploy check with fake data, no AWS. Not part of the Lambda package. | everything |
 
 Dependency direction: `handler.py → services/ → ports/ ← repositories/`.
@@ -25,7 +25,7 @@ Nothing in `services/`, `models/` or `ports/` imports `repositories/`, `handler.
 
 ```
                     inbound                                     outbound
-  API Gateway  →  handler.py  →  services/  →  ports/  ←  repositories/  →  S3
+  API Gateway  →  handler.py  →  services/  →  ports/  ←  repositories/  →  DynamoDB / S3
                   response.py     models/       (interface)   (boto3)
                                   errors.py
 ```
@@ -44,6 +44,7 @@ Does it know about AWS? → `repositories/`. Neither? → `services/` or `models
 | `GET /api/v1/floors/{floorId}` | `FloorService.get_details` | floor + presigned SVG URL + room and facility pins — `docs/contract/floor.json` |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/rooms/{roomId}` | `RoomService.get_room` | one room record |
 | `GET /api/v1/buildings/{buildingId}/floors/{floorId}/facilities/{facilityId}` | `FacilityService.get_facility` | one facility record |
+| `GET /api/v1/users/me` | `UserService.get_profile` | `{"success": true, "data": {...}}` current authenticated user profile |
 
 `{buildingId}` is case-insensitive (`lc4` and `LC4` both work).
 

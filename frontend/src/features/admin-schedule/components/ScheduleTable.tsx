@@ -10,13 +10,24 @@ interface ScheduleTableProps {
   roomMap?: Record<string, string>;
 }
 
+const EMPTY_ROOM_MAP: Record<string, string> = {};
 
-const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> = ({ roomId, roomMap }) => {
-  const [label, setLabel] = useState<string | null>(roomMap[roomId] || null);
+const RoomLabel: React.FC<{ roomId: string; roomMap?: Record<string, string> }> = ({ roomId, roomMap = EMPTY_ROOM_MAP }) => {
+  const mappedName = roomMap[roomId];
+  const [label, setLabel] = useState<string | null>(() => {
+    if (mappedName) return mappedName;
+    if (facilityCache.roomMeta.has(roomId)) {
+      const meta = facilityCache.roomMeta.get(roomId)!;
+      const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
+      const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+      return `${buildingCode}${roomNum}${meta.nameEn}`.trim();
+    }
+    return null;
+  });
 
   useEffect(() => {
-    if (roomMap[roomId]) {
-      setLabel(roomMap[roomId]);
+    if (mappedName) {
+      setLabel(mappedName);
       return;
     }
     
@@ -24,28 +35,41 @@ const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> =
     if (facilityCache.roomMeta.has(roomId)) {
       const meta = facilityCache.roomMeta.get(roomId)!;
       const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
-      setLabel(`${buildingCode}${meta.roomNumber} ${meta.nameEn}`.trim());
+      const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+      setLabel(`${buildingCode}${roomNum}${meta.nameEn}`.trim());
       return;
     }
     
     let isMounted = true;
     
-    facilityCache.getRoom(roomId)
-      .then(room => {
-        if (isMounted && room) {
-          const buildingCode = room.building?.code ? `${room.building.code} - ` : '';
-          const name = room.name?.en || '';
-          setLabel(`${buildingCode}${room.room_number} ${name}`.trim());
-        }
-      })
-      .catch(() => {
-        // fallback to UUID behavior implicitly since label will remain null
-      });
+    // Preload all rooms from floors once rather than firing individual requests per room
+    facilityCache.preloadCampusRooms().then(() => {
+      if (!isMounted) return;
+      if (facilityCache.roomMeta.has(roomId)) {
+        const meta = facilityCache.roomMeta.get(roomId)!;
+        const buildingCode = meta.buildingCode ? `${meta.buildingCode} - ` : '';
+        const roomNum = meta.roomNumber ? `${meta.roomNumber} ` : '';
+        setLabel(`${buildingCode}${roomNum}${meta.nameEn}`.trim());
+        return;
+      }
+
+      // Fallback for custom/unmapped room IDs
+      facilityCache.getRoom(roomId)
+        .then(room => {
+          if (isMounted && room) {
+            const buildingCode = room.building?.code ? `${room.building.code} - ` : '';
+            const roomNum = room.room_number ? `${room.room_number} ` : '';
+            const name = room.name?.en || '';
+            setLabel(`${buildingCode}${roomNum}${name}`.trim());
+          }
+        })
+        .catch(() => {});
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [roomId, roomMap]);
+  }, [roomId, mappedName]);
 
   const display = label || (roomId.length > 15 ? `${roomId.slice(0, 8)}...` : roomId);
   const fullTitle = label || roomId;
@@ -60,7 +84,7 @@ const RoomLabel: React.FC<{ roomId: string; roomMap: Record<string, string> }> =
   );
 };
 
-export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit, onDelete, roomMap = {} }) => {
+export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit, onDelete, roomMap = EMPTY_ROOM_MAP }) => {
   const getTypePill = (type: string) => {
     switch (type) {
       case 'COURSE':
@@ -83,6 +107,16 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
       case 'PENDING':
       default:
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">Pending</span>;
+    }
+  };
+
+  const getVisibilityPill = (visibility?: string) => {
+    switch (visibility?.toUpperCase()) {
+      case 'INTERNAL':
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Internal</span>;
+      case 'PUBLIC':
+      default:
+        return <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Public</span>;
     }
   };
 
@@ -119,6 +153,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">ROOM</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">DATE & TIME</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">STATUS</th>
+              <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider">VISIBILITY</th>
               <th className="px-4 py-3 font-semibold text-slate-600 text-xs tracking-wider text-right">ACTIONS</th>
             </tr>
           </thead>
@@ -137,6 +172,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
                   </td>
                   <td className="px-4 py-3 text-slate-600">{formatTimePattern(schedule)}</td>
                   <td className="px-4 py-3">{getStatusPill(schedule.status)}</td>
+                  <td className="px-4 py-3">{getVisibilityPill(schedule.visibility)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -157,7 +193,7 @@ export const ScheduleTable: React.FC<ScheduleTableProps> = ({ schedules, onEdit,
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                   No schedules found matching your criteria.
                 </td>
               </tr>

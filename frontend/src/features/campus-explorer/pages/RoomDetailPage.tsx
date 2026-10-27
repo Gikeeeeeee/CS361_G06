@@ -12,8 +12,8 @@ export default function RoomDetailPage() {
 
   useEffect(() => {
     if (room) {
-      const roomTitle = room.room_number || room.name.th;
-      document.title = `${roomTitle} | KU Long`;
+      const roomTitle = room.room_number || room.name.en || room.name.th;
+      document.title = `${roomTitle} | Kulong`;
     }
   }, [room]);
 
@@ -36,7 +36,7 @@ export default function RoomDetailPage() {
 
   return (
     <div className="bg-slate-50 min-h-full pb-10">
-      <RoomHero room={room} />
+      <RoomHero room={room} floor={floor} building={building} />
 
       {/* Divider */}
       <div className="h-2 bg-slate-50" />

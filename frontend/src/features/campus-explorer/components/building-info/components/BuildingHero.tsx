@@ -1,6 +1,6 @@
 import type { Building } from '../../../../../shared/types/domain.types';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Clock, Layers, Grid2X2 } from 'lucide-react';
+import { ArrowLeft, Clock, Layers, Grid2X2 } from 'lucide-react';
 
 interface BuildingHeroProps {
   building: Building;
@@ -35,12 +35,6 @@ export function BuildingHero({ building }: BuildingHeroProps) {
             aria-label="Go back"
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.2]" />
-          </button>
-          <button
-            className="w-10 h-10 -mr-1 rounded-full flex items-center justify-center text-white hover:bg-white/10 active:scale-95 transition"
-            aria-label="Bookmark"
-          >
-            <Bookmark className="w-5 h-5 stroke-[2]" />
           </button>
         </div>
 

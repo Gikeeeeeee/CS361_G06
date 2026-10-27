@@ -1,15 +1,26 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { adminNavConfig } from '../config/nav.config';
 import { LogOut } from 'lucide-react';
+import { useAuth } from '../../auth/context/AuthContext';
 
 export function AdminSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen fixed left-0 top-0">
       <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-200 shrink-0">
-        <img src="/ku_long_logo.svg" alt="KU Long" className="w-8 h-8" />
-        <span className="font-bold text-lg text-slate-800">KU Long</span>
+        <svg viewBox="0 0 400 300" className="w-8 h-8 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="50,40 200,40 145,145 200,250 50,250" fill="#90132B" />
+          <path fillRule="evenodd" fill="#C49A4D" d="M 207,40 L 360,40 L 360,173.5 A 76.5,76.5 0 0,1 207,173.5 Z M 283.5,150 A 22,22 0 1,0 283.5,194 A 22,22 0 1,0 283.5,150 Z" />
+        </svg>
+        <span className="font-bold text-lg text-slate-800">Kulong</span>
         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
           ADMIN
         </span>
@@ -45,7 +56,10 @@ export function AdminSidebar() {
       </nav>
 
       <div className="p-4 border-t border-slate-200">
-        <button className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium cursor-pointer"
+        >
           <LogOut className="w-5 h-5" />
           Log Out
         </button>

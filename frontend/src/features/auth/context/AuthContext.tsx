@@ -1,0 +1,140 @@
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { authService } from '../services/authService';
+import { supabase } from '../services/supabaseClient';
+import { ApiCache } from '../../../services/api/apiCache';
+import type { User, UserRole, LoginCredentials, SignUpCredentials } from '../types/auth.types';
+
+interface AuthContextType {
+  user: User | null;
+  role: UserRole | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (credentials: LoginCredentials) => Promise<User>;
+  signUp: (credentials: SignUpCredentials) => Promise<User>;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(() => authService.getCurrentUser());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Initialize and verify session on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const restoredUser = await authService.restoreSession();
+        if (isMounted) {
+          setUser(restoredUser);
+        }
+      } catch (e) {
+        console.error('Failed to verify session with backend:', e);
+        if (isMounted) {
+          setUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Listen to 401 Unauthorized events from API calls to auto-logout
+    const handleUnauthorized = () => {
+      ApiCache.clearAll();
+      setUser(null);
+      authService.clearSession();
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
+    // Listen to Supabase Auth state changes (token refresh, logout)
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          ApiCache.clearAll();
+          authService.clearSession();
+          if (isMounted) setUser(null);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          const currentUser = authService.getCurrentUser();
+          if (currentUser) {
+            authService.setSession(currentUser, session.access_token);
+          }
+        }
+      });
+
+      return () => {
+        isMounted = false;
+        window.removeEventListener('auth:unauthorized', handleUnauthorized);
+        subscription.unsubscribe();
+      };
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
+  }, []);
+
+  const login = useCallback(async (credentials: LoginCredentials): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const { user: loggedInUser } = await authService.login(credentials);
+      ApiCache.clearAll();
+      setUser(loggedInUser);
+      return loggedInUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const signUp = useCallback(async (credentials: SignUpCredentials): Promise<User> => {
+    setIsLoading(true);
+    try {
+      const { user: registeredUser } = await authService.signUp(credentials);
+      ApiCache.clearAll();
+      setUser(registeredUser);
+      return registeredUser;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await authService.logout();
+      ApiCache.clearAll();
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      role: user?.role || null,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      signUp,
+      logout,
+    }),
+    [user, isLoading, login, signUp, logout]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

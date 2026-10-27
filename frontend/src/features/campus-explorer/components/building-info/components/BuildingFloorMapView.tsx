@@ -156,23 +156,23 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
       </div>
 
       {/* SVG Floor Map Container */}
-      <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative min-h-[380px] flex items-center justify-center">
+      <div className="w-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative min-h-[380px] h-[400px] sm:h-[460px] flex items-center justify-center">
         {loading && (
           <div className="absolute inset-0 z-10 bg-white/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="text-xs font-medium text-slate-500">กำลังโหลดแผนผังชั้น...</span>
+            <span className="text-xs font-medium text-slate-500">Loading floor plan...</span>
           </div>
         )}
 
         {error && !svgContent && (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2">
             <MapPin className="w-8 h-8 opacity-40 text-slate-400" />
-            <p className="text-xs font-medium">ไม่พบแผนผังของชั้นนี้</p>
+            <p className="text-xs font-medium">Floor plan unavailable</p>
           </div>
         )}
 
         {svgContent && (
-          <div className="w-full h-full p-2 flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-center">
             <InteractiveSvgMap
               svgContent={svgContent}
               highlightedRoomId={activeHighlight}

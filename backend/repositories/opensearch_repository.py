@@ -8,7 +8,7 @@ from opensearchpy import (
     RequestsHttpConnection,
 )
 
-from opensearchpy.exceptions import ConnectionError, ConnectionTimeout
+from opensearchpy.exceptions import ConnectionError, ConnectionTimeout, NotFoundError
 
 from errors import SearchServiceUnavailable
 from models.search import SearchQuery, SearchResult
@@ -204,6 +204,9 @@ class OpenSearchRepository:
                 index=self.index_name,
                 body=body,
             )
+
+        except NotFoundError:
+            return 0, []
 
         except (
             ConnectionError,
