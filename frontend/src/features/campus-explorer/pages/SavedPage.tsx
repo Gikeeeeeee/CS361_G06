@@ -24,11 +24,24 @@ function getScheduleType(schedule: BookmarkItem): 'COURSE' | 'EXAM' | 'ACTIVITY'
   const t = (schedule.type || '').toUpperCase();
   if (t === 'EXAM') return 'EXAM';
   if (t === 'ACTIVITY') return 'ACTIVITY';
+  if (t === 'COURSE') return 'COURSE';
+
   const code = (schedule.courseCode || '').toUpperCase();
   if (code === 'EXAM') return 'EXAM';
   if (code === 'ACTIVITY') return 'ACTIVITY';
+
   const title = (schedule.title || '').toLowerCase();
   if (title.includes('exam') || title.includes('สอบ')) return 'EXAM';
+  if (
+    title.includes('activity') ||
+    title.includes('กิจกรรม') ||
+    title === 'reserved' ||
+    title === 'ไม่ว่าง'
+  ) {
+    return 'ACTIVITY';
+  }
+
+  if (code && code.length > 0) return 'COURSE';
   return 'COURSE';
 }
 
@@ -96,6 +109,19 @@ function doesScheduleMatchDate(schedule: BookmarkItem, date: Date): boolean {
   }
   const slot = parseScheduleTime(schedule);
   if (slot?.dateStr === targetDateStr) return true;
+
+  const recurrenceRule = (schedule as any).recurrence_rule || (schedule as any).recurrenceRule;
+  if (recurrenceRule) {
+    const byDayMatch = recurrenceRule.match(/BYDAY=([^;]+)/);
+    if (byDayMatch) {
+      const days = byDayMatch[1].split(',');
+      const daysMap: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 0 };
+      if (days.some((day: string) => daysMap[day] === date.getDay())) {
+        return true;
+      }
+    }
+  }
+
   if (getScheduleType(schedule) === 'COURSE' && slot?.dayOfWeek !== undefined) {
     return slot.dayOfWeek === date.getDay();
   }
@@ -155,9 +181,9 @@ function CourseScheduleCard({
         </span>
       </div>
 
-      {/* Action Buttons: Spacing gap-4, minimum 44x44px touch targets, tooltips & clear labels */}
+      {/* Action Buttons: Spacing gap-2.5 sm:gap-4, minimum 44x44px touch targets, tooltips & clear labels */}
       <div
-        className="flex items-center gap-4 pt-3 border-t border-blue-100/80"
+        className="flex items-center justify-between gap-2.5 sm:gap-4 pt-3 border-t border-blue-100/80 flex-wrap"
         onClick={(e) => e.stopPropagation()}
       >
         <AddToCalendarButton
@@ -165,6 +191,7 @@ function CourseScheduleCard({
           scheduleId={schedule.entityId}
           scheduleData={schedule}
           showText={true}
+          align="left"
           buttonClassName="min-h-[44px] px-3.5 py-2.5 rounded-xl border border-blue-200 bg-white hover:bg-blue-50 text-blue-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
           disabledClassName="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold cursor-not-allowed select-none transition-all flex items-center justify-center gap-1.5 shadow-2xs"
           onExportSuccess={(type) =>
@@ -211,11 +238,11 @@ function OtherScheduleCard({
   return (
     <div
       onClick={() => onSelect?.(schedule)}
-      className="w-full text-left bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col relative overflow-hidden transition-all hover:shadow-sm cursor-pointer"
+      className="w-full text-left bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col relative transition-all hover:shadow-sm cursor-pointer"
     >
       {/* Left accent bar matching Room Detail ExamCalendar */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-1 ${type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'
+        className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${type === 'EXAM' ? 'bg-amber-500' : 'bg-purple-500'
           }`}
       />
 
@@ -262,9 +289,9 @@ function OtherScheduleCard({
         </span>
       </div>
 
-      {/* Action Buttons: Spacing gap-4, minimum 44x44px touch targets, tooltips & clear labels */}
+      {/* Action Buttons: Spacing gap-2.5 sm:gap-4, minimum 44x44px touch targets, tooltips & clear labels */}
       <div
-        className="flex items-center gap-4 pl-1.5 pt-3 border-t border-slate-100"
+        className="flex items-center justify-between gap-2.5 sm:gap-4 pl-1.5 pt-3 border-t border-slate-100 flex-wrap"
         onClick={(e) => e.stopPropagation()}
       >
         <AddToCalendarButton
@@ -272,6 +299,7 @@ function OtherScheduleCard({
           scheduleId={schedule.entityId}
           scheduleData={schedule}
           showText={true}
+          align="left"
           buttonClassName="min-h-[44px] px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
           disabledClassName="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold cursor-not-allowed select-none transition-all flex items-center justify-center gap-1.5 shadow-2xs"
           onExportSuccess={(type) =>
@@ -343,6 +371,35 @@ export default function SavedPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  const handleViewModeChange = (mode: 'LIST' | 'CALENDAR') => {
+    if (mode === 'CALENDAR') {
+      if (scheduleCategory === 'OTHER') {
+        setCalendarSubView('OTHER');
+      } else {
+        setCalendarSubView('COURSE');
+      }
+    } else {
+      if (calendarSubView === 'OTHER') {
+        setScheduleCategory('OTHER');
+      } else if (scheduleCategory === 'OTHER') {
+        setScheduleCategory('COURSE');
+      }
+    }
+    setViewMode(mode);
+  };
+
+  const handleCategoryChange = (cat: 'ALL' | 'COURSE' | 'OTHER') => {
+    setScheduleCategory(cat);
+    if (cat === 'COURSE' || cat === 'OTHER') {
+      setCalendarSubView(cat);
+    }
+  };
+
+  const handleCalendarSubViewChange = (sub: 'COURSE' | 'OTHER') => {
+    setCalendarSubView(sub);
+    setScheduleCategory(sub);
   };
 
   // Only keep SCHEDULE items for Timetable
@@ -420,7 +477,7 @@ export default function SavedPage() {
     <div className="p-4 sm:p-6 max-w-md mx-auto space-y-4 pb-24 min-h-full flex flex-col bg-slate-50/50">
       {/* Toast Alert */}
       {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           <span>{toastMessage}</span>
         </div>
@@ -438,7 +495,7 @@ export default function SavedPage() {
         <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-2xs">
           <button
             type="button"
-            onClick={() => setViewMode('LIST')}
+            onClick={() => handleViewModeChange('LIST')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'LIST'
                 ? 'bg-white text-blue-600 shadow-xs'
                 : 'text-slate-400 hover:text-slate-600'
@@ -450,7 +507,7 @@ export default function SavedPage() {
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('CALENDAR')}
+            onClick={() => handleViewModeChange('CALENDAR')}
             className={`p-1.5 rounded-lg transition-all cursor-pointer ${viewMode === 'CALENDAR'
                 ? 'bg-white text-blue-600 shadow-xs'
                 : 'text-slate-400 hover:text-slate-600'
@@ -505,7 +562,7 @@ export default function SavedPage() {
           <div className="flex bg-slate-200/60 p-1 rounded-xl">
             <button
               type="button"
-              onClick={() => setScheduleCategory('ALL')}
+              onClick={() => handleCategoryChange('ALL')}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${scheduleCategory === 'ALL'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
@@ -515,7 +572,7 @@ export default function SavedPage() {
             </button>
             <button
               type="button"
-              onClick={() => setScheduleCategory('COURSE')}
+              onClick={() => handleCategoryChange('COURSE')}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${scheduleCategory === 'COURSE'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
@@ -525,7 +582,7 @@ export default function SavedPage() {
             </button>
             <button
               type="button"
-              onClick={() => setScheduleCategory('OTHER')}
+              onClick={() => handleCategoryChange('OTHER')}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap text-center ${scheduleCategory === 'OTHER'
                   ? 'bg-white text-blue-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700'
@@ -629,7 +686,7 @@ export default function SavedPage() {
           <div className="flex bg-slate-200/60 p-1 rounded-xl">
             <button
               type="button"
-              onClick={() => setCalendarSubView('COURSE')}
+              onClick={() => handleCalendarSubViewChange('COURSE')}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                 calendarSubView === 'COURSE'
                   ? 'bg-white text-blue-600 shadow-xs'
@@ -640,7 +697,7 @@ export default function SavedPage() {
             </button>
             <button
               type="button"
-              onClick={() => setCalendarSubView('OTHER')}
+              onClick={() => handleCalendarSubViewChange('OTHER')}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap text-center ${
                 calendarSubView === 'OTHER'
                   ? 'bg-white text-blue-600 shadow-xs'
@@ -745,7 +802,7 @@ export default function SavedPage() {
                                         {event.courseCode || 'COURSE'}
                                       </span>
                                       <div
-                                        className="flex items-center gap-4 shrink-0"
+                                        className="flex items-center gap-2 shrink-0"
                                         onClick={(e) => e.stopPropagation()}
                                       >
                                         <AddToCalendarButton
