@@ -5,7 +5,13 @@ import os
 from typing import Any
 import pytest
 
-from models.navigation import CorridorEdge, NavigationNode, QRLocation, RoomAttachment
+from models.navigation import (
+    CorridorEdge,
+    NavigationNode,
+    QRLocation,
+    RoomAttachment,
+    VerticalConnection,
+)
 from ports.navigation_source import NavigationSource
 
 
@@ -28,8 +34,11 @@ def api_base_url(request) -> str:
     """
     url = request.config.getoption("--api-url") or os.getenv("API_BASE_URL", "")
     if not url:
-        pytest.skip("Neither --api-url CLI argument nor API_BASE_URL env var was provided")
+        pytest.skip(
+            "Neither --api-url CLI argument nor API_BASE_URL env var was provided"
+        )
     return url.rstrip("/")
+
 
 class FakeBuildingSource:
     """In-memory fake source for building, floor, room and facility tests."""
@@ -68,22 +77,24 @@ class FakeBuildingSource:
                 floor_id = floor.get("id")
 
                 for room in floor.get("rooms") or []:
-                    yield "ROOM", {
-                        **room,
-                        "building_id": room.get(
-                            "building_id", building_id
-                        ),
-                        "floor_id": room.get("floor_id", floor_id),
-                    }
+                    yield (
+                        "ROOM",
+                        {
+                            **room,
+                            "building_id": room.get("building_id", building_id),
+                            "floor_id": room.get("floor_id", floor_id),
+                        },
+                    )
 
                 for facility in floor.get("facilities") or []:
-                    yield "FACILITY", {
-                        **facility,
-                        "building_id": facility.get(
-                            "building_id", building_id
-                        ),
-                        "floor_id": facility.get("floor_id", floor_id),
-                    }
+                    yield (
+                        "FACILITY",
+                        {
+                            **facility,
+                            "building_id": facility.get("building_id", building_id),
+                            "floor_id": facility.get("floor_id", floor_id),
+                        },
+                    )
 
     def get_room(self, room_id: str) -> dict[str, Any] | None:
         for entity_type, entity in self._iter_entities():
@@ -115,9 +126,7 @@ class FakeBuildingSource:
                 if str(floor.get("id")) == str(floor_id):
                     return {
                         **floor,
-                        "building_id": floor.get(
-                            "building_id", building.get("id")
-                        ),
+                        "building_id": floor.get("building_id", building.get("id")),
                     }
 
         return None
@@ -128,10 +137,8 @@ class FakeBuildingSource:
         expires_in: int = 3600,
     ) -> str:
         # Retained for unrelated legacy tests.
-        return (
-            f"https://mock-bucket.s3.amazonaws.com/"
-            f"{key}?expires={expires_in}"
-        )
+        return f"https://mock-bucket.s3.amazonaws.com/{key}?expires={expires_in}"
+
 
 class FakeScheduleSource:
     """
@@ -143,7 +150,9 @@ class FakeScheduleSource:
 
     def __init__(
         self,
-        schedules: list[dict[str, Any]] | dict[tuple[str, str], dict[str, Any]] | None = None,
+        schedules: list[dict[str, Any]]
+        | dict[tuple[str, str], dict[str, Any]]
+        | None = None,
     ):
         if isinstance(schedules, dict):
             self.schedules = list(schedules.values())
@@ -160,18 +169,26 @@ class FakeScheduleSource:
         try:
             start = (
                 json.loads(base64.urlsafe_b64decode(next_token).decode())["index"]
-                if next_token else 0
+                if next_token
+                else 0
             )
-        except (binascii.Error, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
+        except (
+            binascii.Error,
+            KeyError,
+            TypeError,
+            ValueError,
+            UnicodeDecodeError,
+        ) as exc:
             from errors import InvalidParameter
 
             raise InvalidParameter("Invalid nextToken.") from exc
 
         filtered = [
-            schedule for schedule in self.schedules
+            schedule
+            for schedule in self.schedules
             if schedule_type is None or schedule.get("type") == schedule_type
         ]
-        page = filtered[start:start + limit]
+        page = filtered[start : start + limit]
         end = start + len(page)
         token = (
             base64.urlsafe_b64encode(json.dumps({"index": end}).encode()).decode()
@@ -491,16 +508,12 @@ def sample_schedule() -> dict[str, Any]:
         "start_at": "2026-09-14T09:00:00+07:00",
         "end_at": "2026-09-14T12:00:00+07:00",
         "time_zone": "Asia/Bangkok",
-        "recurrence_rule": (
-            "RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=15"
-        ),
+        "recurrence_rule": ("RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=15"),
         "room_id": "room-lc3-301",
         "status": "CONFIRM",
         "series_end_at": "2026-12-21T05:00:00+00:00",
         "created_at": "2026-09-01T00:00:00+00:00",
     }
-
-
 
 
 class FakeNavigationSource(NavigationSource):
@@ -511,10 +524,12 @@ class FakeNavigationSource(NavigationSource):
         floors: dict[str, dict[str, Any]] | None = None,
         rooms: dict[str, dict[str, Any]] | None = None,
         nav_data: dict[str, dict[str, Any]] | None = None,
+        vertical_connections: dict[str, list[VerticalConnection]] | None = None,
     ):
         self._floors = floors or {}
         self._rooms = rooms or {}
         self._nav_data = nav_data or {}
+        self._vertical_connections = vertical_connections or {}
 
     def get_floor_navigation_data(self, floor_id: str) -> dict[str, Any]:
         return self._nav_data.get(
@@ -545,7 +560,9 @@ class FakeNavigationSource(NavigationSource):
                     }
         return None
 
-    def find_node(self, node_id: str, floor_id: str | None = None) -> dict[str, Any] | None:
+    def find_node(
+        self, node_id: str, floor_id: str | None = None
+    ) -> dict[str, Any] | None:
         for fid, data in self._nav_data.items():
             if floor_id and fid != floor_id:
                 continue
@@ -561,6 +578,9 @@ class FakeNavigationSource(NavigationSource):
                         "floor_id": fid,
                     }
         return None
+
+    def get_vertical_connections(self, building_id: str) -> list[VerticalConnection]:
+        return list(self._vertical_connections.get(building_id, []))
 
 
 @pytest.fixture
@@ -582,21 +602,62 @@ def sample_navigation_source() -> FakeNavigationSource:
     }
 
     nodes = [
-        NavigationNode(id="N1", name="West Entrance", svg_x=100.0, svg_y=100.0, floor_id=floor_id),
-        NavigationNode(id="N2", name="Hallway Junction", svg_x=200.0, svg_y=100.0, floor_id=floor_id),
-        NavigationNode(id="N3", name="Corner Corridor", svg_x=300.0, svg_y=100.0, floor_id=floor_id),
-        NavigationNode(id="N4", name="South Hub", svg_x=300.0, svg_y=200.0, floor_id=floor_id),
-        NavigationNode(id="N_DISCONNECTED", name="Isolated Node", svg_x=800.0, svg_y=800.0, floor_id=floor_id),
+        NavigationNode(
+            id="N1", name="West Entrance", svg_x=100.0, svg_y=100.0, floor_id=floor_id
+        ),
+        NavigationNode(
+            id="N2",
+            name="Hallway Junction",
+            svg_x=200.0,
+            svg_y=100.0,
+            floor_id=floor_id,
+        ),
+        NavigationNode(
+            id="N3", name="Corner Corridor", svg_x=300.0, svg_y=100.0, floor_id=floor_id
+        ),
+        NavigationNode(
+            id="N4", name="South Hub", svg_x=300.0, svg_y=200.0, floor_id=floor_id
+        ),
+        NavigationNode(
+            id="N_DISCONNECTED",
+            name="Isolated Node",
+            svg_x=800.0,
+            svg_y=800.0,
+            floor_id=floor_id,
+        ),
     ]
 
     edges = [
-        CorridorEdge(id="E1", from_node_id="N1", to_node_id="N2", distance_weight=100.0, floor_id=floor_id),
-        CorridorEdge(id="E2", from_node_id="N2", to_node_id="N3", distance_weight=100.0, floor_id=floor_id),
-        CorridorEdge(id="E3", from_node_id="N3", to_node_id="N4", distance_weight=100.0, floor_id=floor_id),
+        CorridorEdge(
+            id="E1",
+            from_node_id="N1",
+            to_node_id="N2",
+            distance_weight=100.0,
+            floor_id=floor_id,
+        ),
+        CorridorEdge(
+            id="E2",
+            from_node_id="N2",
+            to_node_id="N3",
+            distance_weight=100.0,
+            floor_id=floor_id,
+        ),
+        CorridorEdge(
+            id="E3",
+            from_node_id="N3",
+            to_node_id="N4",
+            distance_weight=100.0,
+            floor_id=floor_id,
+        ),
     ]
 
     qrs = [
-        QRLocation(id="QR-01", node_id="N1", location_description="West Entrance QR", floor_id=floor_id),
+        QRLocation(
+            id="QR-01",
+            node_id="N1",
+            location_description="West Entrance QR",
+            floor_id=floor_id,
+        ),
     ]
 
     rooms_data = {
@@ -691,3 +752,517 @@ def sample_navigation_source() -> FakeNavigationSource:
     }
 
     return FakeNavigationSource(floors=floors, rooms=rooms_data, nav_data=nav_data)
+
+
+@pytest.fixture
+def sample_multi_floor_source() -> FakeNavigationSource:
+    """Sets up a multi-floor environment for LC3 (F1-F2) and LC4 (F1-F3)."""
+    floors = {
+        "lc3-f1": {
+            "id": "lc3-f1",
+            "floor_number": 1,
+            "building_id": "lc3",
+            "floor_plan_key": "floor-plan/LC3/LC3-floor1-neutral.svg",
+        },
+        "lc3-f2": {
+            "id": "lc3-f2",
+            "floor_number": 2,
+            "building_id": "lc3",
+            "floor_plan_key": "floor-plan/LC3/LC3-floor2-neutral.svg",
+        },
+        "lc4-f1": {
+            "id": "lc4-f1",
+            "floor_number": 1,
+            "building_id": "lc4",
+            "floor_plan_key": "floor-plan/LC4/LC4-floor1-neutral.svg",
+        },
+        "lc4-f2": {
+            "id": "lc4-f2",
+            "floor_number": 2,
+            "building_id": "lc4",
+            "floor_plan_key": "floor-plan/LC4/LC4-floor2-neutral.svg",
+        },
+        "lc4-f3": {
+            "id": "lc4-f3",
+            "floor_number": 3,
+            "building_id": "lc4",
+            "floor_plan_key": "floor-plan/LC4/LC4-floor3-neutral.svg",
+        },
+    }
+
+    rooms = {
+        "lc3-room-101": {
+            "id": "lc3-room-101",
+            "room_number": "101",
+            "name": "Room 101",
+            "floor_id": "lc3-f1",
+            "building_id": "lc3",
+            "corridor_edge_id": "lc3-f1-e1",
+            "door_svg_x": 100.0,
+            "door_svg_y": 50.0,
+            "side": "RIGHT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "lc3-room-201": {
+            "id": "lc3-room-201",
+            "room_number": "201",
+            "name": "Room 201",
+            "floor_id": "lc3-f2",
+            "building_id": "lc3",
+            "corridor_edge_id": "lc3-f2-e1",
+            "door_svg_x": 100.0,
+            "door_svg_y": 50.0,
+            "side": "LEFT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "lc4-room-401": {
+            "id": "lc4-room-401",
+            "room_number": "401",
+            "name": "Room 401",
+            "floor_id": "lc4-f1",
+            "building_id": "lc4",
+            "corridor_edge_id": "lc4-f1-e1",
+            "door_svg_x": 100.0,
+            "door_svg_y": 50.0,
+            "side": "RIGHT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "lc4-room-402": {
+            "id": "lc4-room-402",
+            "room_number": "402",
+            "name": "Room 402",
+            "floor_id": "lc4-f2",
+            "building_id": "lc4",
+            "corridor_edge_id": "lc4-f2-e1",
+            "door_svg_x": 100.0,
+            "door_svg_y": 50.0,
+            "side": "RIGHT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "lc4-room-403": {
+            "id": "lc4-room-403",
+            "room_number": "403",
+            "name": "Room 403",
+            "floor_id": "lc4-f3",
+            "building_id": "lc4",
+            "corridor_edge_id": "lc4-f3-e1",
+            "door_svg_x": 100.0,
+            "door_svg_y": 50.0,
+            "side": "LEFT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+    }
+
+    nav_data = {
+        "lc3-f1": {
+            "nodes": [
+                NavigationNode(
+                    id="lc3-f1-n1",
+                    name="West corridor",
+                    svg_x=100.0,
+                    svg_y=100.0,
+                    floor_id="lc3-f1",
+                ),
+                NavigationNode(
+                    id="lc3-f1-stair3",
+                    name="West stair landing",
+                    node_type="STAIRS",
+                    svg_x=100.0,
+                    svg_y=200.0,
+                    floor_id="lc3-f1",
+                ),
+                NavigationNode(
+                    id="lc3-f1-stair1",
+                    name="East stair landing",
+                    node_type="STAIRS",
+                    svg_x=800.0,
+                    svg_y=200.0,
+                    floor_id="lc3-f1",
+                ),
+            ],
+            "edges": [
+                CorridorEdge(
+                    id="lc3-f1-e1",
+                    from_node_id="lc3-f1-n1",
+                    to_node_id="lc3-f1-stair3",
+                    distance_weight=100.0,
+                    floor_id="lc3-f1",
+                ),
+                CorridorEdge(
+                    id="lc3-f1-e2",
+                    from_node_id="lc3-f1-n1",
+                    to_node_id="lc3-f1-stair1",
+                    distance_weight=700.0,
+                    floor_id="lc3-f1",
+                ),
+            ],
+            "qrs": [
+                QRLocation(
+                    id="LC3-F1-QR1",
+                    node_id="lc3-f1-n1",
+                    location_description="West QR",
+                    floor_id="lc3-f1",
+                ),
+            ],
+            "rooms": [
+                RoomAttachment(
+                    room_id="lc3-room-101",
+                    room_number="101",
+                    corridor_edge_id="lc3-f1-e1",
+                    door_svg_x=100.0,
+                    door_svg_y=50.0,
+                    side="RIGHT",
+                    sequence_order=1,
+                    floor_id="lc3-f1",
+                    building_id="lc3",
+                ),
+            ],
+        },
+        "lc3-f2": {
+            "nodes": [
+                NavigationNode(
+                    id="lc3-f2-n1",
+                    name="West corridor F2",
+                    svg_x=100.0,
+                    svg_y=100.0,
+                    floor_id="lc3-f2",
+                ),
+                NavigationNode(
+                    id="lc3-f2-stair3",
+                    name="West stair landing F2",
+                    node_type="STAIRS",
+                    svg_x=100.0,
+                    svg_y=200.0,
+                    floor_id="lc3-f2",
+                ),
+                NavigationNode(
+                    id="lc3-f2-stair1",
+                    name="East stair landing F2",
+                    node_type="STAIRS",
+                    svg_x=800.0,
+                    svg_y=200.0,
+                    floor_id="lc3-f2",
+                ),
+            ],
+            "edges": [
+                CorridorEdge(
+                    id="lc3-f2-e1",
+                    from_node_id="lc3-f2-n1",
+                    to_node_id="lc3-f2-stair3",
+                    distance_weight=100.0,
+                    floor_id="lc3-f2",
+                ),
+                CorridorEdge(
+                    id="lc3-f2-e2",
+                    from_node_id="lc3-f2-n1",
+                    to_node_id="lc3-f2-stair1",
+                    distance_weight=700.0,
+                    floor_id="lc3-f2",
+                ),
+            ],
+            "qrs": [],
+            "rooms": [
+                RoomAttachment(
+                    room_id="lc3-room-201",
+                    room_number="201",
+                    corridor_edge_id="lc3-f2-e1",
+                    door_svg_x=100.0,
+                    door_svg_y=50.0,
+                    side="LEFT",
+                    sequence_order=1,
+                    floor_id="lc3-f2",
+                    building_id="lc3",
+                ),
+            ],
+        },
+        "lc4-f1": {
+            "nodes": [
+                NavigationNode(
+                    id="lc4-f1-n1",
+                    name="Corridor F1",
+                    svg_x=100.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f1",
+                ),
+                NavigationNode(
+                    id="lc4-f1-elev",
+                    name="Elevator access",
+                    node_type="ELEVATOR",
+                    svg_x=150.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f1",
+                ),
+                NavigationNode(
+                    id="lc4-f1-stair1",
+                    name="Stair 1 access",
+                    node_type="STAIRS",
+                    svg_x=200.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f1",
+                ),
+            ],
+            "edges": [
+                CorridorEdge(
+                    id="lc4-f1-e1",
+                    from_node_id="lc4-f1-n1",
+                    to_node_id="lc4-f1-elev",
+                    distance_weight=50.0,
+                    floor_id="lc4-f1",
+                ),
+                CorridorEdge(
+                    id="lc4-f1-e2",
+                    from_node_id="lc4-f1-elev",
+                    to_node_id="lc4-f1-stair1",
+                    distance_weight=50.0,
+                    floor_id="lc4-f1",
+                ),
+                CorridorEdge(
+                    id="lc4-f1-e3",
+                    from_node_id="lc4-f1-n1",
+                    to_node_id="lc4-f1-stair1",
+                    distance_weight=70.0,
+                    floor_id="lc4-f1",
+                ),
+            ],
+            "qrs": [],
+            "rooms": [
+                RoomAttachment(
+                    room_id="lc4-room-401",
+                    room_number="401",
+                    corridor_edge_id="lc4-f1-e1",
+                    door_svg_x=100.0,
+                    door_svg_y=50.0,
+                    side="RIGHT",
+                    sequence_order=1,
+                    floor_id="lc4-f1",
+                    building_id="lc4",
+                ),
+            ],
+        },
+        "lc4-f2": {
+            "nodes": [
+                NavigationNode(
+                    id="lc4-f2-n1",
+                    name="Corridor F2",
+                    svg_x=100.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f2",
+                ),
+                NavigationNode(
+                    id="lc4-f2-elev",
+                    name="Elevator approach F2",
+                    node_type="ELEVATOR",
+                    svg_x=150.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f2",
+                ),
+                NavigationNode(
+                    id="lc4-f2-stair1",
+                    name="Stair 1 approach F2",
+                    node_type="STAIRS",
+                    svg_x=200.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f2",
+                ),
+            ],
+            "edges": [
+                CorridorEdge(
+                    id="lc4-f2-e1",
+                    from_node_id="lc4-f2-n1",
+                    to_node_id="lc4-f2-elev",
+                    distance_weight=50.0,
+                    floor_id="lc4-f2",
+                ),
+                CorridorEdge(
+                    id="lc4-f2-e2",
+                    from_node_id="lc4-f2-elev",
+                    to_node_id="lc4-f2-stair1",
+                    distance_weight=50.0,
+                    floor_id="lc4-f2",
+                ),
+                CorridorEdge(
+                    id="lc4-f2-e3",
+                    from_node_id="lc4-f2-n1",
+                    to_node_id="lc4-f2-stair1",
+                    distance_weight=70.0,
+                    floor_id="lc4-f2",
+                ),
+            ],
+            "qrs": [],
+            "rooms": [
+                RoomAttachment(
+                    room_id="lc4-room-402",
+                    room_number="402",
+                    corridor_edge_id="lc4-f2-e1",
+                    door_svg_x=100.0,
+                    door_svg_y=50.0,
+                    side="RIGHT",
+                    sequence_order=1,
+                    floor_id="lc4-f2",
+                    building_id="lc4",
+                ),
+            ],
+        },
+        "lc4-f3": {
+            "nodes": [
+                NavigationNode(
+                    id="lc4-f3-n1",
+                    name="Corridor F3",
+                    svg_x=100.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f3",
+                ),
+                NavigationNode(
+                    id="lc4-f3-elev",
+                    name="Elevator landing F3",
+                    node_type="ELEVATOR",
+                    svg_x=150.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f3",
+                ),
+                NavigationNode(
+                    id="lc4-f3-stair1",
+                    name="Stair 1 landing F3",
+                    node_type="STAIRS",
+                    svg_x=200.0,
+                    svg_y=100.0,
+                    floor_id="lc4-f3",
+                ),
+            ],
+            "edges": [
+                CorridorEdge(
+                    id="lc4-f3-e1",
+                    from_node_id="lc4-f3-n1",
+                    to_node_id="lc4-f3-elev",
+                    distance_weight=50.0,
+                    floor_id="lc4-f3",
+                ),
+                CorridorEdge(
+                    id="lc4-f3-e2",
+                    from_node_id="lc4-f3-elev",
+                    to_node_id="lc4-f3-stair1",
+                    distance_weight=50.0,
+                    floor_id="lc4-f3",
+                ),
+                CorridorEdge(
+                    id="lc4-f3-e3",
+                    from_node_id="lc4-f3-n1",
+                    to_node_id="lc4-f3-stair1",
+                    distance_weight=70.0,
+                    floor_id="lc4-f3",
+                ),
+            ],
+            "qrs": [],
+            "rooms": [
+                RoomAttachment(
+                    room_id="lc4-room-403",
+                    room_number="403",
+                    corridor_edge_id="lc4-f3-e1",
+                    door_svg_x=100.0,
+                    door_svg_y=50.0,
+                    side="LEFT",
+                    sequence_order=1,
+                    floor_id="lc4-f3",
+                    building_id="lc4",
+                ),
+            ],
+        },
+    }
+
+    vertical_connections = {
+        "lc3": [
+            VerticalConnection(
+                id="LC3-STAIR3-F1-F2",
+                building_id="lc3",
+                connection_type="STAIRS",
+                from_floor_id="lc3-f1",
+                from_node_id="lc3-f1-stair3",
+                to_floor_id="lc3-f2",
+                to_node_id="lc3-f2-stair3",
+                distance_weight=30.0,
+                status="ACTIVE",
+                name="West Stair 3",
+            ),
+            VerticalConnection(
+                id="LC3-STAIR1-F1-F2",
+                building_id="lc3",
+                connection_type="STAIRS",
+                from_floor_id="lc3-f1",
+                from_node_id="lc3-f1-stair1",
+                to_floor_id="lc3-f2",
+                to_node_id="lc3-f2-stair1",
+                distance_weight=30.0,
+                status="ACTIVE",
+                name="East Stair 1",
+            ),
+        ],
+        "lc4": [
+            VerticalConnection(
+                id="LC4-ELEV-F1-F2",
+                building_id="lc4",
+                connection_type="ELEVATOR",
+                from_floor_id="lc4-f1",
+                from_node_id="lc4-f1-elev",
+                to_floor_id="lc4-f2",
+                to_node_id="lc4-f2-elev",
+                distance_weight=40.0,
+                status="ACTIVE",
+            ),
+            VerticalConnection(
+                id="LC4-ELEV-F2-F3",
+                building_id="lc4",
+                connection_type="ELEVATOR",
+                from_floor_id="lc4-f2",
+                from_node_id="lc4-f2-elev",
+                to_floor_id="lc4-f3",
+                to_node_id="lc4-f3-elev",
+                distance_weight=40.0,
+                status="ACTIVE",
+            ),
+            VerticalConnection(
+                id="LC4-ELEV-F1-F3",
+                building_id="lc4",
+                connection_type="ELEVATOR",
+                from_floor_id="lc4-f1",
+                from_node_id="lc4-f1-elev",
+                to_floor_id="lc4-f3",
+                to_node_id="lc4-f3-elev",
+                distance_weight=50.0,
+                status="ACTIVE",
+            ),
+            VerticalConnection(
+                id="LC4-STAIR1-F1-F2",
+                building_id="lc4",
+                connection_type="STAIRS",
+                from_floor_id="lc4-f1",
+                from_node_id="lc4-f1-stair1",
+                to_floor_id="lc4-f2",
+                to_node_id="lc4-f2-stair1",
+                distance_weight=25.0,
+                status="ACTIVE",
+            ),
+            VerticalConnection(
+                id="LC4-STAIR1-F2-F3",
+                building_id="lc4",
+                connection_type="STAIRS",
+                from_floor_id="lc4-f2",
+                from_node_id="lc4-f2-stair1",
+                to_floor_id="lc4-f3",
+                to_node_id="lc4-f3-stair1",
+                distance_weight=25.0,
+                status="ACTIVE",
+            ),
+        ],
+    }
+
+    return FakeNavigationSource(
+        floors=floors,
+        rooms=rooms,
+        nav_data=nav_data,
+        vertical_connections=vertical_connections,
+    )

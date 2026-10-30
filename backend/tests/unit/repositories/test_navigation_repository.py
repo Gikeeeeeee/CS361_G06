@@ -156,3 +156,52 @@ def test_find_node_with_floor_id():
     assert node is not None
     assert node["id"] == "N1"
     assert node["svg_x"] == 50
+
+
+@pytest.mark.unit
+def test_get_vertical_connections_success_and_case_normalization():
+    table = MagicMock()
+    table.query.return_value = {
+        "Items": [
+            {
+                "PK": "BUILDING#LC4",
+                "SK": "VERTICAL_CONNECTION#LC4-ELEV-F1-F2",
+                "id": "LC4-ELEV-F1-F2",
+                "building_id": "lc4",
+                "connection_type": "ELEVATOR",
+                "from_floor_id": "floor-1",
+                "from_node_id": "N1",
+                "to_floor_id": "floor-2",
+                "to_node_id": "N2",
+                "distance_weight": Decimal("40.0"),
+                "status": "ACTIVE",
+                "bidirectional": True,
+                "name": "Elevator F1-F2",
+            }
+        ]
+    }
+
+    repo = NavigationRepository(table=table)
+    # Test lowercase building_id "lc4" queries BUILDING#LC4
+    conns = repo.get_vertical_connections("lc4")
+
+    assert len(conns) == 1
+    conn = conns[0]
+    assert conn.id == "LC4-ELEV-F1-F2"
+    assert conn.connection_type == "ELEVATOR"
+    assert conn.distance_weight == 40.0
+    assert conn.is_active is True
+    assert conn.name == "Elevator F1-F2"
+
+
+@pytest.mark.unit
+def test_get_vertical_connections_client_error():
+    table = MagicMock()
+    table.query.side_effect = ClientError(
+        {"Error": {"Code": "InternalServerError", "Message": "Boom"}},
+        "Query",
+    )
+
+    repo = NavigationRepository(table=table)
+    with pytest.raises(UpstreamError, match="DynamoDB error fetching vertical connections"):
+        repo.get_vertical_connections("lc4")

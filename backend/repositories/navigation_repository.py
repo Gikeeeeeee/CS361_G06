@@ -14,7 +14,13 @@ from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 from errors import UpstreamError
-from models.navigation import CorridorEdge, NavigationNode, QRLocation, RoomAttachment
+from models.navigation import (
+    CorridorEdge,
+    NavigationNode,
+    QRLocation,
+    RoomAttachment,
+    VerticalConnection,
+)
 from ports.navigation_source import NavigationSource
 from repositories.dynamodb_entity_reader import DynamoDBEntityReader
 
@@ -229,4 +235,58 @@ class NavigationRepository(NavigationSource):
         except ClientError as exc:
             raise UpstreamError(
                 f"DynamoDB scan error searching for node '{node_id}': {exc}"
+            ) from exc
+
+    def get_vertical_connections(self, building_id: str) -> list[VerticalConnection]:
+        """Fetch all vertical connections for a building."""
+        code = str(building_id).upper()
+        try:
+            items: list[dict[str, Any]] = []
+            response = self.table.query(
+                KeyConditionExpression=Key("PK").eq(f"BUILDING#{code}")
+                & Key("SK").begins_with("VERTICAL_CONNECTION#")
+            )
+            items.extend(response.get("Items", []))
+            while "LastEvaluatedKey" in response:
+                response = self.table.query(
+                    KeyConditionExpression=Key("PK").eq(f"BUILDING#{code}")
+                    & Key("SK").begins_with("VERTICAL_CONNECTION#"),
+                    ExclusiveStartKey=response["LastEvaluatedKey"],
+                )
+                items.extend(response.get("Items", []))
+
+            if not items and str(building_id) != code:
+                response = self.table.query(
+                    KeyConditionExpression=Key("PK").eq(f"BUILDING#{building_id}")
+                    & Key("SK").begins_with("VERTICAL_CONNECTION#")
+                )
+                items.extend(response.get("Items", []))
+
+            conns: list[VerticalConnection] = []
+            for raw in items:
+                clean = _to_clean_dict(raw)
+                conns.append(
+                    VerticalConnection(
+                        id=clean.get(
+                            "id",
+                            str(raw.get("SK", "")).replace("VERTICAL_CONNECTION#", ""),
+                        ),
+                        building_id=clean.get("building_id", building_id),
+                        connection_type=str(
+                            clean.get("connection_type", "STAIRS")
+                        ).upper(),
+                        from_floor_id=clean.get("from_floor_id", ""),
+                        from_node_id=clean.get("from_node_id", ""),
+                        to_floor_id=clean.get("to_floor_id", ""),
+                        to_node_id=clean.get("to_node_id", ""),
+                        distance_weight=float(clean.get("distance_weight", 30.0)),
+                        status=clean.get("status", "ACTIVE"),
+                        bidirectional=bool(clean.get("bidirectional", True)),
+                        name=clean.get("name"),
+                    )
+                )
+            return conns
+        except ClientError as exc:
+            raise UpstreamError(
+                f"DynamoDB error fetching vertical connections for building '{building_id}': {exc}"
             ) from exc

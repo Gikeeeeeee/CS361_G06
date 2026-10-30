@@ -17,7 +17,9 @@ class AppError(Exception):
     status_code = 500
     code = "INTERNAL_ERROR"
 
-    def __init__(self, message: str = "Internal server error", details: list | None = None):
+    def __init__(
+        self, message: str = "Internal server error", details: list | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.details = details
@@ -70,9 +72,7 @@ class MissingParameters(ValidationError):
 
     def __init__(self, names):
         self.names = list(names)
-        super().__init__(
-            "Missing required parameter(s): " + ", ".join(self.names)
-        )
+        super().__init__("Missing required parameter(s): " + ", ".join(self.names))
 
 
 class RouteNotFound(NotFoundError):
@@ -136,25 +136,20 @@ class ScheduleConflict(AppError):
 
 
 class FacilityNotFound(NotFoundError):
-
     code = "FACILITY_NOT_FOUND"
 
     def __init__(self, facility_id: str):
 
         self.facility_id = facility_id
 
-        super().__init__(
-            f"Facility '{facility_id}' not found"
-        )
+        super().__init__(f"Facility '{facility_id}' not found")
 
 
 class ScheduleNotFound(NotFoundError):
     code = "SCHEDULE_NOT_FOUND"
 
     def __init__(self, schedule_id: str):
-        super().__init__(
-            f"Schedule not found: {schedule_id}"
-        )
+        super().__init__(f"Schedule not found: {schedule_id}")
 
 
 class InvalidSchedule(ValidationError):
@@ -162,6 +157,7 @@ class InvalidSchedule(ValidationError):
 
     def __init__(self, message: str):
         super().__init__(message)
+
 
 class SearchServiceUnavailable(AppError):
     status_code = 503
@@ -173,15 +169,19 @@ class SearchServiceUnavailable(AppError):
     ):
         super().__init__(message)
 
+
 """
     ERROR FOR SERACH PARAMETER
 """
+
+
 class InvalidParameter(AppError):
     status_code = 400
     code = "INVALID_PARAMETER"
 
     def __init__(self, message: str):
         super().__init__(message)
+
 
 # ---------------------------------------------------------------------------
 # CSV schedule import
@@ -238,7 +238,9 @@ class CsvTooManyOccurrences(ValidationError):
 class RoomTypeNotAllowed(ValidationError):
     def __init__(self, room: str, room_type, allowed):
         rule = (
-            f"only allows {', '.join(sorted(allowed))}" if allowed else "cannot be booked"
+            f"only allows {', '.join(sorted(allowed))}"
+            if allowed
+            else "cannot be booked"
         )
         super().__init__(f"Room '{room}' ({room_type}) {rule}.")
 
@@ -272,12 +274,15 @@ class ImportConflict(AppError):
             details,
         )
 
+
 # ---------------------------------------------------------------------------
 # Auth & User
-# ---------------------------------------------------------------------------       
+# ---------------------------------------------------------------------------
+
 
 class UnauthorizedError(AppError):
     """Missing or invalid token."""
+
     status_code = 401
     code = "UNAUTHORIZED"
 
@@ -288,8 +293,10 @@ class UnauthorizedError(AppError):
     ):
         super().__init__(message, details)
 
+
 class ForbiddenError(AppError):
     """Insufficient privileges (e.g. requires STAFF)."""
+
     status_code = 403
     code = "FORBIDDEN"
 
@@ -299,6 +306,7 @@ class ForbiddenError(AppError):
         details: list | None = None,
     ):
         super().__init__(message, details)
+
 
 class UserNotFound(NotFoundError):
     code = "USER_NOT_FOUND"
@@ -341,7 +349,6 @@ class BookmarkNotFound(NotFoundError):
         super().__init__("Bookmark not found.")
 
 
-
 # ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
@@ -370,12 +377,19 @@ class NoRouteAvailable(NotFoundError):
 class UnsupportedCrossFloorRoute(ValidationError):
     code = "CROSS_FLOOR_NOT_SUPPORTED"
 
-    def __init__(self, start_floor_id: str, destination_floor_id: str):
+    def __init__(
+        self,
+        start_floor_id: str,
+        destination_floor_id: str,
+        message: str | None = None,
+    ):
         self.start_floor_id = start_floor_id
         self.destination_floor_id = destination_floor_id
-        super().__init__(
-            f"Cross-floor navigation is currently unsupported: start floor '{start_floor_id}' does not match destination floor '{destination_floor_id}'"
+        msg = (
+            message
+            or f"Cross-floor navigation is currently unsupported: start floor '{start_floor_id}' does not match destination floor '{destination_floor_id}'"
         )
+        super().__init__(msg)
 
 
 class BlockedLocationError(AppError):
@@ -385,7 +399,9 @@ class BlockedLocationError(AppError):
     def __init__(self, location_id: str, location_type: str = "Location"):
         self.location_id = location_id
         self.location_type = location_type
-        super().__init__(f"{location_type.capitalize()} '{location_id}' is currently blocked or unavailable")
+        super().__init__(
+            f"{location_type.capitalize()} '{location_id}' is currently blocked or unavailable"
+        )
 
 
 class InvalidNavigationInput(ValidationError):
