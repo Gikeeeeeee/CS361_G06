@@ -5,6 +5,9 @@ import os
 from typing import Any
 import pytest
 
+from models.navigation import CorridorEdge, NavigationNode, QRLocation, RoomAttachment
+from ports.navigation_source import NavigationSource
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -497,3 +500,194 @@ def sample_schedule() -> dict[str, Any]:
         "created_at": "2026-09-01T00:00:00+00:00",
     }
 
+
+
+
+class FakeNavigationSource(NavigationSource):
+    """In-memory fake navigation source for unit testing."""
+
+    def __init__(
+        self,
+        floors: dict[str, dict[str, Any]] | None = None,
+        rooms: dict[str, dict[str, Any]] | None = None,
+        nav_data: dict[str, dict[str, Any]] | None = None,
+    ):
+        self._floors = floors or {}
+        self._rooms = rooms or {}
+        self._nav_data = nav_data or {}
+
+    def get_floor_navigation_data(self, floor_id: str) -> dict[str, Any]:
+        return self._nav_data.get(
+            floor_id,
+            {"nodes": [], "edges": [], "qrs": [], "rooms": []},
+        )
+
+    def get_room(self, room_id: str) -> dict[str, Any] | None:
+        for r in self._rooms.values():
+            if r.get("id") == room_id or r.get("room_number") == room_id:
+                return r
+        return self._rooms.get(room_id)
+
+    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
+        return self._floors.get(floor_id)
+
+    def find_qr(self, qr_id: str, floor_id: str | None = None) -> dict[str, Any] | None:
+        for fid, data in self._nav_data.items():
+            if floor_id and fid != floor_id:
+                continue
+            for qr in data.get("qrs", []):
+                if qr.id == qr_id:
+                    return {
+                        "id": qr.id,
+                        "node_id": qr.node_id,
+                        "floor_id": fid,
+                        "location_description": qr.location_description,
+                    }
+        return None
+
+    def find_node(self, node_id: str, floor_id: str | None = None) -> dict[str, Any] | None:
+        for fid, data in self._nav_data.items():
+            if floor_id and fid != floor_id:
+                continue
+            for n in data.get("nodes", []):
+                if n.id == node_id:
+                    return {
+                        "id": n.id,
+                        "name": n.name,
+                        "node_type": n.node_type,
+                        "status": n.status,
+                        "svg_x": n.svg_x,
+                        "svg_y": n.svg_y,
+                        "floor_id": fid,
+                    }
+        return None
+
+
+@pytest.fixture
+def sample_navigation_source() -> FakeNavigationSource:
+    floor_id = "floor-lc3-1"
+    floors = {
+        floor_id: {
+            "id": floor_id,
+            "floor_number": 1,
+            "building_id": "lc3",
+            "floor_plan_key": "floor-plan/LC3/LC3-floor1-neutral.svg",
+        },
+        "floor-lc3-2": {
+            "id": "floor-lc3-2",
+            "floor_number": 2,
+            "building_id": "lc3",
+            "floor_plan_key": "floor-plan/LC3/LC3-floor2-neutral.svg",
+        },
+    }
+
+    nodes = [
+        NavigationNode(id="N1", name="West Entrance", svg_x=100.0, svg_y=100.0, floor_id=floor_id),
+        NavigationNode(id="N2", name="Hallway Junction", svg_x=200.0, svg_y=100.0, floor_id=floor_id),
+        NavigationNode(id="N3", name="Corner Corridor", svg_x=300.0, svg_y=100.0, floor_id=floor_id),
+        NavigationNode(id="N4", name="South Hub", svg_x=300.0, svg_y=200.0, floor_id=floor_id),
+        NavigationNode(id="N_DISCONNECTED", name="Isolated Node", svg_x=800.0, svg_y=800.0, floor_id=floor_id),
+    ]
+
+    edges = [
+        CorridorEdge(id="E1", from_node_id="N1", to_node_id="N2", distance_weight=100.0, floor_id=floor_id),
+        CorridorEdge(id="E2", from_node_id="N2", to_node_id="N3", distance_weight=100.0, floor_id=floor_id),
+        CorridorEdge(id="E3", from_node_id="N3", to_node_id="N4", distance_weight=100.0, floor_id=floor_id),
+    ]
+
+    qrs = [
+        QRLocation(id="QR-01", node_id="N1", location_description="West Entrance QR", floor_id=floor_id),
+    ]
+
+    rooms_data = {
+        "room-101": {
+            "id": "room-101",
+            "room_number": "101",
+            "floor_id": floor_id,
+            "building_id": "lc3",
+            "corridor_edge_id": "E1",
+            "door_svg_x": 150.0,
+            "door_svg_y": 80.0,
+            "side": "LEFT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "room-102": {
+            "id": "room-102",
+            "room_number": "102",
+            "floor_id": floor_id,
+            "building_id": "lc3",
+            "corridor_edge_id": "E1",
+            "door_svg_x": 180.0,
+            "door_svg_y": 80.0,
+            "side": "LEFT",
+            "sequence_order": 2,
+            "status": "ACTIVE",
+        },
+        "room-104": {
+            "id": "room-104",
+            "room_number": "104",
+            "floor_id": floor_id,
+            "building_id": "lc3",
+            "corridor_edge_id": "E3",
+            "door_svg_x": 320.0,
+            "door_svg_y": 150.0,
+            "side": "RIGHT",
+            "sequence_order": 1,
+            "status": "ACTIVE",
+        },
+        "room-blocked": {
+            "id": "room-blocked",
+            "room_number": "999",
+            "floor_id": floor_id,
+            "building_id": "lc3",
+            "corridor_edge_id": "E1",
+            "door_svg_x": 120.0,
+            "door_svg_y": 80.0,
+            "side": "LEFT",
+            "status": "BLOCKED",
+        },
+        "room-no-corridor": {
+            "id": "room-no-corridor",
+            "room_number": "000",
+            "floor_id": floor_id,
+            "building_id": "lc3",
+            "status": "ACTIVE",
+        },
+        "room-floor2": {
+            "id": "room-floor2",
+            "room_number": "201",
+            "floor_id": "floor-lc3-2",
+            "building_id": "lc3",
+            "corridor_edge_id": "E-F2-1",
+            "status": "ACTIVE",
+        },
+    }
+
+    room_attachments = [
+        RoomAttachment(
+            room_id=r["id"],
+            room_number=r.get("room_number"),
+            corridor_edge_id=r.get("corridor_edge_id", ""),
+            door_svg_x=r.get("door_svg_x"),
+            door_svg_y=r.get("door_svg_y"),
+            side=r.get("side", "RIGHT"),
+            sequence_order=r.get("sequence_order"),
+            floor_id=r["floor_id"],
+            building_id=r["building_id"],
+            status=r.get("status", "ACTIVE"),
+        )
+        for r in rooms_data.values()
+        if r.get("corridor_edge_id")
+    ]
+
+    nav_data = {
+        floor_id: {
+            "nodes": nodes,
+            "edges": edges,
+            "qrs": qrs,
+            "rooms": room_attachments,
+        }
+    }
+
+    return FakeNavigationSource(floors=floors, rooms=rooms_data, nav_data=nav_data)

@@ -340,3 +340,64 @@ class BookmarkNotFound(NotFoundError):
         self.entity_id = entity_id
         super().__init__("Bookmark not found.")
 
+
+
+# ---------------------------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------------------------
+
+
+class LocationNotFound(NotFoundError):
+    code = "LOCATION_NOT_FOUND"
+
+    def __init__(self, location_id: str, location_type: str = "location"):
+        self.location_id = location_id
+        self.location_type = location_type
+        super().__init__(f"{location_type.capitalize()} '{location_id}' not found")
+
+
+class NoRouteAvailable(NotFoundError):
+    code = "NO_ROUTE_AVAILABLE"
+
+    def __init__(self, start_id: str, destination_id: str):
+        self.start_id = start_id
+        self.destination_id = destination_id
+        super().__init__(
+            f"No navigable route found from '{start_id}' to '{destination_id}'"
+        )
+
+
+class UnsupportedCrossFloorRoute(ValidationError):
+    code = "CROSS_FLOOR_NOT_SUPPORTED"
+
+    def __init__(self, start_floor_id: str, destination_floor_id: str):
+        self.start_floor_id = start_floor_id
+        self.destination_floor_id = destination_floor_id
+        super().__init__(
+            f"Cross-floor navigation is currently unsupported: start floor '{start_floor_id}' does not match destination floor '{destination_floor_id}'"
+        )
+
+
+class BlockedLocationError(AppError):
+    status_code = 409
+    code = "LOCATION_BLOCKED"
+
+    def __init__(self, location_id: str, location_type: str = "Location"):
+        self.location_id = location_id
+        self.location_type = location_type
+        super().__init__(f"{location_type.capitalize()} '{location_id}' is currently blocked or unavailable")
+
+
+class InvalidNavigationInput(ValidationError):
+    code = "INVALID_NAVIGATION_INPUT"
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class MissingCorridorAttachment(ValidationError):
+    code = "MISSING_CORRIDOR_ATTACHMENT"
+
+    def __init__(self, room_id: str):
+        self.room_id = room_id
+        super().__init__(f"Room '{room_id}' is not attached to any corridor edge")
