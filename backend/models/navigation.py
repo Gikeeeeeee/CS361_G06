@@ -43,6 +43,27 @@ class CorridorEdge:
 
 
 @dataclass(frozen=True)
+class VerticalConnection:
+    """A physical vertical transition (staircase or elevator) between two floors."""
+
+    id: str
+    building_id: str
+    connection_type: str  # "STAIRS" | "ELEVATOR"
+    from_floor_id: str
+    from_node_id: str
+    to_floor_id: str
+    to_node_id: str
+    distance_weight: float = 30.0
+    status: str = "ACTIVE"
+    bidirectional: bool = True
+    name: str | None = None
+
+    @property
+    def is_active(self) -> bool:
+        return (self.status or "").upper() == "ACTIVE"
+
+
+@dataclass(frozen=True)
 class QRLocation:
     """A physical QR checkpoint associated with a navigation node."""
 
@@ -108,6 +129,24 @@ class RoutePathPoint:
 
 
 @dataclass
+class FloorSegment:
+    """A floor-specific SVG polyline and nodes for a multi-floor route."""
+
+    floor_id: str
+    floor_number: int
+    svg_key: str
+    nodes: list[dict[str, Any]]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "floor_id": self.floor_id,
+            "floor_number": self.floor_number,
+            "svg_key": self.svg_key,
+            "nodes": self.nodes,
+        }
+
+
+@dataclass
 class RouteStep:
     """A single human-readable step-by-step navigation instruction."""
 
@@ -116,15 +155,28 @@ class RouteStep:
     instruction: str
     distance: float
     path_indices: list[int] = field(default_factory=list)
+    floor_number: int | None = None
+    from_floor_number: int | None = None
+    to_floor_number: int | None = None
+    transition_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "step_index": self.step_index,
             "action": self.action,
             "instruction": self.instruction,
             "distance": round(self.distance, 2),
             "path_indices": list(self.path_indices),
         }
+        if self.floor_number is not None:
+            result["floor_number"] = self.floor_number
+        if self.from_floor_number is not None:
+            result["from_floor_number"] = self.from_floor_number
+        if self.to_floor_number is not None:
+            result["to_floor_number"] = self.to_floor_number
+        if self.transition_type is not None:
+            result["transition_type"] = self.transition_type
+        return result
 
 
 @dataclass
@@ -136,19 +188,25 @@ class RouteSummary:
     total_distance: float
     estimated_time_seconds: int | None = None
     is_rerouted: bool = False
+    is_cross_floor: bool = False
+    floors_traversed: list[dict[str, Any]] | None = None
     start_location: dict[str, Any] = field(default_factory=dict)
     destination: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "floor_id": self.floor_id,
             "building_id": self.building_id,
             "total_distance": round(self.total_distance, 2),
             "estimated_time_seconds": self.estimated_time_seconds,
             "is_rerouted": self.is_rerouted,
+            "is_cross_floor": self.is_cross_floor,
             "start_location": dict(self.start_location),
             "destination": dict(self.destination),
         }
+        if self.floors_traversed is not None:
+            result["floors_traversed"] = self.floors_traversed
+        return result
 
 
 @dataclass
@@ -158,11 +216,14 @@ class RouteResult:
     summary: RouteSummary
     svg_path: dict[str, Any]
     steps: list[RouteStep]
+    floor_segments: list[FloorSegment] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "summary": self.summary.to_dict(),
             "svg_path": self.svg_path,
             "steps": [s.to_dict() for s in self.steps],
         }
-
+        if self.floor_segments is not None:
+            result["floor_segments"] = [seg.to_dict() for seg in self.floor_segments]
+        return result

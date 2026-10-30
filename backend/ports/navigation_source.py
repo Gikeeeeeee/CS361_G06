@@ -8,6 +8,8 @@ Layer: port (domain boundary).
 from abc import ABC, abstractmethod
 from typing import Any
 
+from models.navigation import VerticalConnection
+
 
 class NavigationSource(ABC):
     """Outbound port for fetching navigation nodes, corridor edges, and attachments."""
@@ -45,4 +47,9 @@ class NavigationSource(ABC):
         self, node_id: str, floor_id: str | None = None
     ) -> dict[str, Any] | None:
         """Locate a navigation node record by ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_vertical_connections(self, building_id: str) -> list[VerticalConnection]:
+        """Fetch all vertical connections (stairs, elevators) for a building."""
         raise NotImplementedError

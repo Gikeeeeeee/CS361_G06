@@ -59,16 +59,17 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
-    def __init__(self, source=None, schedule_source=None, user_source=None, bookmark_source=None, navigation_source=None):
-        building_source = (
-            source if source is not None else BuildingRepository()
-        )
-        room_source = (
-            source if source is not None else RoomRepository()
-        )
-        facility_source = (
-            source if source is not None else FacilityRepository()
-        )
+    def __init__(
+        self,
+        source=None,
+        schedule_source=None,
+        user_source=None,
+        bookmark_source=None,
+        navigation_source=None,
+    ):
+        building_source = source if source is not None else BuildingRepository()
+        room_source = source if source is not None else RoomRepository()
+        facility_source = source if source is not None else FacilityRepository()
 
         self.buildings = BuildingService(building_source)
         self.floors = FloorService(building_source)
@@ -84,11 +85,7 @@ class Dependencies:
         self.search = None
 
         self._user_source = user_source
-        self._users = (
-            UserService(user_source)
-            if user_source is not None
-            else None
-        )
+        self._users = UserService(user_source) if user_source is not None else None
 
         self._bookmark_source = bookmark_source
         self._bookmarks = None
@@ -126,7 +123,6 @@ class Dependencies:
             self._users = UserService(source)
         return self._users
 
-
     @property
     def schedules(self) -> ScheduleService:
         if self._schedules is None:
@@ -141,16 +137,18 @@ class Dependencies:
     @schedules.setter
     def schedules(self, value: ScheduleService):
         self._schedules = value
-        if self._schedules is not None and getattr(self._schedules, "room_service", None) is None:
+        if (
+            self._schedules is not None
+            and getattr(self._schedules, "room_service", None) is None
+        ):
             self._schedules.room_service = self.rooms
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
+
     def ensure_search(self):
         if self.search is None:
-            self.search = SearchService(
-                OpenSearchRepository()
-            )
+            self.search = SearchService(OpenSearchRepository())
         return self.search
 
     @property
@@ -253,12 +251,10 @@ def _get_routes(deps: Dependencies, p: dict) -> dict:
     )
     res_dict = route_res.to_dict()
     path_nodes = [
-        pt["node_id"]
-        for pt in res_dict["svg_path"]["nodes"]
-        if pt.get("node_id")
+        pt["node_id"] for pt in res_dict["svg_path"]["nodes"] if pt.get("node_id")
     ]
     instructions = [step["instruction"] for step in res_dict["steps"]]
-    return {
+    ret = {
         "summary": res_dict["summary"],
         "path_nodes": path_nodes,
         "instructions": instructions,
@@ -266,6 +262,9 @@ def _get_routes(deps: Dependencies, p: dict) -> dict:
         "svg_path": res_dict["svg_path"],
         "steps": res_dict["steps"],
     }
+    if "floor_segments" in res_dict:
+        ret["floor_segments"] = res_dict["floor_segments"]
+    return ret
 
 
 BOOKMARKS = "/api/v1/bookmarks"
@@ -423,13 +422,17 @@ ROUTES = {
     ),
     f"GET {SEARCH}": Route(
         (),
-        lambda deps, p: deps.ensure_search().search(
-            p["query"],
-            entity_type=p.get("type"),
-            building_id=p.get("buildingId"),
-            page=p.get("page", 1),
-            page_size=p.get("pageSize", 20),
-        ).to_dict(),
+        lambda deps, p: (
+            deps.ensure_search()
+            .search(
+                p["query"],
+                entity_type=p.get("type"),
+                building_id=p.get("buildingId"),
+                page=p.get("page", 1),
+                page_size=p.get("pageSize", 20),
+            )
+            .to_dict()
+        ),
     ),
     SCHEDULE_IMPORTS: Route(
         ("body",),
@@ -485,11 +488,7 @@ _PATTERNS = [(*_compile(key), key) for key in ROUTES]
 def _method(event: dict) -> str:
     http_info = (event.get("requestContext") or {}).get("http") or {}
 
-    return (
-        http_info.get("method")
-        or event.get("httpMethod")
-        or ""
-    ).upper()
+    return (http_info.get("method") or event.get("httpMethod") or "").upper()
 
 
 def _path(event: dict) -> str:
@@ -500,7 +499,9 @@ def _raw_body(event: dict) -> bytes:
     """Body as bytes, base64-decoded when API Gateway encoded it."""
     body = event["body"]
 
-    return base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+    return (
+        base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+    )
 
 
 def _json_body(body) -> dict:
@@ -637,18 +638,13 @@ def lambda_handler(event, context):
 
         route = ROUTES[route_key]
 
-        missing = [
-            name for name in route.required_params if not params.get(name)
-        ]
+        missing = [name for name in route.required_params if not params.get(name)]
 
         if missing:
             raise MissingParameters(missing)
 
         if route_key == f"GET {SEARCH}":
-            query_params = (
-                event.get("queryStringParameters")
-                or {}
-            )
+            query_params = event.get("queryStringParameters") or {}
 
             params["query"] = query_params.get("q")
 
@@ -658,17 +654,12 @@ def lambda_handler(event, context):
             params["type"] = query_params.get("type")
             params["buildingId"] = query_params.get("buildingId")
             try:
-                params["page"] = int(
-                    query_params.get("page", 1)
-                )
+                params["page"] = int(query_params.get("page", 1))
 
-                params["pageSize"] = int(
-                    query_params.get("pageSize", 20)
-                )
+                params["pageSize"] = int(query_params.get("pageSize", 20))
             except ValueError as exc:
                 raise AppError(
-                    "INVALID_PARAMETER"
-                    "page and pageSize must be integers"
+                    "INVALID_PARAMETERpage and pageSize must be integers"
                 ) from exc
 
         if route_key == f"GET {SCHEDULES}":
@@ -680,7 +671,9 @@ def lambda_handler(event, context):
             try:
                 params["pageSize"] = int(params.get("pageSize", 20))
             except (TypeError, ValueError) as exc:
-                raise InvalidParameter("pageSize must be an integer between 1 and 100.") from exc
+                raise InvalidParameter(
+                    "pageSize must be an integer between 1 and 100."
+                ) from exc
 
             if not 1 <= params["pageSize"] <= 100:
                 raise InvalidParameter("pageSize must be an integer between 1 and 100.")
