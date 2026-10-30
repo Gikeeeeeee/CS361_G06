@@ -43,6 +43,8 @@ from repositories.supabase_user_repository import SupabaseUserRepository
 from repositories.supabase_bookmark_repository import SupabaseBookmarkRepository
 from services.user_service import UserService
 from services.bookmark_service import BookmarkService
+from repositories.navigation_repository import NavigationRepository
+from services.navigation_service import NavigationService
 from models.schedule import TYPES
 
 logger = logging.getLogger()
@@ -57,7 +59,7 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
-    def __init__(self, source=None, schedule_source=None, user_source=None, bookmark_source=None):
+    def __init__(self, source=None, schedule_source=None, user_source=None, bookmark_source=None, navigation_source=None):
         building_source = (
             source if source is not None else BuildingRepository()
         )
@@ -90,6 +92,20 @@ class Dependencies:
 
         self._bookmark_source = bookmark_source
         self._bookmarks = None
+
+        self._navigation_source = navigation_source
+        self._navigation = None
+
+    @property
+    def navigation(self) -> NavigationService:
+        if self._navigation is None:
+            source = (
+                self._navigation_source
+                if self._navigation_source is not None
+                else NavigationRepository()
+            )
+            self._navigation = NavigationService(source)
+        return self._navigation
 
     @property
     def bookmarks(self) -> BookmarkService:
@@ -182,6 +198,73 @@ def _get_me(deps: Dependencies, p: dict) -> dict:
     return {
         "success": True,
         "data": user.to_dict(),
+    }
+
+
+ROUTES_SEARCH = "/api/v1/routes/search"
+ROUTES_GET = "/api/v1/routes"
+
+
+def _search_routes(deps: Dependencies, p: dict) -> dict:
+    body = p.get("body")
+    if not isinstance(body, dict):
+        raise ValidationError("Request body must be a JSON object")
+
+    start_id = body.get("start_id")
+    start_type = body.get("start_type")
+    destination_id = body.get("destination_id")
+    destination_type = body.get("destination_type", "ROOM")
+    preferences = body.get("preferences")
+
+    if not start_id:
+        raise MissingParameters(["start_id"])
+    if not start_type:
+        raise MissingParameters(["start_type"])
+    if not destination_id:
+        raise MissingParameters(["destination_id"])
+
+    route_res = deps.navigation.calculate_route(
+        start_id=str(start_id),
+        start_type=str(start_type),
+        destination_id=str(destination_id),
+        destination_type=str(destination_type),
+        preferences=preferences,
+    )
+    return {
+        "success": True,
+        "data": route_res.to_dict(),
+    }
+
+
+def _get_routes(deps: Dependencies, p: dict) -> dict:
+    start_node = p.get("start_node")
+    destination_room = p.get("destination_room")
+
+    if not start_node:
+        raise MissingParameters(["start_node"])
+    if not destination_room:
+        raise MissingParameters(["destination_room"])
+
+    route_res = deps.navigation.calculate_route(
+        start_id=str(start_node),
+        start_type="NODE",
+        destination_id=str(destination_room),
+        destination_type="ROOM",
+    )
+    res_dict = route_res.to_dict()
+    path_nodes = [
+        pt["node_id"]
+        for pt in res_dict["svg_path"]["nodes"]
+        if pt.get("node_id")
+    ]
+    instructions = [step["instruction"] for step in res_dict["steps"]]
+    return {
+        "summary": res_dict["summary"],
+        "path_nodes": path_nodes,
+        "instructions": instructions,
+        "is_rerouted": res_dict["summary"]["is_rerouted"],
+        "svg_path": res_dict["svg_path"],
+        "steps": res_dict["steps"],
     }
 
 
@@ -359,6 +442,10 @@ ROUTES = {
     f"GET {BOOKMARKS}": Route((), _list_bookmarks),
     f"POST {BOOKMARKS}": Route(("body",), _add_bookmark),
     f"DELETE {BOOKMARK}": Route(("entityId",), _remove_bookmark),
+    f"POST {ROUTES_SEARCH}": Route(("body",), _search_routes),
+    "POST /routes/search": Route(("body",), _search_routes),
+    f"GET {ROUTES_GET}": Route(("start_node", "destination_room"), _get_routes),
+    "GET /routes": Route(("start_node", "destination_room"), _get_routes),
 }
 
 # Routes any signed-in user may call (no STAFF role); verified per request.
@@ -369,6 +456,12 @@ USER_ROUTES = {
     f"DELETE {BOOKMARK}",
 }
 _USER_WRITE_PATH = re.compile(re.escape(BOOKMARKS) + r"(/[^/]+)?/?$")
+
+PUBLIC_WRITE_ROUTES = {
+    f"POST {ROUTES_SEARCH}",
+    "POST /routes/search",
+}
+_PUBLIC_WRITE_PATH = re.compile(r"^(/api/v1)?/routes/search/?$")
 
 
 def _compile(route_key: str) -> tuple[str, re.Pattern]:
@@ -523,7 +616,12 @@ def lambda_handler(event, context):
             if event_key in ROUTES
             else bool(_USER_WRITE_PATH.search(path))
         )
-        if method in ("POST", "PUT", "DELETE") and not user_route:
+        public_write = (
+            event_key in PUBLIC_WRITE_ROUTES
+            if event_key in ROUTES
+            else bool(_PUBLIC_WRITE_PATH.search(path))
+        )
+        if method in ("POST", "PUT", "DELETE") and not user_route and not public_write:
             verify_token(event, required_role="STAFF")
 
         route_key, params = _resolve(event, method, path)
@@ -608,8 +706,10 @@ def lambda_handler(event, context):
 
         preview = route_key == SCHEDULE_IMPORTS and _dry_run(params)
 
+        is_search = route_key in PUBLIC_WRITE_ROUTES
         return response.ok(
-            route.action(DEPS, params), 201 if method == "POST" and not preview else 200
+            route.action(DEPS, params),
+            200 if (is_search or preview or method != "POST") else 201,
         )
 
     except AppError as exc:
