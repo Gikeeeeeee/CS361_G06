@@ -1,0 +1,16 @@
+# Sandbox stack for pre-merge live tests. Use with its own workspace:
+#   terraform workspace select -or-create sandbox
+#   terraform apply -var-file=sandbox.tfvars
+# Copy to sandbox.tfvars and fill the Supabase values from terraform.tfvars.
+aws_region = "ap-southeast-2"
+
+project_name = "CS361-G06-test"
+environment  = "sandbox"
+
+bucket_name                = "cs361-g06-building-data-v3-test-sandbox"
+dynamodb_table_name        = "CS361-G06-data-dynamodb-sandbox"
+opensearch_collection_name = "faculty-search-sbx"
+opensearch_index           = "university-sandbox"
+
+supabase_url        = "https://<project-id>.supabase.co"
+supabase_jwt_secret = "<same as terraform.tfvars>"
