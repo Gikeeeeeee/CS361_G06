@@ -11,6 +11,13 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const STATUS_CACHE_KEY = 'ku_long_status_overlay_cache';
 
 /**
+ * Flag for UI/UX Design & Prototype Review Phase
+ * When true, serves mock data directly with 0ms latency and zero network errors in console.
+ * Set to false when ready to integrate with live backend endpoints.
+ */
+const IS_MOCK_MODE = true;
+
+/**
  * In-memory & Session-synchronized cache for 0ms UI reactivity
  */
 function getLocalCache(): Record<string, FloorStatusOverlayData> {
@@ -42,30 +49,31 @@ export const statusApi = {
   async getFloorStatusOverlay(floorId: string): Promise<FloorStatusOverlayData> {
     const local = getLocalCache()[floorId];
 
-    try {
-      const response = await fetch(`${BASE_URL}/api/v1/floors/${encodeURIComponent(floorId)}/status-overlay`);
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          // Merge with any optimistic local modifications
-          const merged: FloorStatusOverlayData = {
-            ...json.data,
-            rooms: json.data.rooms.map((r: RoomStatusItem) => {
-              const localRoom = local?.rooms.find((lr) => lr.room_id === r.room_id || lr.room_code === r.room_code);
-              return localRoom || r;
-            }),
-          };
-          const cache = getLocalCache();
-          cache[floorId] = merged;
-          saveLocalCache(cache);
-          return merged;
+    if (!IS_MOCK_MODE) {
+      try {
+        const response = await fetch(`${BASE_URL}/api/v1/floors/${encodeURIComponent(floorId)}/status-overlay`);
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && json.data) {
+            const merged: FloorStatusOverlayData = {
+              ...json.data,
+              rooms: json.data.rooms.map((r: RoomStatusItem) => {
+                const localRoom = local?.rooms.find((lr) => lr.room_id === r.room_id || lr.room_code === r.room_code);
+                return localRoom || r;
+              }),
+            };
+            const cache = getLocalCache();
+            cache[floorId] = merged;
+            saveLocalCache(cache);
+            return merged;
+          }
         }
+      } catch {
+        // Fallback to local
       }
-    } catch {
-      // Backend not yet reached, fallback to mock overlay below
     }
 
-    // Fallback: If cached in session, return it
+    // Return cached session overlay if already initialized/modified
     if (local) return local;
 
     // Dynamic mock overlay generator for any floorId
@@ -151,48 +159,31 @@ export const statusApi = {
       status_note: statusNote,
     };
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    try {
-      const response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(roomId)}/status`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          this.applyLocalRoomUpdate(floorId, json.data);
-          return json.data;
-        }
+    if (!IS_MOCK_MODE) {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
-    } catch {
-      // Fallback to local optimistic update
-    }
 
-    // Try without /api/v1 prefix
-    try {
-      const response = await fetch(`${BASE_URL}/locations/rooms/${encodeURIComponent(roomId)}/status`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(payload),
-      });
+      try {
+        const response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(roomId)}/status`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(payload),
+        });
 
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          this.applyLocalRoomUpdate(floorId, json.data);
-          return json.data;
+        if (response.ok) {
+          const json = await response.json();
+          if (json.success && json.data) {
+            this.applyLocalRoomUpdate(floorId, json.data);
+            return json.data;
+          }
         }
+      } catch {
+        // Fallback to local
       }
-    } catch {
-      // Fallback
     }
 
     const updatedItem: RoomStatusItem = {
