@@ -130,6 +130,24 @@ export const navigationApi = {
   /**
    * Get all registered QR checkpoints
    */
+  async getCheckpointsAsync(): Promise<QRCheckpoint[]> {
+    try {
+      const response = await fetch(`${BASE_URL}/api/v1/routes/checkpoints`);
+      if (response.ok) {
+        const json = await response.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return json.data;
+        }
+      }
+    } catch {
+      // Offline fallback
+    }
+    return DEFAULT_CHECKPOINTS;
+  },
+
+  /**
+   * Get all registered QR checkpoints (synchronous default)
+   */
   getCheckpoints(): QRCheckpoint[] {
     return DEFAULT_CHECKPOINTS;
   },
@@ -208,60 +226,78 @@ function normalizeRouteData(data: any): RouteResult {
 
 /**
  * Deterministic mock generator matching backend V4 spec
+ * Dynamically computes floor_id and corridor navigation steps
  */
 function generateMockRoute(params: RouteSearchParams): RouteResult {
   const destName = params.destination_id.replace(/^RM_/, '').replace(/^room-/i, '');
   const startName = params.start_id.replace(/^NODE_/, '').replace(/_/g, ' ');
 
-  // Standard corridor coordinates for campus floor plan
+  // Extract building code and floor number dynamically from destination string
+  const match = destName.match(/^([a-zA-Z0-9]+)[-_]([0-9]+)/);
+  const bCode = match ? match[1].toUpperCase() : 'LC4';
+  const roomNum = match ? match[2] : destName;
+  const floorNum = roomNum.length >= 3 ? parseInt(roomNum[0], 10) : 1;
+  const floorId = `FL_${bCode}_0${floorNum}`;
+
+  const isWheelchair = Boolean(params.preferences?.wheelchair_accessible);
+
+  // Corridor coordinates for visual route polyline
   const nodes = [
-    { node_id: 'NODE_START', x: 120, y: 380, is_checkpoint: true, name: 'จุดเริ่มต้น' },
+    { node_id: 'NODE_START', x: 120, y: 380, is_checkpoint: true, name: startName || 'จุดเริ่มต้น' },
     { node_id: 'NODE_JUNC_MAIN', x: 280, y: 380, is_checkpoint: true, name: 'โถงกลาง' },
     { node_id: 'NODE_JUNC_NORTH', x: 280, y: 160, is_checkpoint: true, name: 'โถงทิศเหนือ' },
     { node_id: 'NODE_DEST', x: 440, y: 160, is_checkpoint: true, name: destName },
   ];
 
+  const steps = [
+    {
+      step_index: 1,
+      action: 'DEPART' as const,
+      instruction: isWheelchair
+        ? 'จากจุดเริ่มต้น มุ่งหน้าไปตามทางลาดโถงหลัก 15 เมตร'
+        : 'จากจุดเริ่มต้น เดินตรงไปตามทางเดินหลัก 15 เมตร',
+      distance: 15,
+      from_node_id: 'NODE_START',
+      to_node_id: 'NODE_JUNC_MAIN',
+      checkpoint_pin: { x: 280, y: 380 },
+    },
+    {
+      step_index: 2,
+      action: 'TURN_RIGHT' as const,
+      instruction: isWheelchair
+        ? 'เลี้ยวขวาที่ทางแยกหน้าโถงลิฟต์ เข้าสู่โถงทิศเหนือ (มีทางลาดกว้าง)'
+        : 'เลี้ยวขวาที่ทางแยกหน้าห้องน้ำ เข้าสู่โถงทิศเหนือ',
+      distance: 20,
+      from_node_id: 'NODE_JUNC_MAIN',
+      to_node_id: 'NODE_JUNC_NORTH',
+      checkpoint_pin: { x: 280, y: 160 },
+    },
+    {
+      step_index: 3,
+      action: 'ARRIVE' as const,
+      instruction: `ห้อง ${destName} จะอยู่ทางซ้ายมือ เป็นห้องที่ 2`,
+      distance: 10,
+      from_node_id: 'NODE_JUNC_NORTH',
+      to_node_id: 'NODE_DEST',
+      checkpoint_pin: { x: 440, y: 160 },
+    },
+  ];
+
   return {
     summary: {
-      start_name: startName || 'โถงลิฟต์แก้ว ชั้น 4',
-      destination_name: destName || 'BR2-401',
-      estimated_time_minutes: 2,
+      start_name: startName || 'โถงกลาง ชั้น 1',
+      destination_name: destName || 'LC4-101',
+      estimated_time_minutes: isWheelchair ? 3 : 2,
       total_distance_meters: 45,
-      is_rerouted: false,
+      floor_id: floorId,
+      building_id: bCode,
+      is_rerouted: isWheelchair,
     },
     svg_path: {
-      floor_id: 'FL_LC4_01',
+      floor_id: floorId,
       nodes,
     },
-    steps: [
-      {
-        step_index: 1,
-        action: 'DEPART',
-        instruction: 'จากจุดเริ่มต้น เดินตรงไปตามทางเดินหลัก 15 เมตร',
-        distance: 15,
-        from_node_id: 'NODE_START',
-        to_node_id: 'NODE_JUNC_MAIN',
-        checkpoint_pin: { x: 280, y: 380 },
-      },
-      {
-        step_index: 2,
-        action: 'TURN_RIGHT',
-        instruction: 'เลี้ยวขวาที่ทางแยกหน้าห้องน้ำ เข้าสู่โถงทิศเหนือ',
-        distance: 20,
-        from_node_id: 'NODE_JUNC_MAIN',
-        to_node_id: 'NODE_JUNC_NORTH',
-        checkpoint_pin: { x: 280, y: 160 },
-      },
-      {
-        step_index: 3,
-        action: 'ARRIVE',
-        instruction: `ห้อง ${destName} จะอยู่ทางซ้ายมือ เป็นห้องที่ 2`,
-        distance: 10,
-        from_node_id: 'NODE_JUNC_NORTH',
-        to_node_id: 'NODE_DEST',
-        checkpoint_pin: { x: 440, y: 160 },
-      },
-    ],
-    is_rerouted: false,
+    steps,
+    is_rerouted: isWheelchair,
   };
 }
