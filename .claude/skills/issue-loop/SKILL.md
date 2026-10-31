@@ -28,6 +28,7 @@ Follow CLAUDE.md (layering, conventions, testing) throughout. Use `gh` for all G
 1. **Branch**: `git fetch origin && git switch -c <type>/<short-slug>-<n> origin/V4`.
 2. **Diagram** (only if Diagram impact = yes):
    - Edit `docs/architecture.drawio` (uncompressed mxGraph XML; it is the source of truth).
+     `/docs` is gitignored on purpose: diagram files stay local and are never staged or committed.
      Reuse existing cell styles/icons; new cells need unique `id`s; edges reference `source`/`target` ids.
    - If the `drawio` CLI is on PATH, export:
      `drawio -x -f png -e -o "docs/AWS V3 Diagram.drawio.png" docs/architecture.drawio`
@@ -66,7 +67,7 @@ Follow CLAUDE.md (layering, conventions, testing) throughout. Use `gh` for all G
    ## Summary
    ## Decisions
    ## Architecture
-   (changed / unchanged; what changed)
+   (changed / unchanged; the plain-text diagram diff approved in step 2 — the diagram file itself is not in the repo)
    ## Test results
    ### Unit / integration
    <pytest summary line + pre-existing failures, in a ```text block>
