@@ -3,6 +3,13 @@ import type { RouteResult, RouteSearchParams, QRCheckpoint } from '../types/navi
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
+ * Flag for UI/UX Design & Prototype Review Phase
+ * When true, serves dynamic mock route with 0ms latency and zero network errors in console.
+ * Set to false when ready to integrate with live backend endpoints.
+ */
+const IS_MOCK_MODE = true;
+
+/**
  * Standard campus checkpoints with physical QR codes
  */
 export const DEFAULT_CHECKPOINTS: QRCheckpoint[] = [
@@ -62,6 +69,10 @@ export const navigationApi = {
    * Endpoint: POST /api/v1/routes/search
    */
   async searchRoute(params: RouteSearchParams): Promise<RouteResult> {
+    if (IS_MOCK_MODE) {
+      return generateMockRoute(params);
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/api/v1/routes/search`, {
         method: 'POST',
@@ -105,6 +116,15 @@ export const navigationApi = {
    * Endpoint: GET /api/v1/routes?start_node=...&destination_room=...
    */
   async getRoutes(startNode: string, destinationRoom: string): Promise<RouteResult> {
+    if (IS_MOCK_MODE) {
+      return generateMockRoute({
+        start_id: startNode,
+        start_type: 'NODE',
+        destination_id: destinationRoom,
+        destination_type: 'ROOM',
+      });
+    }
+
     try {
       const url = `${BASE_URL}/api/v1/routes?start_node=${encodeURIComponent(startNode)}&destination_room=${encodeURIComponent(destinationRoom)}`;
       const response = await fetch(url);
