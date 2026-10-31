@@ -1,4 +1,5 @@
 import json
+import threading
 from datetime import date, timedelta
 
 import pytest
@@ -11,11 +12,12 @@ from errors import (
     CsvTooManyRows,
     ImportConflict,
     ImportRejected,
+    ScheduleWriteRace,
 )
 from models.schedule import CSV_HEADER
 from services.schedule_import_service import ScheduleImportService
 from services.schedule_service import ScheduleService
-from tests.conftest import FakeScheduleSource
+from tests.conftest import FakeScheduleSource, race
 
 pytestmark = pytest.mark.unit
 
@@ -272,3 +274,18 @@ def test_row_errors_win_over_conflicts_without_querying(service, store, monkeypa
 
     with pytest.raises(ImportRejected):
         service.import_csv(_csv(_row(), _row(), _row(type="PARTY")), dry_run=True)
+
+
+def test_import_racing_a_single_booking_saves_only_one(service, store):
+    store.check_barrier = threading.Barrier(2)  # both pass the check first
+    payload = {"type": "COURSE", "title": "Walk-in", "start_at": "2026-10-05T10:00:00+07:00",
+               "end_at": "2026-10-05T11:00:00+07:00", "time_zone": "Asia/Bangkok",
+               "status": "CONFIRM"}
+
+    results = race(
+        lambda: service.import_csv(_csv(_row()), dry_run=False),
+        lambda: ScheduleService(store).create_schedule(LAB, payload),
+    )
+
+    assert sum(isinstance(r, ScheduleWriteRace) for r in results) == 1
+    assert len(store.schedules) == 1

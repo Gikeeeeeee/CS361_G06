@@ -8,7 +8,7 @@ import boto3
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from errors import InvalidParameter, UpstreamError
+from errors import InvalidParameter, ScheduleWriteRace, UpstreamError
 from models.schedule import to_utc
 from ports.schedule_source import ScheduleSource
 
@@ -17,6 +17,10 @@ from ports.schedule_source import ScheduleSource
 _KEY_ATTRS = {"PK", "SK"} | {
     f"GSI{index}{part}" for index in range(7) for part in ("PK", "SK")
 }
+
+# A transaction cancelled for one of these means another writer got there first.
+_RACE_CODES = {"ConditionalCheckFailed", "TransactionConflict"}
+_TRANSACT_LIMIT = 100
 
 
 class ScheduleRepository(ScheduleSource):
@@ -99,22 +103,52 @@ class ScheduleRepository(ScheduleSource):
 
         return [self._to_dict(item) for item in self._run(query)]
 
-    def save_schedule(self, schedule: dict[str, Any]) -> None:
-        """AP21/AP22: put the whole item -- create, or replace on PUT."""
+    def get_room_version(self, room_id: str) -> int:
+        """Read the room's write counter; 0 if nothing was ever written."""
         try:
-            self.table.put_item(Item=self._to_item(schedule))
-
+            item = self.table.get_item(Key=self._version_key(room_id)).get("Item")
         except ClientError as exc:
-            raise self._upstream(exc, "writing to") from exc
+            raise self._upstream(exc, "reading from") from exc
 
-    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
-        """CSV import: batch_writer sends 25 items per call and retries leftovers.
+        return int(item["version"]) if item else 0
 
-        NOTE: BatchWriteItem is NOT transactional. The service rejects the whole
-        file before writing, but if DynamoDB fails mid-write, the chunks already
-        sent stay saved. Accepted for now: TransactWriteItems caps at 100 actions
-        (a file can expand to 2000) and would also mean reworking US1/US2 CRUD.
-        If partial imports ever become a real problem, switch to TransactWriteItems.
+    def save_schedule(
+        self,
+        schedule: dict[str, Any],
+        version: int,
+        delete_from: str | None = None,
+    ) -> None:
+        """AP21/AP22: put the item and bump the room version in one transaction.
+
+        `delete_from` removes the old item when a schedule moves rooms.
+        """
+        actions = [
+            {"Put": {"TableName": self.table.name, "Item": self._to_item(schedule)}}
+        ]
+        if delete_from:
+            actions.append(
+                {
+                    "Delete": {
+                        "TableName": self.table.name,
+                        "Key": self._key(delete_from, schedule["id"]),
+                    }
+                }
+            )
+        actions.append(self._bump(schedule["room_id"], version))
+
+        self._transact(actions)
+
+    def save_schedules(
+        self, schedules: list[dict[str, Any]], versions: dict[str, int]
+    ) -> None:
+        """CSV import: write the rows, then bump every touched room's version.
+
+        Writing first means a concurrent single booking either sees these rows
+        on its check or loses the version race. If any bump fails, the rows are
+        deleted again. Bumps already applied are harmless (other writers retry).
+
+        NOTE: BatchWriteItem is NOT transactional. If Lambda dies mid-write the
+        rows already sent stay saved; async import (#241) is where that gets fixed.
         """
         try:
             with self.table.batch_writer() as batch:
@@ -123,6 +157,16 @@ class ScheduleRepository(ScheduleSource):
 
         except ClientError as exc:
             raise self._upstream(exc, "writing to") from exc
+
+        actions = [self._bump(room_id, version) for room_id, version in versions.items()]
+        try:
+            for start in range(0, len(actions), _TRANSACT_LIMIT):
+                self._transact(actions[start:start + _TRANSACT_LIMIT])
+        except Exception:
+            with self.table.batch_writer() as batch:
+                for schedule in schedules:
+                    batch.delete_item(Key=self._key(schedule["room_id"], schedule["id"]))
+            raise
 
     def get_schedule(
         self,
@@ -194,6 +238,38 @@ class ScheduleRepository(ScheduleSource):
             raise self._upstream(exc, "deleting from") from exc
 
     # -- internals ---------------------------------------------------------
+
+    @staticmethod
+    def _version_key(room_id: str) -> dict[str, str]:
+        return {"PK": f"ROOM#{room_id}", "SK": "SCHEDULE_VERSION"}
+
+    def _bump(self, room_id: str, version: int) -> dict[str, Any]:
+        """Transaction action: version -> version + 1, only if still `version`."""
+        values = {":next": version + 1}
+        if version:
+            values[":seen"] = version
+
+        return {
+            "Update": {
+                "TableName": self.table.name,
+                "Key": self._version_key(room_id),
+                "UpdateExpression": "SET #v = :next",
+                "ConditionExpression": "#v = :seen" if version else "attribute_not_exists(#v)",
+                "ExpressionAttributeNames": {"#v": "version"},
+                "ExpressionAttributeValues": values,
+            }
+        }
+
+    def _transact(self, actions: list[dict[str, Any]]) -> None:
+        # The resource's client serializes plain Python values itself.
+        try:
+            self.table.meta.client.transact_write_items(TransactItems=actions)
+
+        except ClientError as exc:
+            reasons = exc.response.get("CancellationReasons", [])
+            if any(reason.get("Code") in _RACE_CODES for reason in reasons):
+                raise ScheduleWriteRace() from exc
+            raise self._upstream(exc, "writing to") from exc
 
     def _run(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         """Collect every page of the query."""

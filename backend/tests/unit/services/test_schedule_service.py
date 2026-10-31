@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 
 from errors import (
@@ -5,6 +7,7 @@ from errors import (
     NotFoundError,
     ScheduleConflict,
     ScheduleNotFound,
+    ScheduleWriteRace,
     ValidationError,
 )
 from models.schedule import (
@@ -16,6 +19,7 @@ from models.schedule import (
     validate,
 )
 from services.schedule_service import ScheduleService
+from tests.conftest import race
 
 ROOM = "room-uuid-1"
 WEEKLY_15 = "FREQ=WEEKLY;BYDAY=WE;COUNT=15"
@@ -750,3 +754,33 @@ def test_validate_enforces_visibility_and_defaults_to_public():
         validate(_payload(visibility="SECRET"))
 
 
+
+
+# -- concurrency (#238) -------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_concurrent_creates_on_the_same_slot_book_only_once(empty_source):
+    empty_source.check_barrier = threading.Barrier(2)  # both pass the check first
+    service = ScheduleService(empty_source)
+
+    results = race(
+        lambda: service.create_schedule(ROOM, _payload()),
+        lambda: service.create_schedule(ROOM, _payload(title="Other club")),
+    )
+
+    assert results.count("created") == 1
+    assert sum(isinstance(r, ScheduleWriteRace) for r in results) == 1
+    assert len(empty_source.schedules) == 1
+
+
+@pytest.mark.unit
+def test_update_moving_rooms_deletes_the_old_item_in_the_same_save(empty_source):
+    service = ScheduleService(empty_source)
+    service.create_schedule(ROOM, _payload())
+    [created] = empty_source.schedules
+
+    service.update_schedule(ROOM, created["id"], _payload(room_id="room-2"))
+
+    assert [(s["room_id"], s["id"]) for s in empty_source.schedules] == [("room-2", created["id"])]
+    assert empty_source.versions == {ROOM: 1, "room-2": 1}
