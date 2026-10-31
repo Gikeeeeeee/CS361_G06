@@ -135,6 +135,16 @@ class ScheduleConflict(AppError):
         )
 
 
+class ScheduleWriteRace(ScheduleConflict):
+    """Another write to the same room landed between our check and our save."""
+
+    def __init__(self):
+        AppError.__init__(
+            self,
+            "Another booking for this room was saved at the same time. Please try again.",
+        )
+
+
 class FacilityNotFound(NotFoundError):
 
     code = "FACILITY_NOT_FOUND"

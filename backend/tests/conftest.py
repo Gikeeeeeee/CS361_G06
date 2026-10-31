@@ -2,6 +2,7 @@ import base64
 import binascii
 import json
 import os
+import threading
 from typing import Any
 import pytest
 
@@ -147,6 +148,11 @@ class FakeScheduleSource:
         else:
             self.schedules = list(schedules or [])
         self.deleted_schedule = None
+        self.versions: dict[str, int] = {}
+        self.lock = threading.Lock()
+        # Set to a threading.Barrier to hold every overlap check until all
+        # racing requests have done theirs (simulates concurrent requests).
+        self.check_barrier = None
 
     def list_schedules(
         self,
@@ -186,7 +192,7 @@ class FakeScheduleSource:
     ) -> list[dict[str, Any]]:
         from models.schedule import to_utc
 
-        return [
+        found = [
             schedule
             for schedule in self.schedules
             if schedule.get("room_id") == room_id
@@ -194,15 +200,42 @@ class FakeScheduleSource:
             and schedule.get("series_end_at", to_utc(schedule["end_at"])) > start
             and (schedule_type is None or schedule["type"] == schedule_type)
         ]
+        if self.check_barrier:
+            self.check_barrier.wait(timeout=5)
+        return found
 
-    def save_schedule(self, schedule: dict[str, Any]) -> None:
-        existing = self.get_schedule(schedule["room_id"], schedule["id"])
-        if existing is not None:
-            self.schedules.remove(existing)
-        self.schedules.append(schedule)
+    def get_room_version(self, room_id: str) -> int:
+        return self.versions.get(room_id, 0)
 
-    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
-        self.schedules.extend(schedules)
+    def _bump(self, room_id: str, version: int) -> None:
+        from errors import ScheduleWriteRace
+
+        if self.versions.get(room_id, 0) != version:
+            raise ScheduleWriteRace()
+        self.versions[room_id] = version + 1
+
+    def save_schedule(
+        self,
+        schedule: dict[str, Any],
+        version: int,
+        delete_from: str | None = None,
+    ) -> None:
+        with self.lock:
+            self._bump(schedule["room_id"], version)
+            if delete_from:
+                self.delete_schedule(delete_from, schedule["id"])
+            existing = self.get_schedule(schedule["room_id"], schedule["id"])
+            if existing is not None:
+                self.schedules.remove(existing)
+            self.schedules.append(schedule)
+
+    def save_schedules(
+        self, schedules: list[dict[str, Any]], versions: dict[str, int]
+    ) -> None:
+        with self.lock:
+            for room_id, version in versions.items():
+                self._bump(room_id, version)
+            self.schedules.extend(schedules)
 
     def get_schedule(
         self,
@@ -234,6 +267,26 @@ class FakeScheduleSource:
             for s in self.schedules
             if not (s.get("room_id") == room_id and s.get("id") == schedule_id)
         ]
+
+
+def race(*calls):
+    """Run calls on parallel threads; return each result or the AppError it raised."""
+    from errors import AppError
+
+    results = [None] * len(calls)
+
+    def run(index, call):
+        try:
+            results[index] = call()
+        except AppError as exc:
+            results[index] = exc
+
+    threads = [threading.Thread(target=run, args=pair) for pair in enumerate(calls)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return results
 
 
 @pytest.fixture
