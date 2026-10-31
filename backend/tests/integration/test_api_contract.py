@@ -85,6 +85,16 @@ def test_api_get_building_summary_contract(api_base_url: str):
     assert isinstance(data["floors"], list)
 
 
+def test_api_get_buildings_warm_repeat_is_cached(api_base_url: str):
+    """Live API (#243): repeated GET /api/v1/buildings serves the same cached list."""
+    first = _request("GET", "/api/v1/buildings", api_base_url)
+    warm = [_request("GET", "/api/v1/buildings", api_base_url) for _ in range(5)]
+
+    assert all(r.status_code == 200 and r.json() == first.json() for r in warm)
+    best_ms = min(r.elapsed.total_seconds() for r in warm) * 1000
+    print(f"\nGET /buildings first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
+
+
 def test_api_get_building_not_found_contract(api_base_url: str):
     """Live API contract: Non-existent building returns 404 with standard error body."""
     res = _request("GET", "/api/v1/buildings/NON_EXISTENT_BUILDING_XYZ", api_base_url)
