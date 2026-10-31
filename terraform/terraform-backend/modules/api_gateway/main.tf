@@ -26,6 +26,12 @@ resource "aws_apigatewayv2_stage" "default" {
 
   name        = "$default"
   auto_deploy = true
+
+  # Without this the stage limits default to 0 and every request gets 429.
+  default_route_settings {
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 50
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
