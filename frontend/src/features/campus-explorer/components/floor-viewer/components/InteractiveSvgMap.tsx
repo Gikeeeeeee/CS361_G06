@@ -5,6 +5,7 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 interface InteractiveSvgMapProps {
   svgContent: string;
   highlightedRoomId?: string | null;
+  statusOverlay?: Record<string, { status: string; note?: string | null }>;
   onRoomClick?: (roomId: string, rawElementId: string) => void;
   enableZoomPan?: boolean;
   minScale?: number;
@@ -25,6 +26,7 @@ function normalizeRoomId(id: string | null | undefined): string {
 export function InteractiveSvgMap({
   svgContent,
   highlightedRoomId,
+  statusOverlay,
   onRoomClick,
   enableZoomPan = true,
   minScale = 0.6,
@@ -98,7 +100,7 @@ export function InteractiveSvgMap({
     };
   }, [onRoomClick, svgContent]);
 
-  // Exact element and text highlighting in SVG
+  // Exact element and text highlighting in SVG with statusOverlay support
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -112,6 +114,8 @@ export function InteractiveSvgMap({
       (el as HTMLElement).style.fill = "";
       (el as HTMLElement).style.stroke = "";
       (el as HTMLElement).style.strokeWidth = "";
+      (el as HTMLElement).style.strokeDasharray = "";
+      (el as HTMLElement).removeAttribute("title");
     });
 
     // 2. Reset all text colors
@@ -121,12 +125,59 @@ export function InteractiveSvgMap({
       t.style.fontWeight = "";
     });
 
+    // 3. Apply statusOverlay styles if provided
+    if (statusOverlay && Object.keys(statusOverlay).length > 0) {
+      allShapes.forEach((el) => {
+        const rawId = el.id || "";
+        const cleanId = rawId.replace(/^(room-|facility-)/, "");
+        const normId = normalizeRoomId(cleanId);
+
+        // Find status entry matching rawId, cleanId, or normId
+        let entry = statusOverlay[rawId] || statusOverlay[cleanId] || statusOverlay[normId];
+        if (!entry) {
+          // Check case-insensitive / partial match in status keys
+          for (const [k, val] of Object.entries(statusOverlay)) {
+            if (normalizeRoomId(k) === normId || k.toLowerCase().endsWith(normId.toLowerCase())) {
+              entry = val;
+              break;
+            }
+          }
+        }
+
+        if (entry) {
+          const status = entry.status?.toUpperCase();
+          const note = entry.note ? ` (${entry.note})` : "";
+          const htmlEl = el as HTMLElement;
+
+          if (status === "MAINTENANCE") {
+            htmlEl.style.setProperty("fill", "#FEF3C7", "important"); // amber-100
+            htmlEl.style.setProperty("stroke", "#F59E0B", "important"); // amber-500
+            htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+            htmlEl.setAttribute("title", `Status: Under Maintenance${note}`);
+          } else if (status === "CLOSED" || status === "BLOCKED") {
+            htmlEl.style.setProperty("fill", "#FEE2E2", "important"); // red-100
+            htmlEl.style.setProperty("stroke", "#EF4444", "important"); // red-500
+            htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+            if (status === "BLOCKED") {
+              htmlEl.style.setProperty("stroke-dasharray", "4 2", "important");
+            }
+            htmlEl.setAttribute("title", `Status: Closed${note}`);
+          } else if (status === "ACTIVE") {
+            htmlEl.style.setProperty("fill", "#DCFCE7", "important"); // emerald-100
+            htmlEl.style.setProperty("stroke", "#10B981", "important"); // emerald-500
+            htmlEl.style.setProperty("stroke-width", "1.2px", "important");
+            htmlEl.setAttribute("title", "Status: Active / Available");
+          }
+        }
+      });
+    }
+
     if (!highlightedRoomId) return;
 
     const targetNorm = normalizeRoomId(highlightedRoomId); // e.g. "101" or "101-1"
     if (!targetNorm) return;
 
-    // 3. Find shape element with EXACT match (priority: #room-target, [id="room-target"], exact normalized match)
+    // 4. Find shape element with EXACT match (priority: #room-target, [id="room-target"], exact normalized match)
     let matchedShape: Element | null = null;
 
     // Direct selectors
@@ -156,11 +207,11 @@ export function InteractiveSvgMap({
         el.classList.add("highlight");
         (el as HTMLElement).style.setProperty("fill", "#2563EB", "important");
         (el as HTMLElement).style.setProperty("stroke", "#1D4ED8", "important");
-        (el as HTMLElement).style.setProperty("stroke-width", "2.5px", "important");
+        (el as HTMLElement).style.setProperty("stroke-width", "3px", "important");
       });
     }
 
-    // 4. Highlight matching text element with EXACT match
+    // 5. Highlight matching text element with EXACT match
     allText.forEach((t) => {
       const textContent = t.textContent?.trim() || "";
       const textNorm = normalizeRoomId(textContent);
@@ -175,7 +226,7 @@ export function InteractiveSvgMap({
         t.style.setProperty("font-weight", "bold", "important");
       }
     });
-  }, [highlightedRoomId, svgContent]);
+  }, [highlightedRoomId, statusOverlay, svgContent]);
 
   // Base styles for container and interactive shapes
   const dynamicStyles = `

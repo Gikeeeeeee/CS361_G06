@@ -6,6 +6,9 @@ import { RoomAmenities } from '../components/room-detail/components/RoomAmenitie
 import { RoomFloorPlan } from '../components/room-detail/components/RoomFloorPlan';
 import { RoomSchedule } from '../components/room-detail/components/RoomSchedule';
 
+import { AlertTriangle, Ban } from 'lucide-react';
+import { statusApi } from '../../admin-status/services/statusApi';
+
 export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const { room, floor, building, loading, error } = useRoomDetail(roomId || '');
@@ -34,9 +37,39 @@ export default function RoomDetailPage() {
     );
   }
 
+  // V4-US2: Dynamic Room Status Indicator
+  const roomStatus = statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || '');
+  const isMaintenance = roomStatus?.status === 'MAINTENANCE';
+  const isClosed = roomStatus?.status === 'CLOSED';
+
   return (
     <div className="bg-slate-50 min-h-full pb-10">
       <RoomHero room={room} floor={floor} building={building} />
+
+      {/* Dynamic Status Alert Banner */}
+      {isMaintenance && (
+        <div className="mx-4 mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 flex items-start gap-3 shadow-xs">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold uppercase tracking-wider text-amber-700">Under Maintenance</div>
+            <div className="text-xs text-amber-800 mt-0.5">
+              {roomStatus?.status_note || 'This room is currently undergoing maintenance and may be temporarily inaccessible.'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isClosed && (
+        <div className="mx-4 mt-3 p-3.5 rounded-2xl bg-red-50 border border-red-200/80 text-red-900 flex items-start gap-3 shadow-xs">
+          <Ban className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-bold uppercase tracking-wider text-red-700">Room Closed</div>
+            <div className="text-xs text-red-800 mt-0.5">
+              {roomStatus?.status_note || 'This room is temporarily closed for classes and visits.'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Divider */}
       <div className="h-2 bg-slate-50" />
