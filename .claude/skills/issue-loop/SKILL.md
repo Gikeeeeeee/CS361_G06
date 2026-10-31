@@ -59,20 +59,31 @@ Follow CLAUDE.md (layering, conventions, testing) throughout. Use `gh` for all G
      each PR carries the results from its own deploy.
 6. **Commit & push**: stage only relevant files (never `terraform.tfvars`, `*.tfstate`, `lambda.zip`).
    Message `<type>: <summary> (#<n>)`. `git push -u origin HEAD`.
-7. **PR**: `gh pr create --base V4 --title "<type>: <summary> (#<n>)" --body-file <tmp>` with body:
+7. **PR**: `gh pr create --base V4 --title "<สรุปสั้นๆ> #<n>" --body-file <tmp>`.
+   เขียนเป็น**ภาษาไทย กระชับ อ่านจบในไม่กี่วินาที** (สไตล์เดียวกับ PR #250): bullet สั้นๆ,
+   ไม่มีย่อหน้ายาว, ศัพท์เทคนิค/ชื่อไฟล์/route ใช้ภาษาอังกฤษได้. หัวข้อไหนไม่มีอะไรให้ตัดทิ้ง.
 
    ```
    Closes #<n>
 
-   ## Summary
-   ## Decisions
+   ## ทำอะไร
+   - <สิ่งที่เปลี่ยน 1–3 ข้อ>
+
+   ## ตัดสินใจ
+   - <เลือก X แทน Y เพราะ ...>
+
    ## Architecture
-   (changed / unchanged; the plain-text diagram diff approved in step 2 — the diagram file itself is not in the repo)
-   ## Test results
-   ### Unit / integration
-   <pytest summary line + pre-existing failures, in a ```text block>
-   ### Live (sandbox)
-   <endpoint, commit deployed, pytest -m api summary, in a ```text block>
+   - <เพิ่ม/เปลี่ยน node หรือเส้นอะไร> (ไม่เปลี่ยน → ตัดหัวข้อนี้)
+
+   ## ผลทดสอบ
+   - unit: <N passed> (<M failed เดิมจาก search ถ้ามี>)
+   - live (sandbox): <N passed> — <ทดสอบอะไร, คาดหวังอะไร, ได้อะไร>
+   <details><summary>pytest output</summary>
+
+   ```text
+   <summary lines>
+   ```
+   </details>
    ```
 
 8. Report the PR URL, then move to the next issue (no need to wait for merge).
