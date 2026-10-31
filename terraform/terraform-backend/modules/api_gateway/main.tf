@@ -26,6 +26,13 @@ resource "aws_apigatewayv2_stage" "default" {
 
   name        = "$default"
   auto_deploy = true
+
+  # Without this a new stage gets 0/0 and returns 429 for every request.
+  # Matches the limits the team stack already runs with.
+  default_route_settings {
+    throttling_burst_limit = 500
+    throttling_rate_limit  = 300
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
