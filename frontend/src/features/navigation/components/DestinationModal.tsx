@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, MapPin, Search, ArrowRight, Accessibility, Sparkles, Navigation } from 'lucide-react';
 import type { QRCheckpoint } from '../types/navigation.types';
+import { facilityCache } from '../../admin-schedule/services/facilityCache';
 
 interface DestinationModalProps {
   isOpen: boolean;
@@ -21,26 +22,49 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialDestination);
   const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState<
+    Array<{ id: string; code: string; name: string; building: string; floor: number }>
+  >([]);
 
-  // Common campus destinations
-  const popularRooms = useMemo(() => [
-    { id: 'RM_LC4_201', code: 'LC4-201', name: 'Computer Lab 1', building: 'LC4', floor: 2 },
-    { id: 'RM_LC4_101', code: 'LC4-101', name: 'Lecture Hall 101', building: 'LC4', floor: 1 },
-    { id: 'RM_BR2_401', code: 'BR2-401', name: 'ห้องเรียน 500 คน', building: 'BR2', floor: 4 },
-    { id: 'RM_LC3_102', code: 'LC3-102', name: 'Physics Laboratory', building: 'LC3', floor: 1 },
-    { id: 'RM_LC4_305', code: 'LC4-305', name: 'Seminar Room', building: 'LC4', floor: 3 },
-  ], []);
+  // Dynamically load rooms from facility cache / API
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    const loadRooms = async () => {
+      await facilityCache.preloadCampusRooms();
+      if (!isMounted) return;
+
+      const loaded: Array<{ id: string; code: string; name: string; building: string; floor: number }> = [];
+      facilityCache.roomMeta.forEach((meta) => {
+        const floorObj = facilityCache.floorsMeta.get(meta.floorId);
+        loaded.push({
+          id: meta.roomId,
+          code: `${meta.buildingCode}-${meta.roomNumber}`,
+          name: meta.nameEn,
+          building: meta.buildingCode,
+          floor: floorObj?.floor_number || 1,
+        });
+      });
+      setAvailableRooms(loaded);
+    };
+
+    loadRooms();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   const filteredRooms = useMemo(() => {
-    if (!searchQuery.trim()) return popularRooms;
+    if (!searchQuery.trim()) return availableRooms.slice(0, 10);
     const q = searchQuery.toLowerCase();
-    return popularRooms.filter(
+    return availableRooms.filter(
       (r) =>
         r.code.toLowerCase().includes(q) ||
         r.name.toLowerCase().includes(q) ||
         r.building.toLowerCase().includes(q)
     );
-  }, [searchQuery, popularRooms]);
+  }, [searchQuery, availableRooms]);
 
   if (!isOpen || !checkpoint) return null;
 
@@ -175,8 +199,8 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
         {searchQuery.trim() && (
           <button
             onClick={() => {
-              const matched = popularRooms.find(
-                (r) => r.code.toLowerCase() === searchQuery.toLowerCase()
+              const matched = availableRooms.find(
+                (r) => r.code.toLowerCase() === searchQuery.toLowerCase() || r.id.toLowerCase() === searchQuery.toLowerCase()
               );
               onStartNavigation(
                 matched?.id || `RM_${searchQuery.replace(/[^a-zA-Z0-9]/g, '_')}`,
