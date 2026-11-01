@@ -55,6 +55,7 @@ class BuildingRepository:
         table: Any = None,
         bucket_name: str | None = None,
         s3_client: Any = None,
+        asset_base_url: str | None = None,
     ):
         self.table_name = (
             table_name
@@ -68,6 +69,11 @@ class BuildingRepository:
             else os.environ.get("BUCKET_NAME", "")
         )
         self._s3_client = s3_client
+        self.asset_base_url = (
+            asset_base_url
+            if asset_base_url is not None
+            else os.environ.get("ASSET_BASE_URL", "")
+        ).rstrip("/")
         self._cache: dict[tuple, tuple[float, Any]] = {}
 
     def _cached(self, key: tuple, load):
@@ -195,9 +201,15 @@ class BuildingRepository:
         return floor
 
     def presigned_url(self, key: str, expires_in: int = 3600) -> str:
-        """A time-limited GET URL for a stored object (used for floor plans and images)."""
+        """A GET URL for a stored object (used for floor plans and images).
+
+        With ASSET_BASE_URL set (the CloudFront domain) the URL is stable so
+        browsers and the CDN can cache it; otherwise it is an S3 presigned URL.
+        """
         if not key:
             return ""
+        if self.asset_base_url:
+            return f"{self.asset_base_url}/{key}"
         try:
             return self.s3_client.generate_presigned_url(
                 "get_object",

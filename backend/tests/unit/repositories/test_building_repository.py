@@ -380,3 +380,13 @@ def test_reads_are_cached_until_ttl_expires(monkeypatch):
     clock[0] += mod.CACHE_TTL_SECONDS + 1
     repo.list_buildings()
     assert len(table.queries) == queries + 1  # expired: reloaded
+
+
+@pytest.mark.unit
+def test_presigned_url_uses_cdn_when_asset_base_url_set():
+    mock_s3 = MagicMock()
+    repo = BuildingRepository(
+        table=_MockTable(), s3_client=mock_s3, asset_base_url="https://d123.cloudfront.net/"
+    )
+    assert repo.presigned_url("floor-plan/LC3/floor1.svg") == "https://d123.cloudfront.net/floor-plan/LC3/floor1.svg"
+    mock_s3.generate_presigned_url.assert_not_called()

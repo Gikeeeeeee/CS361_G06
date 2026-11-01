@@ -14,6 +14,8 @@ locals {
     webp = "image/webp"
     svg  = "image/svg+xml"
   }
+
+  asset_cache_control = "public, max-age=86400"
 }
 
 resource "aws_s3_bucket" "this" {
@@ -116,7 +118,8 @@ resource "aws_s3_object" "floor_plans" {
 
   etag = filemd5("${local.floor_plan_dir}/${each.value}")
 
-  content_type = "image/svg+xml"
+  content_type  = "image/svg+xml"
+  cache_control = local.asset_cache_control
 }
 
 # ---------------------------------------------------------------------------
@@ -154,4 +157,89 @@ resource "aws_s3_object" "images" {
     lower(element(reverse(split(".", each.value)), 0)),
     "application/octet-stream"
   )
+  cache_control = local.asset_cache_control
+}
+
+# ---------------------------------------------------------------------------
+# CloudFront CDN for floor plans and images
+# The bucket stays private; only this distribution can read it (OAC).
+# ---------------------------------------------------------------------------
+
+data "aws_cloudfront_cache_policy" "caching_optimized" {
+  name = "Managed-CachingOptimized"
+}
+
+# The frontend fetch()es floor-plan SVGs cross-origin, so CORS headers are needed.
+data "aws_cloudfront_response_headers_policy" "simple_cors" {
+  name = "Managed-SimpleCORS"
+}
+
+resource "aws_cloudfront_origin_access_control" "this" {
+  name                              = "${var.bucket_name}-oac"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "assets" {
+  enabled     = true
+  comment     = "${var.project_name} ${var.environment} media assets"
+  price_class = "PriceClass_200"
+
+  origin {
+    domain_name              = aws_s3_bucket.this.bucket_regional_domain_name
+    origin_id                = "s3-assets"
+    origin_access_control_id = aws_cloudfront_origin_access_control.this.id
+  }
+
+  default_cache_behavior {
+    target_origin_id           = "s3-assets"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.simple_cors.id
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# Only media prefixes are served; JSON data stays readable by Lambda only.
+resource "aws_s3_bucket_policy" "cloudfront_read" {
+  bucket = aws_s3_bucket.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid       = "CloudFrontReadAssets"
+        Effect    = "Allow"
+        Principal = { Service = "cloudfront.amazonaws.com" }
+        Action    = "s3:GetObject"
+        Resource = [
+          "${aws_s3_bucket.this.arn}/floor-plan/*",
+          "${aws_s3_bucket.this.arn}/image/*",
+        ]
+        Condition = {
+          StringEquals = { "AWS:SourceArn" = aws_cloudfront_distribution.assets.arn }
+        }
+      }
+    ]
+  })
 }

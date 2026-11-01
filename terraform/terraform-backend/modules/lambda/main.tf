@@ -194,6 +194,7 @@ resource "aws_lambda_function" "this" {
     variables = {
       BUCKET_NAME         = var.bucket_name
       BUILDINGS_FILE      = var.buildings_file
+      ASSET_BASE_URL      = var.asset_base_url
       DYNAMODB_TABLE_NAME = var.dynamodb_table_name
 
       OPENSEARCH_ENDPOINT = var.opensearch_endpoint
