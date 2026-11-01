@@ -53,3 +53,7 @@ class NavigationSource(ABC):
     def get_vertical_connections(self, building_id: str) -> list[VerticalConnection]:
         """Fetch all vertical connections (stairs, elevators) for a building."""
         raise NotImplementedError
+
+    def get_all_qr_locations(self) -> list[dict[str, Any]]:
+        """Fetch all registered QR locations across all buildings and floors."""
+        return []

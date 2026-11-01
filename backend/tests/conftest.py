@@ -635,6 +635,37 @@ class FakeNavigationSource(NavigationSource):
     def get_vertical_connections(self, building_id: str) -> list[VerticalConnection]:
         return list(self._vertical_connections.get(building_id, []))
 
+    def get_all_qr_locations(self) -> list[dict[str, Any]]:
+        results = []
+        for fid, data in self._nav_data.items():
+            floor = self._floors.get(fid, {})
+            bldg = str(floor.get("building_id") or "lc3").upper()
+            f_num = int(floor.get("floor_number", 1))
+            node_map = {n.id: n for n in data.get("nodes", [])}
+            for qr in data.get("qrs", []):
+                node = node_map.get(qr.node_id)
+                x = float(node.svg_x) if node and node.svg_x is not None else 0.0
+                y = float(node.svg_y) if node and node.svg_y is not None else 0.0
+                node_name = node.name if node else qr.id
+                results.append({
+                    "id": qr.id,
+                    "qr_id": qr.id,
+                    "node_id": qr.node_id,
+                    "name": f"{bldg} Floor {f_num} - {node_name}",
+                    "node_name": node_name,
+                    "building_code": bldg,
+                    "building_id": floor.get("building_id", "lc3"),
+                    "floor_number": f_num,
+                    "floor_id": fid,
+                    "x": x,
+                    "y": y,
+                    "coordinates": {"x": x, "y": y},
+                    "description": qr.location_description,
+                    "status": node.status if node else "ACTIVE",
+                })
+        return results
+
+
 
 @pytest.fixture
 def sample_navigation_source() -> FakeNavigationSource:
@@ -1319,3 +1350,4 @@ def sample_multi_floor_source() -> FakeNavigationSource:
         nav_data=nav_data,
         vertical_connections=vertical_connections,
     )
+

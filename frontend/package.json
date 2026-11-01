@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test:auth": "node test_auth_integration.mjs",
     "test:bookmarks": "node test_bookmarks_integration.mjs",
+    "test:checkpoints": "node test_checkpoints_dynamic.mjs",
     "test:us4": "node test_us4_share_and_masking.mjs",
     "preview": "vite preview"
   },
@@ -18,6 +19,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^13.1.1",
+    "jsqr": "^1.4.0",
     "lucide-react": "^1.37.0",
     "react": "^19.2.8",
     "react-datepicker": "^9.1.0",
