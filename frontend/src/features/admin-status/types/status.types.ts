@@ -14,6 +14,7 @@ export type NodeStatus = 'ACTIVE' | 'BLOCKED';
 export interface RoomStatusItem {
   room_id: string;
   room_code: string;
+  name?: string;
   status: RoomStatus;
   status_note: string | null;
   updated_at?: string;

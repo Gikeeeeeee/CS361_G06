@@ -26,9 +26,13 @@ export default function RoomDetailPage() {
     };
     update();
 
+    if (floor?.id) {
+      statusApi.getFloorStatusOverlay(floor.id).then(update).catch(() => {});
+    }
+
     window.addEventListener('floor-status-updated', update);
     return () => window.removeEventListener('floor-status-updated', update);
-  }, [room]);
+  }, [room, floor?.id]);
 
   useEffect(() => {
     if (room) {
