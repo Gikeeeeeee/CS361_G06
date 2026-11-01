@@ -203,5 +203,7 @@ def test_get_vertical_connections_client_error():
     )
 
     repo = NavigationRepository(table=table)
-    with pytest.raises(UpstreamError, match="DynamoDB error fetching vertical connections"):
+    with pytest.raises(
+        UpstreamError, match="DynamoDB error fetching vertical connections"
+    ):
         repo.get_vertical_connections("lc4")
