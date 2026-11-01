@@ -8,9 +8,10 @@ import type { SearchResultItem } from '../types';
 
 interface SearchContainerProps {
   onFocusChange?: (isFocused: boolean) => void;
+  className?: string;
 }
 
-export function SearchContainer({ onFocusChange }: SearchContainerProps) {
+export function SearchContainer({ onFocusChange, className }: SearchContainerProps) {
   const navigate = useNavigate();
   const {
     query,
@@ -109,7 +110,7 @@ export function SearchContainer({ onFocusChange }: SearchContainerProps) {
   return (
     <div 
       ref={wrapperRef} 
-      className="absolute top-3 left-4 right-4 z-50 flex flex-col max-w-md mx-auto pointer-events-none"
+      className={className || "relative w-full z-50 flex flex-col pointer-events-none"}
     >
       <div className="relative">
         <SearchBar

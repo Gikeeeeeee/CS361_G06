@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Calendar, Clock, MapPin, User, Info, X } from 'lucide-react';
 import { Badge } from './Badge';
 import { BookmarkButton } from '../../features/bookmarks/components/BookmarkButton';
@@ -77,61 +77,46 @@ export const ScheduleDetailsModal: React.FC<ScheduleDetailsModalProps> = ({
   const startAt = schedule.startAt || schedule.start_at;
   const endAt = schedule.endAt || schedule.end_at;
 
-  const formattedDate = useMemo(() => {
-    if (!startAt) return '';
+  let formattedDate = '';
+  if (startAt) {
     const d = new Date(startAt);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  }, [startAt]);
+    if (!isNaN(d.getTime())) {
+      formattedDate = d.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+  }
 
-  const formattedTimeRange = useMemo(() => {
-    const s = formatTime(startAt);
-    const e = formatTime(endAt);
-    if (s && e) return `${s} - ${e}`;
-    if (s) return s;
-    return schedule.subtitle || '';
-  }, [startAt, endAt, schedule.subtitle]);
+  const sTime = formatTime(startAt);
+  const eTime = formatTime(endAt);
+  const formattedTimeRange = (sTime && eTime)
+    ? `${sTime} - ${eTime}`
+    : (sTime || schedule.subtitle || '');
 
   // Construct normalized schedule object for AddToCalendarButton
-  const exportPayload = useMemo(() => {
-    return {
-      ...schedule,
-      id: scheduleId,
-      entityId: scheduleId,
-      scheduleId: scheduleId,
-      roomId: roomId,
-      room_id: roomId,
-      roomName: schedule.roomName || roomDisplay,
-      building: schedule.building,
-      title: title,
-      courseCode: courseCode,
-      course_code: courseCode,
-      startAt: startAt,
-      start_at: startAt,
-      endAt: endAt,
-      end_at: endAt,
-      description: description,
-      organizer: organizer,
-      type: type,
-    };
-  }, [
-    schedule,
-    scheduleId,
-    roomId,
-    roomDisplay,
-    title,
-    courseCode,
-    startAt,
-    endAt,
-    description,
-    organizer,
-    type,
-  ]);
+  const exportPayload = {
+    ...schedule,
+    id: scheduleId,
+    entityId: scheduleId,
+    scheduleId: scheduleId,
+    roomId: roomId,
+    room_id: roomId,
+    roomName: schedule.roomName || roomDisplay,
+    building: schedule.building,
+    title: title,
+    courseCode: courseCode,
+    course_code: courseCode,
+    startAt: startAt,
+    start_at: startAt,
+    endAt: endAt,
+    end_at: endAt,
+    description: description,
+    organizer: organizer,
+    type: type,
+  };
 
   return (
     <div
