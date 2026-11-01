@@ -8,6 +8,7 @@ Layer: driven adapter (outbound).
 
 from decimal import Decimal
 import os
+import time
 from typing import Any
 
 import boto3
@@ -15,6 +16,10 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from errors import UpstreamError
+
+# Master data barely changes and is only written offline by migration/writer.py,
+# so a per-container TTL is enough; no invalidation.
+CACHE_TTL_SECONDS = 600
 
 _KEY_ATTRS = {"PK", "SK"} | {
     f"GSI{index}{part}" for index in range(7) for part in ("PK", "SK")
@@ -63,6 +68,16 @@ class BuildingRepository:
             else os.environ.get("BUCKET_NAME", "")
         )
         self._s3_client = s3_client
+        self._cache: dict[tuple, tuple[float, Any]] = {}
+
+    def _cached(self, key: tuple, load):
+        """Return `load()`, reusing the result for CACHE_TTL_SECONDS on a warm container."""
+        hit = self._cache.get(key)
+        if hit and hit[0] > time.monotonic():
+            return hit[1]
+        value = load()
+        self._cache[key] = (time.monotonic() + CACHE_TTL_SECONDS, value)
+        return value
 
     @property
     def table(self):
@@ -82,6 +97,32 @@ class BuildingRepository:
 
     def list_buildings(self) -> list[dict[str, Any]]:
         """Every building summary from DynamoDB GSI0 index."""
+        return self._cached(("buildings",), self._load_buildings)
+
+    def get_building(
+        self, building_id: str, include_children: bool = True
+    ) -> dict[str, Any] | None:
+        """
+        One building's raw record, or None if no such building exists.
+
+        Queries the building's partition (PK = BUILDING#{code.upper()}).
+        Returns building metadata and its floors.
+        """
+        return self._cached(
+            ("building", str(building_id).upper(), include_children),
+            lambda: self._load_building(building_id, include_children),
+        )
+
+    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
+        """
+        One floor's raw record addressed by uuid alone, or None if no such floor exists.
+
+        Locates the floor in GSI0, then queries the floor partition (PK = FLOOR#{floor_id})
+        to assemble its rooms and facilities.
+        """
+        return self._cached(("floor", str(floor_id)), lambda: self._load_floor(floor_id))
+
+    def _load_buildings(self) -> list[dict[str, Any]]:
         try:
             items = []
             response = self.table.query(
@@ -103,15 +144,9 @@ class BuildingRepository:
                 f"AWS DynamoDB client error querying buildings: {exc}"
             ) from exc
 
-    def get_building(
-        self, building_id: str, include_children: bool = True
+    def _load_building(
+        self, building_id: str, include_children: bool
     ) -> dict[str, Any] | None:
-        """
-        One building's raw record, or None if no such building exists.
-
-        Queries the building's partition (PK = BUILDING#{code.upper()}).
-        Returns building metadata and its floors.
-        """
         code = str(building_id).upper()
         items = self._query_building_partition(code)
 
@@ -148,13 +183,7 @@ class BuildingRepository:
         building_item["floors"] = floors
         return building_item
 
-    def get_floor(self, floor_id: str) -> dict[str, Any] | None:
-        """
-        One floor's raw record addressed by uuid alone, or None if no such floor exists.
-
-        Locates the floor in GSI0, then queries the floor partition (PK = FLOOR#{floor_id})
-        to assemble its rooms and facilities.
-        """
+    def _load_floor(self, floor_id: str) -> dict[str, Any] | None:
         floor_item = self._find_floor_item_by_uuid(str(floor_id))
         if not floor_item:
             return None

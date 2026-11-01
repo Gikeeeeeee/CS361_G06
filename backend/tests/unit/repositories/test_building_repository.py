@@ -352,3 +352,31 @@ def test_presigned_url_empty_key():
     assert repo.presigned_url("") == ""
     assert repo.presigned_url(None) == ""
     mock_s3.generate_presigned_url.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# TTL cache (#243)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+def test_reads_are_cached_until_ttl_expires(monkeypatch):
+    import repositories.building_repository as mod
+
+    clock = [1000.0]
+    monkeypatch.setattr(mod.time, "monotonic", lambda: clock[0])
+    table = _MockTable()
+    repo = BuildingRepository(table_name="t", table=table)
+
+    repo.list_buildings()
+    repo.get_building("LC3")
+    repo.get_floor("f1")
+    queries = len(table.queries)
+
+    repo.list_buildings()
+    repo.get_building("lc3")
+    repo.get_floor("f1")
+    assert len(table.queries) == queries  # warm hits: no DynamoDB I/O
+
+    clock[0] += mod.CACHE_TTL_SECONDS + 1
+    repo.list_buildings()
+    assert len(table.queries) == queries + 1  # expired: reloaded
