@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { HEADER_CONFIG } from '../../../../shared/config/navigation.config';
 import type { HeaderConfig } from '../../../../shared/types/navigation.types';
 import { useAuth } from '../../../auth/context/AuthContext';
-import { useNavigation } from '../../../navigation/context/NavigationContext';
-import { User as UserIcon, QrCode } from 'lucide-react';
+import { User as UserIcon } from 'lucide-react';
 
 interface MobileHeaderProps {
   config?: HeaderConfig;
@@ -42,8 +41,6 @@ const AuthHeaderStatus: React.FC = () => {
 };
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONFIG }) => {
-  const { openQrScanner } = useNavigation();
-
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-white/80 border-b border-slate-100/80 px-4 py-3 flex items-center justify-center relative shrink-0">
       {/* Center: Logo next to Title */}
@@ -65,18 +62,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({ config = HEADER_CONF
         )}
       </Link>
 
-      {/* Right: QR Scan Button & Auth status */}
-      <div className="absolute right-4 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={openQrScanner}
-          className="w-8 h-8 rounded-full bg-slate-100 hover:bg-blue-50 active:scale-95 text-slate-700 hover:text-blue-600 flex items-center justify-center transition-all cursor-pointer border border-slate-200/60 shadow-xs"
-          title="Scan QR Code Checkpoint to Navigate"
-          aria-label="Scan QR Code Checkpoint"
-        >
-          <QrCode className="w-4 h-4 stroke-[2.2]" />
-        </button>
-
+      {/* Right: Action or Auth status */}
+      <div className="absolute right-4 flex items-center">
         {config.rightAction ? (
           config.rightAction
         ) : (
