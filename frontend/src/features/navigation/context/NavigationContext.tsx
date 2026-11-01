@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint, RouteResult } from '../types/navigation.types';
 import { QrScannerModal } from '../components/QrScannerModal';
@@ -49,6 +50,59 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   } | null>(null);
   const [activeRoute, setActiveRoute] = useState<RouteResult | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Preload dynamic QR checkpoints from Backend on mount
+  useEffect(() => {
+    navigationApi.getCheckpointsAsync().catch(() => {});
+  }, []);
+
+  // Detect QR code scan or deep-link via query parameter (e.g. /navigation?start=LC3-F1-QR1)
+  useEffect(() => {
+    const startParam =
+      searchParams.get('start') ||
+      searchParams.get('start_node') ||
+      searchParams.get('start_id') ||
+      searchParams.get('checkpoint');
+    const destParam =
+      searchParams.get('dest') ||
+      searchParams.get('destination') ||
+      searchParams.get('destination_id') ||
+      searchParams.get('room');
+
+    if (startParam) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('start');
+      newParams.delete('start_node');
+      newParams.delete('start_id');
+      newParams.delete('checkpoint');
+      newParams.delete('dest');
+      newParams.delete('destination');
+      newParams.delete('destination_id');
+      newParams.delete('room');
+      setSearchParams(newParams, { replace: true });
+
+      navigationApi
+        .resolveCheckpointAsync(startParam)
+        .then((checkpoint) => {
+          if (checkpoint) {
+            setActiveCheckpoint(checkpoint);
+            setIsScannerOpen(false);
+            if (destParam) {
+              setPrefilledDestination(destParam);
+            }
+            setIsDestinationModalOpen(true);
+          } else {
+            setNavigationError(`Unrecognized checkpoint "${startParam}". Please select or scan a valid campus checkpoint.`);
+            setIsScannerOpen(true);
+          }
+        })
+        .catch(() => {
+          setNavigationError('Unable to connect to server to verify checkpoint.');
+          setIsScannerOpen(true);
+        });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Auto-dismiss error after 6 seconds
   useEffect(() => {
@@ -129,10 +183,30 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ) => {
       setPrefilledDestination(roomName || roomIdOrCode);
       setPrefilledMeta(options || null);
-      // If we don't have an active checkpoint yet, default to the main lobby checkpoint
-      const defaultCheckpoint = navigationApi.getCheckpoints()[0];
-      setActiveCheckpoint(defaultCheckpoint);
-      setIsDestinationModalOpen(true);
+      if (activeCheckpoint) {
+        setIsDestinationModalOpen(true);
+      } else {
+        const available = navigationApi.getCheckpoints();
+        if (available.length > 0) {
+          setActiveCheckpoint(available[0]);
+          setIsDestinationModalOpen(true);
+        } else {
+          navigationApi
+            .getCheckpointsAsync()
+            .then((cps) => {
+              if (cps.length > 0) {
+                setActiveCheckpoint(cps[0]);
+                setIsDestinationModalOpen(true);
+              } else {
+                setNavigationError('No checkpoints available on campus.');
+                setIsScannerOpen(true);
+              }
+            })
+            .catch(() => {
+              setIsScannerOpen(true);
+            });
+        }
+      }
     },
     []
   );

@@ -6,63 +6,11 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 /**
  * Standard campus checkpoints with physical QR codes matching backend navigation graph nodes
  */
-export const DEFAULT_CHECKPOINTS: QRCheckpoint[] = [
-  {
-    id: 'QR_LC4_FL1_MAIN',
-    node_id: 'LC4-F1-N6',
-    name: 'LC4 Main Entrance Lobby (Floor 1)',
-    building_code: 'LC4',
-    floor_number: 1,
-    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
-    description: 'Main entrance hall in front of south corridor, LC4',
-    x: 160,
-    y: 325,
-  },
-  {
-    id: 'QR_LC4_FL1_WEST',
-    node_id: 'LC4-F1-N1',
-    name: 'LC4 West Service Junction (Floor 1)',
-    building_code: 'LC4',
-    floor_number: 1,
-    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
-    description: 'West corridor service junction, LC4 Building',
-    x: 160,
-    y: 245,
-  },
-  {
-    id: 'QR_LC4_FL1_STAIRS',
-    node_id: 'LC4-F1-N9',
-    name: 'LC4 Elevator & Stairs Access (Floor 1)',
-    building_code: 'LC4',
-    floor_number: 1,
-    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
-    description: 'Central elevator and staircase access, LC4 Building',
-    x: 145,
-    y: 230,
-  },
-  {
-    id: 'QR_LC3_FL1_MAIN',
-    node_id: 'LC3-F1-N01',
-    name: 'LC3 West Stair Junction (Floor 1)',
-    building_code: 'LC3',
-    floor_number: 1,
-    floor_id: 'deaef033-ba6c-5c0e-bb50-956202b57947',
-    description: 'West staircase junction, LC3 Building',
-    x: 115,
-    y: 245,
-  },
-  {
-    id: 'QR_LC3_FL1_HALL',
-    node_id: 'LC3-F1-N04',
-    name: 'LC3 Upper East Hall (Floor 1)',
-    building_code: 'LC3',
-    floor_number: 1,
-    floor_id: 'deaef033-ba6c-5c0e-bb50-956202b57947',
-    description: 'Upper east corridor hall junction, LC3 Building',
-    x: 430,
-    y: 105,
-  },
-];
+let cachedCheckpoints: QRCheckpoint[] | null = null;
+
+export function _clearCheckpointsCacheForTesting(): void {
+  cachedCheckpoints = null;
+}
 
 /**
  * Normalizes backend route payload into frontend RouteResult format
@@ -276,74 +224,109 @@ export const navigationApi = {
   },
 
   /**
-   * Fetch registered QR checkpoints from Backend
-   * Endpoint: GET /api/v1/routes/checkpoints
+   * Fetch registered QR checkpoints from Backend API
+   * Endpoint: GET /api/v1/qr-locations (fallback GET /api/v1/routes/checkpoints)
    */
-  async getCheckpointsAsync(): Promise<QRCheckpoint[]> {
-    try {
-      const response = await fetch(`${BASE_URL}/api/v1/routes/checkpoints`);
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          return json.data;
-        }
-      }
-    } catch {
-      // Fallback to default registered checkpoints
+  async getCheckpointsAsync(forceRefresh = false): Promise<QRCheckpoint[]> {
+    if (!forceRefresh && cachedCheckpoints !== null) {
+      return cachedCheckpoints;
     }
-    return DEFAULT_CHECKPOINTS;
+
+    let response: Response;
+    try {
+      response = await fetch(`${BASE_URL}/api/v1/qr-locations`);
+      if (!response.ok) {
+        response = await fetch(`${BASE_URL}/api/v1/routes/checkpoints`);
+      }
+    } catch (err: any) {
+      if (cachedCheckpoints !== null) {
+        return cachedCheckpoints;
+      }
+      throw new Error(err?.message || 'Network error fetching checkpoints');
+    }
+
+    if (!response.ok) {
+      if (cachedCheckpoints !== null) {
+        return cachedCheckpoints;
+      }
+      throw new Error(`Failed to load checkpoints: ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    if (json.success && Array.isArray(json.data)) {
+      const mapped: QRCheckpoint[] = json.data.map((item: any) => ({
+        id: item.id || item.qr_id,
+        node_id: item.node_id,
+        name: item.name || item.node_name || item.id,
+        building_code: String(item.building_code || (item.id && item.id.includes('LC3') ? 'LC3' : 'LC4')).toUpperCase(),
+        floor_number: Number(item.floor_number || 1),
+        floor_id: item.floor_id || '',
+        description: item.description || '',
+        x: Number(item.x ?? item.coordinates?.x ?? 0),
+        y: Number(item.y ?? item.coordinates?.y ?? 0),
+      }));
+      cachedCheckpoints = mapped;
+      return mapped;
+    }
+
+    if (cachedCheckpoints !== null) {
+      return cachedCheckpoints;
+    }
+    throw new Error(json.message || 'Invalid checkpoints response from server');
   },
 
   /**
-   * Get all registered QR checkpoints (synchronous default)
+   * Get all registered QR checkpoints (synchronous cache, or empty array if not loaded)
    */
   getCheckpoints(): QRCheckpoint[] {
-    return DEFAULT_CHECKPOINTS;
+    return cachedCheckpoints || [];
   },
 
   /**
    * Resolve a QR Code payload or string into a verified checkpoint
+   * Returns null if the QR ID does not match any registered checkpoint from the backend.
    */
-  resolveCheckpoint(qrContent: string): QRCheckpoint {
-    const trimmed = qrContent.trim();
-    // 1. Direct match by ID or Node ID
-    const byId = DEFAULT_CHECKPOINTS.find((c) => c.id === trimmed || c.node_id === trimmed);
-    if (byId) return byId;
+  resolveCheckpoint(qrContent: string): QRCheckpoint | null {
+    let target = (qrContent || '').trim();
+    if (!target) return null;
 
-    // 2. Check if URL containing node_id or checkpoint parameter
+    // 1. If URL, extract query parameters (start, start_node, start_id, checkpoint, node_id)
     try {
-      const parsed = new URL(trimmed);
-      const node = parsed.searchParams.get('start_node') || parsed.searchParams.get('checkpoint');
-      if (node) {
-        const match = DEFAULT_CHECKPOINTS.find((c) => c.node_id === node || c.id === node);
-        if (match) return match;
+      const parsed = new URL(target);
+      const paramVal =
+        parsed.searchParams.get('start') ||
+        parsed.searchParams.get('start_node') ||
+        parsed.searchParams.get('start_id') ||
+        parsed.searchParams.get('checkpoint') ||
+        parsed.searchParams.get('node_id');
+      if (paramVal) {
+        target = paramVal.trim();
       }
     } catch {
-      // Not a URL
+      // Not a valid URL, use raw string
     }
 
-    // 3. Match by name or building
-    const byName = DEFAULT_CHECKPOINTS.find((c) =>
-      c.name.toLowerCase().includes(trimmed.toLowerCase())
+    const checkpoints = cachedCheckpoints || [];
+
+    // 2. Exact match against Backend-provided checkpoints by ID or Node ID (case-insensitive)
+    const match = checkpoints.find(
+      (c) =>
+        c.id.toLowerCase() === target.toLowerCase() ||
+        c.node_id.toLowerCase() === target.toLowerCase()
     );
-    if (byName) return byName;
+    if (match) return match;
 
-    // 4. Dynamic Node code matching (e.g. LC4-F1-N..., LC3-F1-N..., NODE_...)
-    if (trimmed.includes('-F') || trimmed.startsWith('NODE_') || trimmed.startsWith('QR_')) {
-      const bCode = trimmed.includes('LC3') ? 'LC3' : trimmed.includes('BR2') ? 'BR2' : 'LC4';
-      const cleanName = trimmed.replace(/^(NODE_|QR_|RM_)/, '').replace(/_/g, ' ');
-      return {
-        id: trimmed,
-        node_id: trimmed,
-        name: `Checkpoint ${cleanName}`,
-        building_code: bCode,
-        floor_number: 1,
-        floor_id: bCode === 'LC3' ? 'deaef033-ba6c-5c0e-bb50-956202b57947' : 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
-        description: `Verified checkpoint from QR code (${trimmed})`,
-      };
+    // Unknown QR ID: reject without guessing
+    return null;
+  },
+
+  /**
+   * Resolve a QR Code payload asynchronously, ensuring checkpoints are loaded first
+   */
+  async resolveCheckpointAsync(qrContent: string): Promise<QRCheckpoint | null> {
+    if (cachedCheckpoints === null) {
+      await this.getCheckpointsAsync().catch(() => []);
     }
-
-    // Default to main entrance checkpoint
-    return DEFAULT_CHECKPOINTS[0];
+    return this.resolveCheckpoint(qrContent);
   },
 };

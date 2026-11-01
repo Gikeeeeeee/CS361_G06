@@ -268,3 +268,35 @@ def test_get_routes_cross_floor_api(sample_multi_floor_source):
         assert len(body["floor_segments"]) == 2
     finally:
         handler.DEPS = original_deps
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_qr_locations_success(invoke_nav_handler):
+    event = make_apigw_event(
+        method="GET",
+        path="/api/v1/qr-locations",
+        route_key="GET /api/v1/qr-locations",
+    )
+    result = invoke_nav_handler(event)
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["success"] is True
+    assert isinstance(body["data"], list)
+    assert len(body["data"]) > 0
+    assert body["data"][0]["id"] in ("QR-01", "QR1", "LC3-F1-QR1")
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_get_routes_checkpoints_alias(invoke_nav_handler):
+    event = make_apigw_event(
+        method="GET",
+        path="/api/v1/routes/checkpoints",
+        route_key="GET /api/v1/routes/checkpoints",
+    )
+    result = invoke_nav_handler(event)
+    assert result["statusCode"] == 200
+    body = json.loads(result["body"])
+    assert body["success"] is True
+    assert isinstance(body["data"], list)
+
