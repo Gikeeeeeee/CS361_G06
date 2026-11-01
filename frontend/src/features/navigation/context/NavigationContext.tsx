@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint, RouteResult } from '../types/navigation.types';
 import { QrScannerModal } from '../components/QrScannerModal';
@@ -48,6 +48,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     roomName?: string;
   } | null>(null);
   const [activeRoute, setActiveRoute] = useState<RouteResult | null>(null);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+
+  // Auto-dismiss error after 6 seconds
+  useEffect(() => {
+    if (!navigationError) return;
+    const t = setTimeout(() => setNavigationError(null), 6000);
+    return () => clearTimeout(t);
+  }, [navigationError]);
 
   const openQrScanner = useCallback(() => {
     setIsScannerOpen(true);
@@ -64,12 +72,13 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const startNavigation = useCallback(
-    async (destinationId: string, destinationName: string, wheelchairAccessible: boolean) => {
+    async (destinationId: string, _destinationName: string, wheelchairAccessible: boolean) => {
       if (!activeCheckpoint) return;
 
       setIsLoadingRoute(true);
       setIsDestinationModalOpen(false);
       setIsNavigating(true);
+      setNavigationError(null);
 
       try {
         const result = await navigationApi.searchRoute({
@@ -80,10 +89,6 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           preferences: {
             wheelchair_accessible: wheelchairAccessible,
           },
-          destination_metadata:
-            prefilledMeta && (!prefilledMeta.roomId || prefilledMeta.roomId === destinationId)
-              ? prefilledMeta
-              : { roomName: destinationName },
         });
 
         // Ensure floorSvgUrl is preserved if route didn't populate it and it belongs to this room
@@ -96,8 +101,12 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         setActiveRoute(result);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to calculate route:', err);
+        const msg = err?.message || 'Route not found or destination outside service area.';
+        setNavigationError(msg);
+        setIsNavigating(false);
+        setIsDestinationModalOpen(true);
       } finally {
         setIsLoadingRoute(false);
       }
@@ -177,6 +186,23 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isLoading={isLoadingRoute}
         onClose={endNavigation}
       />
+
+      {/* Route Error Notification Toast */}
+      {navigationError && (
+        <div className="fixed top-4 left-4 right-4 z-[120] max-w-md mx-auto p-3.5 bg-rose-600 text-white rounded-2xl shadow-2xl border border-rose-500/80 flex items-center justify-between gap-3 text-xs animate-in slide-in-from-top duration-200">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">⚠️ Route Error:</span>
+            <span>{navigationError}</span>
+          </div>
+          <button
+            onClick={() => setNavigationError(null)}
+            className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer text-white"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </NavigationContext.Provider>
   );
 };

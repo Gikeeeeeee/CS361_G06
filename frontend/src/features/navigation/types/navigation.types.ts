@@ -69,6 +69,7 @@ export interface RouteResult {
     }>;
   };
   steps: RouteStep[];
+  floor_segments?: any[];
   is_rerouted?: boolean;
 }
 
