@@ -2,16 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Building2, 
   Layers, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Ban, 
   Search, 
   Edit3, 
   RefreshCw, 
   Loader2,
+  AlertTriangle,
   Check
 } from 'lucide-react';
-import { facilityCache, resolveRoomNumber } from '../../admin-schedule/services/facilityCache';
+import { facilityCache } from '../../admin-schedule/services/facilityCache';
 import type { Building, Floor } from '../../admin-schedule/services/scheduleApi';
 import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../campus-explorer/components/floor-viewer/components/InteractiveSvgMap';
@@ -19,6 +17,11 @@ import { statusApi } from '../../admin-status/services/statusApi';
 import type { FloorStatusOverlayData, RoomStatus, RoomStatusItem } from '../../admin-status/types/status.types';
 import { StatusEditDrawer } from '../../admin-status/components/StatusEditDrawer';
 import { campusService } from '../../campus-explorer/services';
+import { 
+  resolveRoomEntity, 
+  getRoomLookupKeys, 
+  formatRoomDisplay 
+} from '../../campus-explorer/services/roomResolver';
 
 export const BuildingsPage: React.FC = () => {
   // 1. Dynamic Facility Selectors State (Zero Hardcoding)
@@ -200,27 +203,18 @@ export const BuildingsPage: React.FC = () => {
     const map: Record<string, { status: string; note?: string | null }> = {};
     if (!statusOverlayData) return map;
 
-    // Room status entries
+    // Room status entries using centralized room lookup keys
     statusOverlayData.rooms.forEach((r) => {
       const entry = { status: r.status, note: r.status_note };
-      map[r.room_id] = entry;
-      map[r.room_code] = entry;
-      map[r.room_code.toLowerCase()] = entry;
+      getRoomLookupKeys(r).forEach((k) => {
+        map[k] = entry;
+      });
 
       const meta = facilityCache.roomMeta.get(r.room_id);
       if (meta) {
-        if (meta.nameEn) {
-          map[meta.nameEn] = entry;
-          map[meta.nameEn.toLowerCase()] = entry;
-        }
-        if (meta.roomNumber) {
-          map[meta.roomNumber] = entry;
-          map[meta.roomNumber.toLowerCase()] = entry;
-          map[`room-${meta.roomNumber}`] = entry;
-          map[`room-${meta.roomNumber}`.toLowerCase()] = entry;
-          map[`room-${meta.roomNumber.replace(/\//g, '-')}`] = entry;
-          map[`room-${meta.roomNumber.replace(/\//g, '-')}`.toLowerCase()] = entry;
-        }
+        getRoomLookupKeys(meta).forEach((k) => {
+          map[k] = entry;
+        });
       }
     });
 
@@ -229,22 +223,9 @@ export const BuildingsPage: React.FC = () => {
       const statusItem = statusOverlayData.rooms.find((r) => r.room_id === fr.id);
       if (statusItem) {
         const entry = { status: statusItem.status, note: statusItem.status_note };
-        if (fr.name?.en) {
-          map[fr.name.en] = entry;
-          map[fr.name.en.toLowerCase()] = entry;
-        }
-        if (fr.name?.th) {
-          map[fr.name.th] = entry;
-          map[fr.name.th.toLowerCase()] = entry;
-        }
-        if (fr.room_number) {
-          map[fr.room_number] = entry;
-          map[fr.room_number.toLowerCase()] = entry;
-          map[`room-${fr.room_number}`] = entry;
-          map[`room-${fr.room_number}`.toLowerCase()] = entry;
-          map[`room-${fr.room_number.replace(/\//g, '-')}`] = entry;
-          map[`room-${fr.room_number.replace(/\//g, '-')}`.toLowerCase()] = entry;
-        }
+        getRoomLookupKeys(fr).forEach((k) => {
+          map[k] = entry;
+        });
       }
     });
 
@@ -282,98 +263,34 @@ export const BuildingsPage: React.FC = () => {
     (r: RoomStatusItem) => {
       const bCode = currentBuilding?.code || '';
       const fRoom = floorDetail?.rooms?.find((fr: any) => fr.id === r.room_id);
-      const meta = facilityCache.roomMeta.get(r.room_id);
-
-      let displayCode = '';
-      let displayName = '';
-
-      if (fRoom) {
-        const rawNum = fRoom.room_number || meta?.roomNumber;
-        const resolvedNum = resolveRoomNumber(rawNum, fRoom.name?.en, fRoom.name?.th);
-        if (resolvedNum) {
-          displayCode = bCode && !resolvedNum.toLowerCase().startsWith(bCode.toLowerCase())
-            ? `${bCode}-${resolvedNum}`
-            : resolvedNum;
-        } else {
-          const typeName = fRoom.type === 'LANDMARK' ? 'Landmark' : fRoom.type ? fRoom.type.replace(/_/g, ' ') : 'Area';
-          displayCode = bCode ? `${bCode}-${typeName}` : typeName;
-        }
-        displayName = fRoom.name?.en || fRoom.name?.th || (fRoom.type === 'LANDMARK' ? `${bCode} Landmark` : displayCode);
-      } else if (meta?.roomNumber) {
-        displayCode = bCode && !meta.roomNumber.startsWith(bCode)
-          ? `${bCode}-${meta.roomNumber}`
-          : meta.roomNumber;
-        displayName = meta.nameEn || r.name || '';
-      } else {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.room_code);
-        if (isUuid) {
-          displayCode = bCode ? `${bCode}-Area` : 'Area';
-          displayName = r.name || `Room ${r.room_id.slice(0, 8)}`;
-        } else {
-          displayCode = bCode && !r.room_code.startsWith(bCode)
-            ? `${bCode}-${r.room_code}`
-            : r.room_code;
-          displayName = r.name || displayCode;
-        }
-      }
-
-      return { displayCode, displayName };
+      const candidate = fRoom || r;
+      return formatRoomDisplay(candidate, bCode);
     },
     [currentBuilding, floorDetail]
   );
 
-  // Handle clicking a room on SVG
+  // Handle clicking a room on SVG via Centralized Room Resolver
   const handleRoomClick = (roomId: string, rawElementId: string) => {
     setHighlightedRoomId(roomId);
 
     const bCode = currentBuilding?.code || '';
-    const cleanCode = roomId.toUpperCase().includes(bCode) ? roomId.toUpperCase() : `${bCode}-${roomId.toUpperCase()}`;
-
-    // Find in statusOverlayData
-    const existing = statusOverlayData?.rooms.find((r) => {
-      if (r.room_id.toLowerCase() === roomId.toLowerCase()) return true;
-      if (r.room_code.toLowerCase() === roomId.toLowerCase()) return true;
-      if (r.room_code.toLowerCase().endsWith(roomId.toLowerCase())) return true;
-      const meta = facilityCache.roomMeta.get(r.room_id);
-      if (meta) {
-        if (meta.nameEn?.toLowerCase() === roomId.toLowerCase()) return true;
-        if ((meta as any).nameTh?.toLowerCase() === roomId.toLowerCase()) return true;
-        if (meta.roomNumber?.toLowerCase() === roomId.toLowerCase()) return true;
-      }
-      return false;
-    });
-
-    // Also match in floorDetail
     const fRooms = floorDetail?.rooms || (currentFloor as any)?.rooms || [];
-    const match = fRooms.find((fr: any) => {
-      const idMatch = fr.id?.toLowerCase() === roomId.toLowerCase();
-      const enMatch = fr.name?.en?.toLowerCase() === roomId.toLowerCase();
-      const thMatch = fr.name?.th?.toLowerCase() === roomId.toLowerCase();
-      const numMatch = fr.room_number?.toLowerCase() === roomId.toLowerCase();
-      return idMatch || enMatch || thMatch || numMatch;
-    });
 
+    // Centralized Room Resolution (handles slashes, dashes, names, UUIDs)
+    const existing = resolveRoomEntity(roomId, statusOverlayData?.rooms) || resolveRoomEntity(rawElementId, statusOverlayData?.rooms);
+    const match = resolveRoomEntity(roomId, fRooms) || resolveRoomEntity(rawElementId, fRooms);
+
+    // Prefer actual database UUID
     const targetId = existing?.room_id || match?.id || (rawElementId ? `RM_${rawElementId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` : `RM_${roomId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`);
-    
-    let resolvedCode = cleanCode;
-    let resolvedName = `Room ${roomId}`;
 
-    if (existing) {
-      const info = getRoomDisplayInfo(existing);
-      resolvedCode = info.displayCode;
-      resolvedName = info.displayName || resolvedCode;
-    } else if (match) {
-      if (match.room_number) {
-        resolvedCode = bCode && !match.room_number.startsWith(bCode) ? `${bCode}-${match.room_number}` : match.room_number;
-      }
-      resolvedName = match.name?.en || match.name?.th || resolvedCode;
-    }
+    const candidate = match || existing || { room_code: roomId, buildingCode: bCode };
+    const { displayCode, displayName } = formatRoomDisplay(candidate, bCode);
 
     setEditingTarget({
       type: 'ROOM',
       id: targetId,
-      code: resolvedCode,
-      name: resolvedName,
+      code: displayCode,
+      name: displayName,
       floorId: selectedFloorId,
       buildingCode: bCode,
       currentStatus: existing?.status || 'ACTIVE',
@@ -381,6 +298,7 @@ export const BuildingsPage: React.FC = () => {
     });
     setIsDrawerOpen(true);
   };
+
 
   // Handle saving status from Drawer
   const handleSaveStatus = async (
@@ -520,44 +438,24 @@ export const BuildingsPage: React.FC = () => {
 
       {/* Status Counters Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-slate-500">Total Rooms</div>
-            <div className="text-xl font-bold text-slate-900">{stats.total}</div>
-          </div>
+        <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">Total Rooms</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-emerald-600">Active / Open</div>
-            <div className="text-xl font-bold text-emerald-700">{stats.active}</div>
-          </div>
+        <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">Active / Open</div>
+          <div className="text-2xl font-bold text-emerald-600 mt-1">{stats.active}</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-amber-600">Maintenance</div>
-            <div className="text-xl font-bold text-amber-700">{stats.maintenance}</div>
-          </div>
+        <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">Maintenance</div>
+          <div className="text-2xl font-bold text-amber-600 mt-1">{stats.maintenance}</div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-            <Ban className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-medium text-red-600">Closed</div>
-            <div className="text-xl font-bold text-red-700">{stats.closed}</div>
-          </div>
+        <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">Closed</div>
+          <div className="text-2xl font-bold text-red-600 mt-1">{stats.closed}</div>
         </div>
       </div>
 

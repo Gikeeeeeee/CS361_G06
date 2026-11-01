@@ -179,13 +179,28 @@ export const statusApi = {
       body: JSON.stringify(payload),
     });
 
-    // 2. Fallback to /api/v1/locations/{id}/status if 404
-    if (response.status === 404) {
-      response = await fetch(`${BASE_URL}/api/v1/locations/${encodeURIComponent(roomId)}/status`, {
+    // 2. Fallback: if 404 and roomCode is provided, try with clean room code/number
+    if (response.status === 404 && roomCode && roomCode !== roomId) {
+      const cleanCode = roomCode.replace(/^(lc[0-9]+|sc[0-9]+)-/i, '');
+      response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(cleanCode)}/status`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(payload),
       });
+    }
+
+    // 3. Fallback: if 404 and identifier contains slashes or hyphens, try alternate format
+    if (response.status === 404) {
+      const targetStr = roomCode || roomId;
+      const cleanTarget = targetStr.replace(/^(lc[0-9]+|sc[0-9]+)-/i, '');
+      if (cleanTarget.includes('/') || cleanTarget.includes('-')) {
+        const alt = cleanTarget.includes('/') ? cleanTarget.replace(/\//g, '-') : cleanTarget.replace(/-/g, '/');
+        response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(alt)}/status`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(payload),
+        });
+      }
     }
 
     if (!response.ok) {

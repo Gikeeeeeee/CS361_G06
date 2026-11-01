@@ -23,14 +23,14 @@ export default function MapView({ config }: MapViewProps) {
       bounceAtZoomLimits: false,
     }).setView([config.lat, config.lng], config.zoom || 16);
 
-    // 🎨 OpenStreetMap แบบดั้งเดิม
+    // OpenStreetMap แบบดั้งเดิม
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
       className: 'grayscale-map-tiles', // Class กำหนดโทนสีเทา
     }).addTo(map);
 
-    // 📌 Pin Marker สีน้ำเงินเข้มขอบขาว
+    // Pin Marker สีน้ำเงินเข้มขอบขาว
     const customIcon = L.divIcon({
       className: 'custom-map-pin',
       html: `<div style="

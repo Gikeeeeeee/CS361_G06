@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, AlertTriangle, Ban, Clock, Save, Building2 } from 'lucide-react';
+import { X, Clock, Save } from 'lucide-react';
 import type { RoomStatus, CorridorStatus, NodeStatus } from '../types/status.types';
 
 interface StatusEditDrawerProps {
@@ -80,18 +80,13 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
           {/* Header */}
           <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold leading-tight">
-                  Status Configuration
-                </h2>
-                <p className="text-xs text-slate-400">
-                  {isRoom ? 'Manage Room Availability' : 'Manage Corridor Access'}
-                </p>
-              </div>
+            <div>
+              <h2 className="text-base font-semibold leading-tight">
+                Status Configuration
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {isRoom ? 'Manage Room Availability' : 'Manage Corridor Access'}
+              </p>
             </div>
             <button
               type="button"
@@ -140,14 +135,9 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Active / Available</div>
-                        <div className="text-xs text-slate-500">Open for classes and normal usage</div>
-                      </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Active / Available</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Open for classes and normal usage</div>
                     </div>
                     {selectedStatus === 'ACTIVE' && (
                       <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -164,14 +154,9 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
-                        <AlertTriangle className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Under Maintenance</div>
-                        <div className="text-xs text-slate-500">Temporarily undergoing repairs or cleaning</div>
-                      </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Under Maintenance</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Temporarily undergoing repairs or cleaning</div>
                     </div>
                     {selectedStatus === 'MAINTENANCE' && (
                       <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
@@ -188,14 +173,9 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
-                        <Ban className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold">Closed / Unavailable</div>
-                        <div className="text-xs text-slate-500">Inaccessible to students and staff</div>
-                      </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Closed / Unavailable</div>
+                      <div className="text-xs text-slate-500 mt-0.5">Inaccessible to students and staff</div>
                     </div>
                     {selectedStatus === 'CLOSED' && (
                       <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -214,7 +194,6 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                     }`}
                   >
-                    <CheckCircle2 className="w-6 h-6 text-emerald-600 mb-1" />
                     <span className="text-sm font-semibold">Passable (Active)</span>
                   </button>
 
@@ -227,7 +206,6 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                         : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                     }`}
                   >
-                    <Ban className="w-6 h-6 text-red-600 mb-1" />
                     <span className="text-sm font-semibold">Blocked (No Pass)</span>
                   </button>
                 </div>
