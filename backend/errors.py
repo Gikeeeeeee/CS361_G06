@@ -94,7 +94,12 @@ class BuildingNotFound(NotFoundError):
 class FloorNotFound(NotFoundError):
     code = "FLOOR_NOT_FOUND"
 
-    def __init__(self, floor_id: str, building_id: str | None = None):
+    def __init__(
+        self,
+        floor_id: str,
+        building_id: str | None = None,
+        message: str | None = None,
+    ):
         """
         `building_id` is optional: `GET /api/v1/floors/{floorId}` has no
         building in its path, so naming one in the message would be inventing
@@ -102,19 +107,25 @@ class FloorNotFound(NotFoundError):
         """
         self.building_id = building_id
         self.floor_id = floor_id
-        super().__init__(
-            f"Floor '{floor_id}' in building '{building_id}' not found"
-            if building_id is not None
-            else f"Floor '{floor_id}' not found"
-        )
+        if message is not None:
+            msg = message
+        else:
+            msg = (
+                f"Floor '{floor_id}' in building '{building_id}' not found"
+                if building_id is not None
+                else f"Floor '{floor_id}' not found"
+            )
+        super().__init__(msg)
 
 
 class RoomNotFound(NotFoundError):
     code = "ROOM_NOT_FOUND"
 
-    def __init__(self, room_id: str):
+    def __init__(self, room_id: str, message: str | None = None):
         self.room_id = room_id
-        super().__init__(f"Room '{room_id}' not found")
+        super().__init__(
+            message if message is not None else f"Room '{room_id}' not found"
+        )
 
 
 class ScheduleConflict(AppError):
@@ -427,3 +438,26 @@ class MissingCorridorAttachment(ValidationError):
     def __init__(self, room_id: str):
         self.room_id = room_id
         super().__init__(f"Room '{room_id}' is not attached to any corridor edge")
+
+
+class InvalidStatusValue(ValidationError):
+    code = "INVALID_STATUS_VALUE"
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class CorridorEdgeNotFound(NotFoundError):
+    code = "EDGE_NOT_FOUND"
+
+    def __init__(self, edge_id: str):
+        self.edge_id = edge_id
+        super().__init__(f"Corridor edge with ID {edge_id} does not exist.")
+
+
+class NavigationNodeNotFound(NotFoundError):
+    code = "NODE_NOT_FOUND"
+
+    def __init__(self, node_id: str):
+        self.node_id = node_id
+        super().__init__(f"Navigation node with ID {node_id} does not exist.")

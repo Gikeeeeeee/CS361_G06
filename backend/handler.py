@@ -20,12 +20,15 @@ import response
 from auth import verify_token
 from errors import (
     AppError,
+    ForbiddenError,
     InvalidParameter,
     InvalidSchedule,
     MissingParameters,
     RouteNotFound,
     ValidationError,
 )
+from repositories.status_repository import StatusRepository
+from services.status_service import StatusService
 from repositories.building_repository import BuildingRepository
 from repositories.ScheduleRepo import ScheduleRepository
 from repositories.opensearch_repository import OpenSearchRepository
@@ -93,6 +96,9 @@ class Dependencies:
         self._navigation_source = navigation_source
         self._navigation = None
 
+        self._status_source = None
+        self._status = None
+
     @property
     def navigation(self) -> NavigationService:
         if self._navigation is None:
@@ -103,6 +109,21 @@ class Dependencies:
             )
             self._navigation = NavigationService(source)
         return self._navigation
+
+    @property
+    def status(self) -> StatusService:
+        if self._status is None:
+            source = (
+                self._status_source
+                if self._status_source is not None
+                else StatusRepository()
+            )
+            self._status = StatusService(source)
+        return self._status
+
+    @status.setter
+    def status(self, value: StatusService):
+        self._status = value
 
     @property
     def bookmarks(self) -> BookmarkService:
@@ -343,6 +364,53 @@ def _dry_run(params: dict) -> bool:
 # V2 Schedule API
 SEARCH = "/api/v1/search"
 
+FLOOR_STATUS_OVERLAY = "/api/v1/floors/{floorId}/status-overlay"
+ROOM_STATUS = "/api/v1/locations/rooms/{roomId}/status"
+CORRIDOR_EDGE_STATUS = "/api/v1/routes/corridor-edges/{edgeId}/status"
+NAVIGATION_NODE_STATUS = "/api/v1/routes/navigation-nodes/{nodeId}/status"
+
+
+def _get_floor_status_overlay(deps: Dependencies, p: dict) -> dict:
+    floor_id = p.get("floor_id") or p.get("floorId")
+    data = deps.status.get_floor_status_overlay(floor_id)
+    return {"success": True, "data": data}
+
+
+def _update_room_status(deps: Dependencies, p: dict) -> dict:
+    room_id = p.get("room_id") or p.get("roomId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_room_status(
+        room_id=room_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
+
+
+def _update_corridor_edge_status(deps: Dependencies, p: dict) -> dict:
+    edge_id = p.get("edge_id") or p.get("edgeId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_corridor_edge_status(
+        edge_id=edge_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
+
+
+def _update_navigation_node_status(deps: Dependencies, p: dict) -> dict:
+    node_id = p.get("node_id") or p.get("nodeId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_navigation_node_status(
+        node_id=node_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
+
 
 ROUTES = {
     f"GET {BUILDINGS}": Route(
@@ -449,6 +517,38 @@ ROUTES = {
     "POST /routes/search": Route(("body",), _search_routes),
     f"GET {ROUTES_GET}": Route(("start_node", "destination_room"), _get_routes),
     "GET /routes": Route(("start_node", "destination_room"), _get_routes),
+    f"GET {FLOOR_STATUS_OVERLAY}": Route(("floorId",), _get_floor_status_overlay),
+    "GET /api/v1/floors/{floor_id}/status-overlay": Route(
+        ("floor_id",), _get_floor_status_overlay
+    ),
+    "GET /floors/{floor_id}/status-overlay": Route(
+        ("floor_id",), _get_floor_status_overlay
+    ),
+    f"PATCH {ROOM_STATUS}": Route(("roomId", "body"), _update_room_status),
+    "PATCH /api/v1/locations/rooms/{room_id}/status": Route(
+        ("room_id", "body"), _update_room_status
+    ),
+    "PATCH /locations/rooms/{room_id}/status": Route(
+        ("room_id", "body"), _update_room_status
+    ),
+    f"PATCH {CORRIDOR_EDGE_STATUS}": Route(
+        ("edgeId", "body"), _update_corridor_edge_status
+    ),
+    "PATCH /api/v1/routes/corridor-edges/{edge_id}/status": Route(
+        ("edge_id", "body"), _update_corridor_edge_status
+    ),
+    "PATCH /routes/corridor-edges/{edge_id}/status": Route(
+        ("edge_id", "body"), _update_corridor_edge_status
+    ),
+    f"PATCH {NAVIGATION_NODE_STATUS}": Route(
+        ("nodeId", "body"), _update_navigation_node_status
+    ),
+    "PATCH /api/v1/routes/navigation-nodes/{node_id}/status": Route(
+        ("node_id", "body"), _update_navigation_node_status
+    ),
+    "PATCH /routes/navigation-nodes/{node_id}/status": Route(
+        ("node_id", "body"), _update_navigation_node_status
+    ),
 }
 
 # Routes any signed-in user may call (no STAFF role); verified per request.
@@ -635,6 +735,26 @@ def lambda_handler(event, context):
 
         if route_key in USER_ROUTES:
             params["auth_user"] = verify_token(event)
+
+        if route_key and "status" in route_key and method == "PATCH":
+            auth_user = verify_token(event)
+            role = str(auth_user.get("role") or "").upper()
+            if role not in ("STAFF", "ADMIN"):
+                if "room" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update room status."
+                    )
+                elif "corridor-edge" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update corridor edge status."
+                    )
+                elif "navigation-node" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update navigation node status."
+                    )
+                else:
+                    raise ForbiddenError("Operation requires STAFF or ADMIN role.")
+            params["auth_user"] = auth_user
 
         route = ROUTES[route_key]
 
