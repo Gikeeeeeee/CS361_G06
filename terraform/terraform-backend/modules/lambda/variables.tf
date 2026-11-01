@@ -29,6 +29,12 @@ variable "buildings_file" {
   default     = "building-index.json"
 }
 
+variable "asset_base_url" {
+  description = "Base URL (CloudFront) for floor plans and images. Empty = presigned S3 URLs."
+  type        = string
+  default     = ""
+}
+
 variable "dynamodb_table_name" {
   description = "Existing DynamoDB table name."
   type        = string

@@ -42,3 +42,8 @@ output "opensearch_index" {
   description = "OpenSearch index used by this deployment."
   value       = var.opensearch_index
 }
+
+output "cdn_url" {
+  description = "CloudFront URL serving floor plans and images."
+  value       = "https://${module.storage.cdn_domain}"
+}

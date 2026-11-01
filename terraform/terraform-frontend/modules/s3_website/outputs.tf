@@ -10,12 +10,12 @@ output "bucket_arn" {
   value       = aws_s3_bucket.this.arn
 }
 
-output "website_endpoint" {
-  description = "S3 static website endpoint."
-  value       = aws_s3_bucket_website_configuration.this.website_endpoint
+output "cloudfront_domain" {
+  description = "CloudFront domain serving the website."
+  value       = aws_cloudfront_distribution.this.domain_name
 }
 
 output "website_url" {
-  description = "HTTP URL of the website."
-  value       = "http://${aws_s3_bucket_website_configuration.this.website_endpoint}"
+  description = "HTTPS URL of the website (CloudFront)."
+  value       = "https://${aws_cloudfront_distribution.this.domain_name}"
 }
