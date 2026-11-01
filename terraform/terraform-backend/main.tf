@@ -227,3 +227,93 @@ module "api_gateway" {
   lambda_function_name = module.lambda.function_name
   lambda_invoke_arn    = module.lambda.invoke_arn
 }
+
+# ===========================================================================
+# Monitoring (#247)
+# ===========================================================================
+# Alarms publish to one SNS topic. No subscriber yet: subscribe an email or
+# chat webhook to the topic later; no code change needed.
+
+resource "aws_sns_topic" "alerts" {
+  name = "${var.project_name}-alerts-${var.environment}"
+}
+
+# handler.py turns every exception into a 500 response, so Lambda's own
+# Errors metric stays at 0. API Gateway's 5xx count is the real error signal
+# (it also includes Lambda timeouts / integration failures).
+resource "aws_cloudwatch_metric_alarm" "api_5xx_rate" {
+  alarm_name          = "${var.project_name}-api-5xx-rate-${var.environment}"
+  alarm_description   = "API 5xx rate > 1% over 5 minutes."
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 1
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "rate"
+    expression  = "IF(requests > 0, 100 * errors / requests, 0)"
+    label       = "5xx rate (%)"
+    return_data = true
+  }
+
+  metric_query {
+    id = "errors"
+    metric {
+      namespace   = "AWS/ApiGateway"
+      metric_name = "5xx"
+      dimensions  = { ApiId = module.api_gateway.api_id }
+      stat        = "Sum"
+      period      = 300
+    }
+  }
+
+  metric_query {
+    id = "requests"
+    metric {
+      namespace   = "AWS/ApiGateway"
+      metric_name = "Count"
+      dimensions  = { ApiId = module.api_gateway.api_id }
+      stat        = "Sum"
+      period      = 300
+    }
+  }
+}
+
+# ThrottledRequests counts requests throttled on the table or any GSI.
+# Its dimensions are TableName + Operation, so a Metrics Insights query sums
+# every operation into one series.
+resource "aws_cloudwatch_metric_alarm" "dynamodb_throttles" {
+  alarm_name          = "${var.project_name}-dynamodb-throttles-${var.environment}"
+  alarm_description   = "Any throttled DynamoDB request on the table or its GSIs."
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 0
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "throttles"
+    expression  = "SELECT SUM(ThrottledRequests) FROM SCHEMA(\"AWS/DynamoDB\", Operation, TableName) WHERE TableName = '${module.dynamodb.table_name}'"
+    period      = 60
+    return_data = true
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "indexer_iterator_age" {
+  alarm_name          = "${var.project_name}-indexer-iterator-age-${var.environment}"
+  alarm_description   = "Indexer is falling behind the DynamoDB stream (IteratorAge > 60s for 3 minutes)."
+  namespace           = "AWS/Lambda"
+  metric_name         = "IteratorAge"
+  dimensions          = { FunctionName = module.lambda.indexer_function_name }
+  statistic           = "Maximum"
+  period              = 60
+  evaluation_periods  = 3
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 60000
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
