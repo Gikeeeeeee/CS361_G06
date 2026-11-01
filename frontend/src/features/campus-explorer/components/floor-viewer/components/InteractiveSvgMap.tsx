@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
@@ -171,22 +171,22 @@ export function InteractiveSvgMap({
           targets.forEach((t) => {
             const htmlEl = t as HTMLElement;
             if (status === "MAINTENANCE") {
-              htmlEl.style.setProperty("fill", "#FEF3C7", "important"); // amber-100
-              htmlEl.style.setProperty("stroke", "#F59E0B", "important"); // amber-500
-              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+              htmlEl.style.setProperty("fill", "#FEF08A", "important"); // amber/yellow-200
+              htmlEl.style.setProperty("stroke", "#CA8A04", "important"); // amber-600
+              htmlEl.style.setProperty("stroke-width", "1.8px", "important");
               htmlEl.setAttribute("title", `Status: Under Maintenance${note}`);
             } else if (status === "CLOSED" || status === "BLOCKED") {
-              htmlEl.style.setProperty("fill", "#FEE2E2", "important"); // red-100
-              htmlEl.style.setProperty("stroke", "#EF4444", "important"); // red-500
-              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+              htmlEl.style.setProperty("fill", "#FECACA", "important"); // red-200
+              htmlEl.style.setProperty("stroke", "#DC2626", "important"); // red-600
+              htmlEl.style.setProperty("stroke-width", "2px", "important");
               if (status === "BLOCKED") {
                 htmlEl.style.setProperty("stroke-dasharray", "4 2", "important");
               }
               htmlEl.setAttribute("title", `Status: Closed${note}`);
             } else if (status === "ACTIVE") {
-              htmlEl.style.setProperty("fill", "#DCFCE7", "important"); // emerald-100
-              htmlEl.style.setProperty("stroke", "#10B981", "important"); // emerald-500
-              htmlEl.style.setProperty("stroke-width", "1.2px", "important");
+              htmlEl.style.setProperty("fill", "#BBF7D0", "important"); // emerald-200
+              htmlEl.style.setProperty("stroke", "#16A34A", "important"); // emerald-600
+              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
               htmlEl.setAttribute("title", "Status: Active / Available");
             }
           });
@@ -321,6 +321,95 @@ export function InteractiveSvgMap({
     }
   `;
 
+  // Persistent declarative CSS overlay for 100% rock-solid styling across renders
+  const overlayStyles = useMemo(() => {
+    if (!svgContent) return "";
+
+    const regex = /<([a-z0-9]+)[^>]*id="([^"]+)"[^>]*>/gi;
+    let m;
+    const shapes: string[] = [];
+    while ((m = regex.exec(svgContent)) !== null) {
+      const rawId = m[2];
+      const fullTag = m[0];
+      if (rawId.startsWith('room-') || rawId.startsWith('facility-') || fullTag.includes('room-shape')) {
+        shapes.push(rawId);
+      }
+    }
+
+    const targetNorm = highlightedRoomId ? normalizeRoomId(highlightedRoomId) : null;
+    const rules: string[] = [];
+
+    shapes.forEach((rawId) => {
+      const cleanId = rawId.replace(/^(room-|facility-)/, "");
+      const normId = normalizeRoomId(cleanId);
+
+      const isHighlighted =
+        targetNorm &&
+        (normId === targetNorm ||
+          cleanId.toLowerCase() === targetNorm.toLowerCase() ||
+          rawId.toLowerCase() === targetNorm.toLowerCase());
+
+      if (isHighlighted) {
+        rules.push(`
+          .svg-map-container [id="${rawId}"],
+          .svg-map-container #${rawId} {
+            fill: #2563EB !important;
+            stroke: #1D4ED8 !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.45));
+          }
+        `);
+        return;
+      }
+
+      if (statusOverlay && Object.keys(statusOverlay).length > 0) {
+        let entry = statusOverlay[rawId] || statusOverlay[cleanId] || statusOverlay[normId];
+        if (!entry) {
+          for (const [k, val] of Object.entries(statusOverlay)) {
+            if (normalizeRoomId(k) === normId || k.toLowerCase().endsWith(normId.toLowerCase())) {
+              entry = val;
+              break;
+            }
+          }
+        }
+
+        if (entry) {
+          const status = entry.status?.toUpperCase();
+          if (status === "MAINTENANCE") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #FEF08A !important;
+                stroke: #CA8A04 !important;
+                stroke-width: 1.8px !important;
+              }
+            `);
+          } else if (status === "CLOSED" || status === "BLOCKED") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #FECACA !important;
+                stroke: #DC2626 !important;
+                stroke-width: 2px !important;
+              }
+            `);
+          } else if (status === "ACTIVE") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #BBF7D0 !important;
+                stroke: #16A34A !important;
+                stroke-width: 1.5px !important;
+              }
+            `);
+          }
+        }
+      }
+    });
+
+    return rules.join("\n");
+  }, [svgContent, statusOverlay, highlightedRoomId]);
+
   const mapSvgContent = (
     <div
       ref={containerRef}
@@ -332,7 +421,7 @@ export function InteractiveSvgMap({
   if (!enableZoomPan) {
     return (
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        <style>{dynamicStyles}</style>
+        <style>{dynamicStyles}{overlayStyles}</style>
         {mapSvgContent}
       </div>
     );
@@ -340,7 +429,7 @@ export function InteractiveSvgMap({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      <style>{dynamicStyles}</style>
+      <style>{dynamicStyles}{overlayStyles}</style>
       <TransformWrapper
         initialScale={1}
         minScale={minScale}

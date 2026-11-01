@@ -11,7 +11,7 @@ import {
   Loader2,
   Check
 } from 'lucide-react';
-import { facilityCache } from '../../admin-schedule/services/facilityCache';
+import { facilityCache, resolveRoomNumber } from '../../admin-schedule/services/facilityCache';
 import type { Building, Floor } from '../../admin-schedule/services/scheduleApi';
 import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../campus-explorer/components/floor-viewer/components/InteractiveSvgMap';
@@ -216,6 +216,10 @@ export const BuildingsPage: React.FC = () => {
         if (meta.roomNumber) {
           map[meta.roomNumber] = entry;
           map[meta.roomNumber.toLowerCase()] = entry;
+          map[`room-${meta.roomNumber}`] = entry;
+          map[`room-${meta.roomNumber}`.toLowerCase()] = entry;
+          map[`room-${meta.roomNumber.replace(/\//g, '-')}`] = entry;
+          map[`room-${meta.roomNumber.replace(/\//g, '-')}`.toLowerCase()] = entry;
         }
       }
     });
@@ -236,6 +240,10 @@ export const BuildingsPage: React.FC = () => {
         if (fr.room_number) {
           map[fr.room_number] = entry;
           map[fr.room_number.toLowerCase()] = entry;
+          map[`room-${fr.room_number}`] = entry;
+          map[`room-${fr.room_number}`.toLowerCase()] = entry;
+          map[`room-${fr.room_number.replace(/\//g, '-')}`] = entry;
+          map[`room-${fr.room_number.replace(/\//g, '-')}`.toLowerCase()] = entry;
         }
       }
     });
@@ -280,16 +288,17 @@ export const BuildingsPage: React.FC = () => {
       let displayName = '';
 
       if (fRoom) {
-        if (fRoom.room_number) {
-          displayCode = bCode && !fRoom.room_number.startsWith(bCode)
-            ? `${bCode}-${fRoom.room_number}`
-            : fRoom.room_number;
-          displayName = fRoom.name?.en || fRoom.name?.th || '';
+        const rawNum = fRoom.room_number || meta?.roomNumber;
+        const resolvedNum = resolveRoomNumber(rawNum, fRoom.name?.en, fRoom.name?.th);
+        if (resolvedNum) {
+          displayCode = bCode && !resolvedNum.toLowerCase().startsWith(bCode.toLowerCase())
+            ? `${bCode}-${resolvedNum}`
+            : resolvedNum;
         } else {
           const typeName = fRoom.type === 'LANDMARK' ? 'Landmark' : fRoom.type ? fRoom.type.replace(/_/g, ' ') : 'Area';
-          displayCode = bCode ? `${bCode}-${fRoom.type || 'AREA'}` : typeName;
-          displayName = fRoom.name?.en || fRoom.name?.th || (fRoom.type === 'LANDMARK' ? `${bCode} Landmark` : typeName);
+          displayCode = bCode ? `${bCode}-${typeName}` : typeName;
         }
+        displayName = fRoom.name?.en || fRoom.name?.th || (fRoom.type === 'LANDMARK' ? `${bCode} Landmark` : displayCode);
       } else if (meta?.roomNumber) {
         displayCode = bCode && !meta.roomNumber.startsWith(bCode)
           ? `${bCode}-${meta.roomNumber}`
@@ -753,7 +762,10 @@ export const BuildingsPage: React.FC = () => {
       {/* Edit Drawer Modal */}
       <StatusEditDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setHighlightedRoomId(null);
+        }}
         target={editingTarget}
         onSave={handleSaveStatus}
       />
