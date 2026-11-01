@@ -72,7 +72,7 @@ export const UserLayout: React.FC = () => {
           )}
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          <main className={`flex-1 relative ${location.pathname === '/' ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}>
             <Outlet />
           </main>
           

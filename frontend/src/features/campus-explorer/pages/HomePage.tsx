@@ -26,22 +26,28 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-80px)] overflow-hidden select-none">
-      {/* Top Floating Search & Filter Chips Overlays */}
-      <SearchContainer onFocusChange={setIsSearchActive} />
+    <div className="relative w-full h-full overflow-hidden select-none">
+      {/* Top Fixed / Sticky Search Bar & QR Code Scanner Overlay */}
+      <div className="sticky top-0 left-0 right-0 z-40 w-full pointer-events-none">
+        <div className="pt-3 px-4 max-w-md mx-auto relative flex flex-col">
+          <SearchContainer onFocusChange={setIsSearchActive} />
 
-      {/* Floating Circular QR Code Scanner Button below Search Bar */}
-      {!isSearchActive && (
-        <button
-          type="button"
-          onClick={openQrScanner}
-          className="absolute top-[68px] right-4 z-40 w-11 h-11 rounded-full bg-white/95 hover:bg-white active:scale-95 text-slate-800 hover:text-blue-600 shadow-md hover:shadow-lg border border-slate-200/90 backdrop-blur-md flex items-center justify-center transition-all cursor-pointer group pointer-events-auto"
-          title="Scan Checkpoint QR Code to Navigate"
-          aria-label="Scan QR Code to navigate"
-        >
-          <QrCode className="w-5 h-5 stroke-[2.2] group-hover:scale-110 transition-transform" />
-        </button>
-      )}
+          {/* Floating Circular QR Code Scanner Button below Search Bar */}
+          {!isSearchActive && (
+            <div className="flex justify-end mt-2.5 pr-0 pointer-events-none">
+              <button
+                type="button"
+                onClick={openQrScanner}
+                className="w-11 h-11 rounded-full bg-white/95 hover:bg-white active:scale-95 text-slate-800 hover:text-blue-600 shadow-md hover:shadow-lg border border-slate-200/90 backdrop-blur-md flex items-center justify-center transition-all cursor-pointer group pointer-events-auto"
+                title="Scan Checkpoint QR Code to Navigate"
+                aria-label="Scan QR Code to navigate"
+              >
+                <QrCode className="w-5 h-5 stroke-[2.2] group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Full screen Map Viewport */}
       <div className="absolute inset-0 w-full h-full z-0">
