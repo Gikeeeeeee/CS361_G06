@@ -400,38 +400,61 @@ class NavigationService:
     ) -> dict[str, float]:
         """Calculates candidate entry/exit nodes and costs for an endpoint."""
         if node:
+            if not node.is_active:
+                raise BlockedLocationError(node.name or node.id, "Node")
             return {node.id: 0.0}
 
         if not room:
             return {}
 
         edge = edges_dict.get(room.corridor_edge_id)
-        if not edge or not edge.is_active:
+        if not edge:
             raise MissingCorridorAttachment(room.display_name)
+        if not edge.is_active:
+            raise BlockedLocationError(room.display_name, "Room")
 
         u = edge.from_node_id
         v = edge.to_node_id
 
         if u not in nodes_dict or v not in nodes_dict:
-            return {u: edge.distance_weight / 2.0, v: edge.distance_weight / 2.0}
+            cost_u = edge.distance_weight / 2.0
+            cost_v = edge.distance_weight / 2.0
+        else:
+            node_u = nodes_dict[u]
+            node_v = nodes_dict[v]
 
-        node_u = nodes_dict[u]
-        node_v = nodes_dict[v]
+            if room.door_svg_x is not None and room.door_svg_y is not None:
+                _, _, t = _project_point_on_segment(
+                    room.door_svg_x,
+                    room.door_svg_y,
+                    node_u.svg_x,
+                    node_u.svg_y,
+                    node_v.svg_x,
+                    node_v.svg_y,
+                )
+                cost_u = t * edge.distance_weight
+                cost_v = (1.0 - t) * edge.distance_weight
+            else:
+                cost_u = edge.distance_weight / 2.0
+                cost_v = edge.distance_weight / 2.0
 
-        if room.door_svg_x is not None and room.door_svg_y is not None:
-            _, _, t = _project_point_on_segment(
-                room.door_svg_x,
-                room.door_svg_y,
-                node_u.svg_x,
-                node_u.svg_y,
-                node_v.svg_x,
-                node_v.svg_y,
-            )
-            cost_u = t * edge.distance_weight
-            cost_v = (1.0 - t) * edge.distance_weight
-            return {u: cost_u, v: cost_v}
+        candidates = {}
+        if u in nodes_dict:
+            if nodes_dict[u].is_active:
+                candidates[u] = cost_u
+        else:
+            candidates[u] = cost_u
 
-        return {u: edge.distance_weight / 2.0, v: edge.distance_weight / 2.0}
+        if v in nodes_dict:
+            if nodes_dict[v].is_active:
+                candidates[v] = cost_v
+        else:
+            candidates[v] = cost_v
+
+        if not candidates:
+            raise NoRouteAvailable(room.display_name, "corridor")
+
+        return candidates
 
     def _is_same_location(
         self,
