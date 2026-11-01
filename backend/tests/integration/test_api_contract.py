@@ -230,6 +230,7 @@ def test_api_post_schedule_contract(api_base_url: str, throwaway_room: str):
     assert set(stored[0]) == {
         "id", "type", "title", "description", "course_code", "organizer",
         "start_at", "end_at", "time_zone", "recurrence_rule", "room_id", "status",
+        "visibility",
     }
 
 
@@ -277,7 +278,10 @@ def test_api_concurrent_posts_on_the_same_slot_book_once(
 def test_api_post_schedule_stores_a_recurrence_rule_once(
     api_base_url: str, throwaway_room: str
 ):
-    """Live API contract: one POST with an RRULE is one item, rule attached."""
+    """Live API contract: one POST with an RRULE is one series, rule attached.
+
+    GET expands it into one row per occurrence (AP15); all rows share one id.
+    """
     res = _request(
         "POST",
         f"/api/v1/rooms/{throwaway_room}/schedules",
@@ -286,8 +290,10 @@ def test_api_post_schedule_stores_a_recurrence_rule_once(
     )
 
     assert res.status_code == 201
-    [stored] = _schedules(api_base_url, throwaway_room).json()["data"]
-    assert stored["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=TU;COUNT=15"
+    rows = _schedules(api_base_url, throwaway_room).json()["data"]
+    assert len(rows) == 15
+    assert {row["id"] for row in rows} == {rows[0]["id"]}
+    assert {row["recurrence_rule"] for row in rows} == {"FREQ=WEEKLY;BYDAY=TU;COUNT=15"}
 
 
 @pytest.mark.parametrize(
