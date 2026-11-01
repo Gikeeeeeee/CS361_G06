@@ -109,7 +109,7 @@ export function InteractiveSvgMap({
 
     // 1. Reset all previous highlights and set data-room-id attributes on shapes
     const allShapes = container.querySelectorAll(
-      ".room-shape, .facility-shape, [id^='room-'], [id^='facility-'], rect[id], polygon[id], path[id]"
+      ".room-shape, .facility-shape, [id^='room-'], [id^='facility-'], rect[id], polygon[id], path[id], g[id]"
     );
     allShapes.forEach((el) => {
       const rawId = el.id || '';
@@ -117,12 +117,21 @@ export function InteractiveSvgMap({
       if (cleanId) {
         el.setAttribute('data-room-id', cleanId);
       }
-      el.classList.remove("highlight");
-      (el as HTMLElement).style.fill = "";
-      (el as HTMLElement).style.stroke = "";
-      (el as HTMLElement).style.strokeWidth = "";
-      (el as HTMLElement).style.strokeDasharray = "";
-      (el as HTMLElement).removeAttribute("title");
+
+      const elementsToReset =
+        el.tagName.toLowerCase() === "g"
+          ? [el, ...Array.from(el.querySelectorAll("rect, polygon, path"))]
+          : [el];
+
+      elementsToReset.forEach((t) => {
+        const htmlT = t as HTMLElement;
+        htmlT.classList.remove("highlight");
+        htmlT.style.fill = "";
+        htmlT.style.stroke = "";
+        htmlT.style.strokeWidth = "";
+        htmlT.style.strokeDasharray = "";
+        htmlT.removeAttribute("title");
+      });
     });
 
     // 2. Reset all text colors
@@ -154,27 +163,33 @@ export function InteractiveSvgMap({
         if (entry) {
           const status = entry.status?.toUpperCase();
           const note = entry.note ? ` (${entry.note})` : "";
-          const htmlEl = el as HTMLElement;
+          const targets =
+            el.tagName.toLowerCase() === "g"
+              ? [el, ...Array.from(el.querySelectorAll("rect, polygon, path"))]
+              : [el];
 
-          if (status === "MAINTENANCE") {
-            htmlEl.style.setProperty("fill", "#FEF3C7", "important"); // amber-100
-            htmlEl.style.setProperty("stroke", "#F59E0B", "important"); // amber-500
-            htmlEl.style.setProperty("stroke-width", "1.5px", "important");
-            htmlEl.setAttribute("title", `Status: Under Maintenance${note}`);
-          } else if (status === "CLOSED" || status === "BLOCKED") {
-            htmlEl.style.setProperty("fill", "#FEE2E2", "important"); // red-100
-            htmlEl.style.setProperty("stroke", "#EF4444", "important"); // red-500
-            htmlEl.style.setProperty("stroke-width", "1.5px", "important");
-            if (status === "BLOCKED") {
-              htmlEl.style.setProperty("stroke-dasharray", "4 2", "important");
+          targets.forEach((t) => {
+            const htmlEl = t as HTMLElement;
+            if (status === "MAINTENANCE") {
+              htmlEl.style.setProperty("fill", "#FEF3C7", "important"); // amber-100
+              htmlEl.style.setProperty("stroke", "#F59E0B", "important"); // amber-500
+              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+              htmlEl.setAttribute("title", `Status: Under Maintenance${note}`);
+            } else if (status === "CLOSED" || status === "BLOCKED") {
+              htmlEl.style.setProperty("fill", "#FEE2E2", "important"); // red-100
+              htmlEl.style.setProperty("stroke", "#EF4444", "important"); // red-500
+              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+              if (status === "BLOCKED") {
+                htmlEl.style.setProperty("stroke-dasharray", "4 2", "important");
+              }
+              htmlEl.setAttribute("title", `Status: Closed${note}`);
+            } else if (status === "ACTIVE") {
+              htmlEl.style.setProperty("fill", "#DCFCE7", "important"); // emerald-100
+              htmlEl.style.setProperty("stroke", "#10B981", "important"); // emerald-500
+              htmlEl.style.setProperty("stroke-width", "1.2px", "important");
+              htmlEl.setAttribute("title", "Status: Active / Available");
             }
-            htmlEl.setAttribute("title", `Status: Closed${note}`);
-          } else if (status === "ACTIVE") {
-            htmlEl.style.setProperty("fill", "#DCFCE7", "important"); // emerald-100
-            htmlEl.style.setProperty("stroke", "#10B981", "important"); // emerald-500
-            htmlEl.style.setProperty("stroke-width", "1.2px", "important");
-            htmlEl.setAttribute("title", "Status: Active / Available");
-          }
+          });
         }
       });
     }

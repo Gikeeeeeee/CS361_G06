@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRoomDetail } from '../components/room-detail/hooks/useRoomDetail';
 import { RoomHero } from '../components/room-detail/components/RoomHero';
@@ -37,8 +37,23 @@ export default function RoomDetailPage() {
     );
   }
 
-  // V4-US2: Dynamic Room Status Indicator
-  const roomStatus = statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || '');
+  // V4-US2: Dynamic Room Status Indicator with live reactivity
+  const [roomStatus, setRoomStatus] = useState(() => {
+    if (!room) return null;
+    return statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || '');
+  });
+
+  useEffect(() => {
+    if (!room) return;
+    const update = () => {
+      setRoomStatus(statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || ''));
+    };
+    update();
+
+    window.addEventListener('floor-status-updated', update);
+    return () => window.removeEventListener('floor-status-updated', update);
+  }, [room]);
+
   const isMaintenance = roomStatus?.status === 'MAINTENANCE';
   const isClosed = roomStatus?.status === 'CLOSED';
 

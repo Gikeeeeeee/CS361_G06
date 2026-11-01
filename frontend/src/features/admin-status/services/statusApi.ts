@@ -324,18 +324,23 @@ export const statusApi = {
   },
 
   /**
-   * Get room status from local cache synchronously
+   * Get room status from local cache synchronously with robust prefix/number matching
    */
   getRoomStatusSync(roomCodeOrId: string): RoomStatusItem | null {
+    if (!roomCodeOrId) return null;
     const cache = getLocalCache();
-    const clean = roomCodeOrId.toUpperCase().trim();
+    const clean = roomCodeOrId.toUpperCase().trim().replace(/^ROOM\s+/i, '');
+    const numOnly = clean.replace(/[^0-9]/g, '');
+
     for (const floorData of Object.values(cache)) {
-      const found = floorData.rooms.find(
-        (r) =>
-          r.room_id.toUpperCase() === clean ||
-          r.room_code.toUpperCase() === clean ||
-          r.room_code.toUpperCase().endsWith(clean)
-      );
+      const found = floorData.rooms.find((r) => {
+        const rCode = r.room_code.toUpperCase();
+        const rId = r.room_id.toUpperCase();
+        if (rId === clean || rCode === clean) return true;
+        if (clean.length >= 3 && (rCode.endsWith(clean) || clean.endsWith(rCode))) return true;
+        if (numOnly.length >= 3 && rCode.replace(/[^0-9]/g, '') === numOnly) return true;
+        return false;
+      });
       if (found) return found;
     }
     return null;
