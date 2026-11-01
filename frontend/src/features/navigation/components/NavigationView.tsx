@@ -64,11 +64,17 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Determine local SVG floor plan URL
+  // Determine SVG floor plan URL dynamically based on route target floor
   const floorSvgUrl = useMemo(() => {
-    // Default fallback to local neutral SVG
+    const floorId = route?.svg_path?.floor_id || route?.summary?.floor_id;
+    if (floorId) {
+      const parts = floorId.replace(/^FL_/, '').split('_');
+      const bCode = parts[0] || 'LC4';
+      const fNum = parseInt(parts[1], 10) || 1;
+      return `/floor-plans/${bCode}-floor${fNum}-neutral.svg`;
+    }
     return '/floor-plans/LC4-floor1-neutral.svg';
-  }, []);
+  }, [route]);
 
   const { svgContent, loading: mapLoading } = useSvgFloorPlan(floorSvgUrl);
 

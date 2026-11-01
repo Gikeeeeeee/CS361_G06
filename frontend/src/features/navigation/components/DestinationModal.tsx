@@ -113,31 +113,43 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
           </button>
         </div>
 
-        {/* Smart Next Class Suggestion */}
-        <div className="mb-4 p-3.5 bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200 rounded-2xl">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-blue-500" />
-              Suggested Destination
-            </span>
-            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
-              Next Class
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs font-bold text-slate-900">BR2-401 (ห้องเรียน 500 คน)</div>
-              <div className="text-[11px] text-slate-500">10:30 - 12:30 • CS361 Algorithms</div>
+        {/* Smart Next Class Suggestion (Dynamic from loaded rooms) */}
+        {availableRooms.length > 0 && (
+          <div className="mb-4 p-3.5 bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200 rounded-2xl">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-blue-500" />
+                Suggested Destination
+              </span>
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">
+                Quick Select
+              </span>
             </div>
-            <button
-              onClick={() => onStartNavigation('RM_BR2_401', 'BR2-401 (ห้องเรียน 500 คน)', wheelchairAccessible)}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
-            >
-              <span>Go</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-slate-900">
+                  {availableRooms[0].code}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Floor {availableRooms[0].floor} • {availableRooms[0].building}
+                </div>
+              </div>
+              <button
+                onClick={() =>
+                  onStartNavigation(
+                    availableRooms[0].id,
+                    `${availableRooms[0].code} - ${availableRooms[0].name || availableRooms[0].building}`,
+                    wheelchairAccessible
+                  )
+                }
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+              >
+                <span>Go</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Destination Search Box */}
         <div className="mb-3">
