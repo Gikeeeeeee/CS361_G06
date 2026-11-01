@@ -231,11 +231,11 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           </div>
         )}
 
-        {/* Top Floating Instruction Card */}
+        {/* Bottom Floating Instruction Card (Unobstructs SVG Floor Plan) */}
         {currentStep && (
-          <div className="absolute top-4 left-4 right-4 z-20">
-            <div className="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-slate-200/90 flex items-start gap-3.5 transition-all">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-xs">
+          <div className="absolute bottom-3 left-3 right-3 z-20">
+            <div className="bg-white/95 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 shadow-xl border border-slate-200/90 flex items-start gap-3 transition-all animate-in fade-in slide-in-from-bottom-2">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0 shadow-xs">
                 {getTurnIcon(currentStep.action)}
               </div>
 
@@ -251,7 +251,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
                 <h2 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                   {currentStep.instruction}
                 </h2>
-                <div className="text-[11px] font-semibold text-slate-500 mt-1">
+                <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
                   Distance: {currentStep.distance} meters
                 </div>
               </div>

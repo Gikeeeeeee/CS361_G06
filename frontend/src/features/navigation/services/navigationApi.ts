@@ -59,12 +59,17 @@ export const DEFAULT_CHECKPOINTS: QRCheckpoint[] = [
  */
 async function normalizeRouteData(data: any): Promise<RouteResult> {
   const summary = data.summary || {};
-  const totalMeters = Math.round(Number(summary.total_distance || summary.total_distance_meters || 45));
+  // Backend calculates Dijkstra distance in SVG coordinate viewBox units (~10 units ≈ 1 meter)
+  const rawTotalDistance = Number(summary.total_distance || summary.total_distance_meters || 45);
+  const isSvgUnitDistance = rawTotalDistance > 100;
+  const scale = isSvgUnitDistance ? 0.1 : 1;
+
+  const totalMeters = Math.max(5, Math.round(rawTotalDistance * scale));
   const estMinutes =
     summary.estimated_time_minutes ||
     (summary.estimated_time_seconds
       ? Math.max(1, Math.ceil(summary.estimated_time_seconds / 60))
-      : Math.max(1, Math.ceil(totalMeters / 60)));
+      : Math.max(1, Math.ceil(totalMeters / 70))); // Average indoor walking speed ~70 m/min
 
   // 1. Resolve multi-floor segments
   const floorPlans: Record<number, { floor_number: number; floor_id: string; url?: string; nodes: RoutePathNode[] }> = {};
@@ -127,7 +132,7 @@ async function normalizeRouteData(data: any): Promise<RouteResult> {
     step_index: s.step_index || idx + 1,
     action: s.action || 'CONTINUE',
     instruction: s.instruction || s.message || '',
-    distance: Math.round(Number(s.distance || 0)),
+    distance: Math.round(Number(s.distance || 0) * scale),
     from_node_id: s.from_node_id,
     to_node_id: s.to_node_id,
     checkpoint_pin: s.checkpoint_pin,
