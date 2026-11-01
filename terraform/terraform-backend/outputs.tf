@@ -28,6 +28,11 @@ output "buildings_url" {
   value       = "${module.api_gateway.api_endpoint}/api/v1/buildings"
 }
 
+output "cdn_url" {
+  description = "CloudFront URL serving floor plans and images."
+  value       = "https://${module.storage.cdn_domain}"
+}
+
 output "opensearch_collection_name" {
   description = "OpenSearch Serverless collection name."
   value       = module.opensearch.collection_name
@@ -41,9 +46,4 @@ output "opensearch_collection_endpoint" {
 output "opensearch_index" {
   description = "OpenSearch index used by this deployment."
   value       = var.opensearch_index
-}
-
-output "cdn_url" {
-  description = "CloudFront URL serving floor plans and images."
-  value       = "https://${module.storage.cdn_domain}"
 }

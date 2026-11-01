@@ -95,6 +95,16 @@ def test_api_get_buildings_warm_repeat_is_cached(api_base_url: str):
     print(f"\nGET /buildings first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
 
 
+def test_api_get_building_not_found_contract(api_base_url: str):
+    """Live API contract: Non-existent building returns 404 with standard error body."""
+    res = _request("GET", "/api/v1/buildings/NON_EXISTENT_BUILDING_XYZ", api_base_url)
+
+    assert res.status_code == 404
+    data = res.json()
+    assert "error" in data
+    assert data["error"]["code"] == "BUILDING_NOT_FOUND"
+
+
 def test_api_floor_plan_served_from_cdn(api_base_url: str):
     """Live: floor plan URL is a stable CloudFront URL, cached at the edge with CORS."""
     floors = _request("GET", "/api/v1/buildings/LC3", api_base_url).json()["floors"]
@@ -113,16 +123,6 @@ def test_api_floor_plan_served_from_cdn(api_base_url: str):
     assert res.headers["Cache-Control"] == "public, max-age=86400"
     assert res.headers["X-Cache"] == "Hit from cloudfront"
     assert res.headers["Access-Control-Allow-Origin"] == "*"
-
-
-def test_api_get_building_not_found_contract(api_base_url: str):
-    """Live API contract: Non-existent building returns 404 with standard error body."""
-    res = _request("GET", "/api/v1/buildings/NON_EXISTENT_BUILDING_XYZ", api_base_url)
-
-    assert res.status_code == 404
-    data = res.json()
-    assert "error" in data
-    assert data["error"]["code"] == "BUILDING_NOT_FOUND"
 
 
 def test_api_cors_preflight_contract(api_base_url: str):
