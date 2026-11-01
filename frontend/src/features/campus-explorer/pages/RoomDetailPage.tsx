@@ -13,6 +13,23 @@ export default function RoomDetailPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const { room, floor, building, loading, error } = useRoomDetail(roomId || '');
 
+  // V4-US2: Dynamic Room Status Indicator with live reactivity (Called at top to adhere to Rules of Hooks)
+  const [roomStatus, setRoomStatus] = useState(() => {
+    if (!room) return null;
+    return statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || '');
+  });
+
+  useEffect(() => {
+    if (!room) return;
+    const update = () => {
+      setRoomStatus(statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || ''));
+    };
+    update();
+
+    window.addEventListener('floor-status-updated', update);
+    return () => window.removeEventListener('floor-status-updated', update);
+  }, [room]);
+
   useEffect(() => {
     if (room) {
       const roomTitle = room.room_number || room.name.en || room.name.th;
@@ -36,23 +53,6 @@ export default function RoomDetailPage() {
       </div>
     );
   }
-
-  // V4-US2: Dynamic Room Status Indicator with live reactivity
-  const [roomStatus, setRoomStatus] = useState(() => {
-    if (!room) return null;
-    return statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || '');
-  });
-
-  useEffect(() => {
-    if (!room) return;
-    const update = () => {
-      setRoomStatus(statusApi.getRoomStatusSync(room.id) || statusApi.getRoomStatusSync(room.room_number || ''));
-    };
-    update();
-
-    window.addEventListener('floor-status-updated', update);
-    return () => window.removeEventListener('floor-status-updated', update);
-  }, [room]);
 
   const isMaintenance = roomStatus?.status === 'MAINTENANCE';
   const isClosed = roomStatus?.status === 'CLOSED';
