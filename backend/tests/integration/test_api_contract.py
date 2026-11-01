@@ -155,9 +155,9 @@ def throwaway_room(api_base_url: str):
         return
 
     table = boto3.resource("dynamodb").Table(table_name)
+    # Base-table partition: every schedule plus the room's SCHEDULE_VERSION item.
     written = table.query(
-        IndexName="GSI4",
-        KeyConditionExpression=Key("GSI4PK").eq(f"ROOM#{room_id}"),
+        KeyConditionExpression=Key("PK").eq(f"ROOM#{room_id}"),
     ).get("Items", [])
 
     with table.batch_writer() as batch:
@@ -238,6 +238,30 @@ def test_api_post_schedule_conflict_contract(api_base_url: str, throwaway_room: 
 
     assert res.status_code == 409
     assert res.json()["error"]["code"] == "SCHEDULE_CONFLICT"
+
+
+def test_api_concurrent_posts_on_the_same_slot_book_once(
+    api_base_url: str, throwaway_room: str
+):
+    """Live API contract (#238): two simultaneous POSTs, one 201 and one 409."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    path = f"/api/v1/rooms/{throwaway_room}/schedules"
+
+    with ThreadPoolExecutor(2) as pool:
+        responses = list(
+            pool.map(
+                lambda title: _request(
+                    "POST", path, api_base_url, json_body=_schedule(title=title)
+                ),
+                ["Race A", "Race B"],
+            )
+        )
+
+    assert sorted(res.status_code for res in responses) == [201, 409]
+    [lost] = [res for res in responses if res.status_code == 409]
+    assert lost.json()["error"]["code"] == "SCHEDULE_CONFLICT"
+    assert len(_schedules(api_base_url, throwaway_room).json()["data"]) == 1
 
 
 def test_api_post_schedule_stores_a_recurrence_rule_once(

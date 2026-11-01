@@ -177,9 +177,10 @@ class ScheduleService:
     def create_schedule(self, room_id: str, payload: dict[str, Any]) -> str:
         """AP21: validate, reject overlaps, store the series as one item."""
         schedule = validate(payload)
+        version = self.source.get_room_version(room_id)
         self._reject_conflicts(room_id, schedule)
 
-        self.source.save_schedule(new_item(schedule, room_id))
+        self.source.save_schedule(new_item(schedule, room_id), version)
 
         return "created"
 
@@ -206,6 +207,7 @@ class ScheduleService:
             old_room_id = existing.get("room_id")
 
         schedule = validate(payload)
+        version = self.source.get_room_version(target_room_id)
         self._reject_conflicts(target_room_id, schedule, ignore_id=schedule_id)
 
         self.source.save_schedule(
@@ -215,11 +217,10 @@ class ScheduleService:
                 "room_id": target_room_id,
                 "created_at": existing.get("created_at"),
                 "updated_at": _now(),
-            }
+            },
+            version,
+            delete_from=old_room_id if is_room_changed else None,
         )
-
-        if is_room_changed and old_room_id != target_room_id:
-            self.source.delete_schedule(old_room_id, schedule_id)
 
         return "updated"
 
