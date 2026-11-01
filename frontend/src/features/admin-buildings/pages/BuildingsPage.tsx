@@ -116,18 +116,12 @@ export const BuildingsPage: React.FC = () => {
     return floors.find((f) => f.id === selectedFloorId);
   }, [floors, selectedFloorId]);
 
-  // Determine SVG URL dynamically (presigned URL from backend floor plan or fallback neutral SVG)
+  // Determine SVG URL dynamically from database/backend
   const svgUrl = useMemo(() => {
     if (!currentFloor) return undefined;
     const floorAny = currentFloor as any;
-    if (floorAny.floor_plan?.url) return floorAny.floor_plan.url;
-    if (floorAny.map?.url) return floorAny.map.url;
-
-    // Standard fallback neutral SVG based on building code and floor number
-    const bCode = currentBuilding?.code || 'LC4';
-    const fNum = currentFloor.floor_number ?? 1;
-    return `/floor-plans/${bCode}-floor${fNum}-neutral.svg`;
-  }, [currentFloor, currentBuilding]);
+    return floorAny.floor_plan?.url || floorAny.map?.url || undefined;
+  }, [currentFloor]);
 
   const { svgContent, loading: isSvgLoading } = useSvgFloorPlan(svgUrl);
 
