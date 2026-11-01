@@ -4,7 +4,6 @@ import type { QRCheckpoint, RouteResult } from '../types/navigation.types';
 import { QrScannerModal } from '../components/QrScannerModal';
 import { DestinationModal } from '../components/DestinationModal';
 import { NavigationView } from '../components/NavigationView';
-import { FloatingQrScanButton } from '../components/FloatingQrScanButton';
 
 interface NavigationContextType {
   isScannerOpen: boolean;
@@ -100,9 +99,6 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }}
     >
       {children}
-
-      {/* Floating QR scan icon button on top right */}
-      <FloatingQrScanButton onClick={openQrScanner} />
 
       {/* QR Scanner Viewfinder Modal */}
       <QrScannerModal

@@ -2,8 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { MobileHeader } from '../features/campus-explorer/components/layout/MobileHeader';
 import { BottomNavbar } from '../features/campus-explorer/components/layout/BottomNavbar';
-import { AlertCircle, X } from 'lucide-react';
-import { NavigationProvider } from '../features/navigation/context/NavigationContext';
+import { AlertCircle, X, QrCode } from 'lucide-react';
+import { NavigationProvider, useNavigation } from '../features/navigation/context/NavigationContext';
+
+const NonTabQrScannerButton: React.FC<{ isTabPage: boolean }> = ({ isTabPage }) => {
+  const { openQrScanner } = useNavigation();
+  if (isTabPage) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={openQrScanner}
+      className="absolute top-3.5 right-3.5 z-40 w-8 h-8 rounded-full bg-white/90 hover:bg-white active:scale-95 text-slate-700 hover:text-blue-600 border border-slate-200/80 shadow-md backdrop-blur-md flex items-center justify-center transition-all cursor-pointer"
+      title="Scan QR Code Checkpoint to Navigate"
+      aria-label="Scan QR Code to navigate"
+    >
+      <QrCode className="w-4 h-4 stroke-[2.2]" />
+    </button>
+  );
+};
 
 export const UserLayout: React.FC = () => {
   const location = useLocation();
@@ -52,6 +69,9 @@ export const UserLayout: React.FC = () => {
           
           {/* Top Header - Only on Tab Pages */}
           {isTabPage && <MobileHeader />}
+
+          {/* QR Scanner Button for Non-Tab Pages (constrained inside mobile frame) */}
+          <NonTabQrScannerButton isTabPage={isTabPage} />
 
           {/* Unauthorized Toast Notification */}
           {unauthorizedToast && (
