@@ -8,6 +8,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
   base: '/', // Ensure relative asset paths match your S3/CloudFront domain
   build: {
     outDir: 'dist',
