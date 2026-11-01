@@ -71,7 +71,17 @@ export const statusApi = {
 
           const mergedRooms: RoomStatusItem[] = rawRooms.map((r: any) => {
             const meta = facilityCache.roomMeta.get(r.room_id);
-            const resolvedCode = meta?.nameEn || meta?.roomNumber || r.room_code || r.room_id;
+            const rawCode = r.room_code || '';
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCode);
+
+            const num = meta?.roomNumber || (!isUuid ? rawCode : '');
+            const bCode = meta?.buildingCode || '';
+            const formattedCode = num
+              ? (bCode && !num.startsWith(bCode) ? `${bCode}-${num}` : num)
+              : '';
+            const resolvedName = meta?.nameEn || (isUuid ? '' : rawCode);
+            const resolvedCode = formattedCode || resolvedName || r.room_id;
+
             const localRoom = local?.rooms?.find(
               (lr) => lr.room_id === r.room_id || lr.room_code === resolvedCode || lr.room_code === r.room_code
             );
@@ -79,6 +89,7 @@ export const statusApi = {
             return {
               room_id: r.room_id,
               room_code: localRoom?.room_code || resolvedCode,
+              name: resolvedName,
               status: localRoom?.status || (r.status as RoomStatus) || 'ACTIVE',
               status_note: localRoom ? localRoom.status_note : r.status_note ?? null,
               updated_at: r.updated_at || json.data.updated_at,

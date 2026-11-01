@@ -16,8 +16,9 @@ import type { Building, Floor } from '../../admin-schedule/services/scheduleApi'
 import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../campus-explorer/components/floor-viewer/components/InteractiveSvgMap';
 import { statusApi } from '../../admin-status/services/statusApi';
-import type { FloorStatusOverlayData, RoomStatus } from '../../admin-status/types/status.types';
+import type { FloorStatusOverlayData, RoomStatus, RoomStatusItem } from '../../admin-status/types/status.types';
 import { StatusEditDrawer } from '../../admin-status/components/StatusEditDrawer';
+import { campusService } from '../../campus-explorer/services';
 
 export const BuildingsPage: React.FC = () => {
   // 1. Dynamic Facility Selectors State (Zero Hardcoding)
@@ -25,8 +26,10 @@ export const BuildingsPage: React.FC = () => {
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
   const [floors, setFloors] = useState<Floor[]>([]);
   const [selectedFloorId, setSelectedFloorId] = useState<string>('');
+  const [floorDetail, setFloorDetail] = useState<any>(null);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState<boolean>(true);
   const [isLoadingFloors, setIsLoadingFloors] = useState<boolean>(false);
+  const [isLoadingFloorDetail, setIsLoadingFloorDetail] = useState<boolean>(false);
 
   // 2. Status Overlay & Room Data State
   const [statusOverlayData, setStatusOverlayData] = useState<FloorStatusOverlayData | null>(null);
@@ -116,12 +119,61 @@ export const BuildingsPage: React.FC = () => {
     return floors.find((f) => f.id === selectedFloorId);
   }, [floors, selectedFloorId]);
 
+  // Fetch full floor details (including SVG floor plan URL and room metadata)
+  useEffect(() => {
+    if (!selectedFloorId) {
+      setFloorDetail(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsLoadingFloorDetail(true);
+
+    campusService
+      .getFloorById(selectedFloorId)
+      .then((detail) => {
+        if (!isMounted) return;
+        setFloorDetail(detail);
+
+        // Populate facilityCache.roomMeta with fresh room numbers and names
+        if (detail && Array.isArray((detail as any).rooms) && currentBuilding) {
+          const bCode = currentBuilding.code || '';
+          (detail as any).rooms.forEach((r: any) => {
+            facilityCache.roomMeta.set(r.id, {
+              roomId: r.id,
+              roomNumber: r.room_number || '',
+              nameEn: r.name?.en || '',
+              buildingId: currentBuilding.id,
+              buildingCode: bCode,
+              floorId: selectedFloorId,
+            });
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load floor detail:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingFloorDetail(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedFloorId, currentBuilding]);
+
   // Determine SVG URL dynamically from database/backend
   const svgUrl = useMemo(() => {
-    if (!currentFloor) return undefined;
-    const floorAny = currentFloor as any;
-    return floorAny.floor_plan?.url || floorAny.map?.url || undefined;
-  }, [currentFloor]);
+    if (floorDetail) {
+      const url = floorDetail.floor_plan?.url || floorDetail.map?.url;
+      if (url) return url;
+    }
+    if (currentFloor) {
+      const floorAny = currentFloor as any;
+      return floorAny.floor_plan?.url || floorAny.map?.url || undefined;
+    }
+    return undefined;
+  }, [floorDetail, currentFloor]);
 
   const { svgContent, loading: isSvgLoading } = useSvgFloorPlan(svgUrl);
 
@@ -168,27 +220,25 @@ export const BuildingsPage: React.FC = () => {
       }
     });
 
-    if (currentFloor) {
-      const fRooms = (currentFloor as any).rooms || [];
-      fRooms.forEach((fr: any) => {
-        const statusItem = statusOverlayData.rooms.find((r) => r.room_id === fr.id);
-        if (statusItem) {
-          const entry = { status: statusItem.status, note: statusItem.status_note };
-          if (fr.name?.en) {
-            map[fr.name.en] = entry;
-            map[fr.name.en.toLowerCase()] = entry;
-          }
-          if (fr.name?.th) {
-            map[fr.name.th] = entry;
-            map[fr.name.th.toLowerCase()] = entry;
-          }
-          if (fr.room_number) {
-            map[fr.room_number] = entry;
-            map[fr.room_number.toLowerCase()] = entry;
-          }
+    const fRooms = floorDetail?.rooms || (currentFloor as any)?.rooms || [];
+    fRooms.forEach((fr: any) => {
+      const statusItem = statusOverlayData.rooms.find((r) => r.room_id === fr.id);
+      if (statusItem) {
+        const entry = { status: statusItem.status, note: statusItem.status_note };
+        if (fr.name?.en) {
+          map[fr.name.en] = entry;
+          map[fr.name.en.toLowerCase()] = entry;
         }
-      });
-    }
+        if (fr.name?.th) {
+          map[fr.name.th] = entry;
+          map[fr.name.th.toLowerCase()] = entry;
+        }
+        if (fr.room_number) {
+          map[fr.room_number] = entry;
+          map[fr.room_number.toLowerCase()] = entry;
+        }
+      }
+    });
 
     // Corridor edges
     statusOverlayData.corridor_edges.forEach((e) => {
@@ -201,7 +251,7 @@ export const BuildingsPage: React.FC = () => {
     });
 
     return map;
-  }, [statusOverlayData, currentFloor]);
+  }, [statusOverlayData, floorDetail, currentFloor]);
 
   // Status statistics counters
   const stats = useMemo(() => {
@@ -219,13 +269,58 @@ export const BuildingsPage: React.FC = () => {
     return { total: rooms.length, active, maintenance, closed };
   }, [statusOverlayData]);
 
+  // Helper to format clean, human-understandable Room Code and Room Name for Admin Staff
+  const getRoomDisplayInfo = useCallback(
+    (r: RoomStatusItem) => {
+      const bCode = currentBuilding?.code || '';
+      const fRoom = floorDetail?.rooms?.find((fr: any) => fr.id === r.room_id);
+      const meta = facilityCache.roomMeta.get(r.room_id);
+
+      let displayCode = '';
+      let displayName = '';
+
+      if (fRoom) {
+        if (fRoom.room_number) {
+          displayCode = bCode && !fRoom.room_number.startsWith(bCode)
+            ? `${bCode}-${fRoom.room_number}`
+            : fRoom.room_number;
+          displayName = fRoom.name?.en || fRoom.name?.th || '';
+        } else {
+          const typeName = fRoom.type === 'LANDMARK' ? 'Landmark' : fRoom.type ? fRoom.type.replace(/_/g, ' ') : 'Area';
+          displayCode = bCode ? `${bCode}-${fRoom.type || 'AREA'}` : typeName;
+          displayName = fRoom.name?.en || fRoom.name?.th || (fRoom.type === 'LANDMARK' ? `${bCode} Landmark` : typeName);
+        }
+      } else if (meta?.roomNumber) {
+        displayCode = bCode && !meta.roomNumber.startsWith(bCode)
+          ? `${bCode}-${meta.roomNumber}`
+          : meta.roomNumber;
+        displayName = meta.nameEn || r.name || '';
+      } else {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(r.room_code);
+        if (isUuid) {
+          displayCode = bCode ? `${bCode}-Area` : 'Area';
+          displayName = r.name || `Room ${r.room_id.slice(0, 8)}`;
+        } else {
+          displayCode = bCode && !r.room_code.startsWith(bCode)
+            ? `${bCode}-${r.room_code}`
+            : r.room_code;
+          displayName = r.name || displayCode;
+        }
+      }
+
+      return { displayCode, displayName };
+    },
+    [currentBuilding, floorDetail]
+  );
+
   // Handle clicking a room on SVG
   const handleRoomClick = (roomId: string, rawElementId: string) => {
     setHighlightedRoomId(roomId);
 
-    // Look up existing status
     const bCode = currentBuilding?.code || '';
     const cleanCode = roomId.toUpperCase().includes(bCode) ? roomId.toUpperCase() : `${bCode}-${roomId.toUpperCase()}`;
+
+    // Find in statusOverlayData
     const existing = statusOverlayData?.rooms.find((r) => {
       if (r.room_id.toLowerCase() === roomId.toLowerCase()) return true;
       if (r.room_code.toLowerCase() === roomId.toLowerCase()) return true;
@@ -239,31 +334,37 @@ export const BuildingsPage: React.FC = () => {
       return false;
     });
 
-    let resolvedId = existing?.room_id;
-    let resolvedCode = existing?.room_code;
-    let resolvedName = existing?.room_code || roomId;
+    // Also match in floorDetail
+    const fRooms = floorDetail?.rooms || (currentFloor as any)?.rooms || [];
+    const match = fRooms.find((fr: any) => {
+      const idMatch = fr.id?.toLowerCase() === roomId.toLowerCase();
+      const enMatch = fr.name?.en?.toLowerCase() === roomId.toLowerCase();
+      const thMatch = fr.name?.th?.toLowerCase() === roomId.toLowerCase();
+      const numMatch = fr.room_number?.toLowerCase() === roomId.toLowerCase();
+      return idMatch || enMatch || thMatch || numMatch;
+    });
 
-    if (!resolvedId && currentFloor) {
-      const fRooms = (currentFloor as any).rooms || [];
-      const match = fRooms.find((fr: any) => {
-        const idMatch = fr.id?.toLowerCase() === roomId.toLowerCase();
-        const enMatch = fr.name?.en?.toLowerCase() === roomId.toLowerCase();
-        const thMatch = fr.name?.th?.toLowerCase() === roomId.toLowerCase();
-        const numMatch = fr.room_number?.toLowerCase() === roomId.toLowerCase();
-        return idMatch || enMatch || thMatch || numMatch;
-      });
-      if (match) {
-        resolvedId = match.id;
-        resolvedCode = match.name?.en || match.room_number || cleanCode;
-        resolvedName = match.name?.en || match.name?.th || cleanCode;
+    const targetId = existing?.room_id || match?.id || (rawElementId ? `RM_${rawElementId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` : `RM_${roomId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`);
+    
+    let resolvedCode = cleanCode;
+    let resolvedName = `Room ${roomId}`;
+
+    if (existing) {
+      const info = getRoomDisplayInfo(existing);
+      resolvedCode = info.displayCode;
+      resolvedName = info.displayName || resolvedCode;
+    } else if (match) {
+      if (match.room_number) {
+        resolvedCode = bCode && !match.room_number.startsWith(bCode) ? `${bCode}-${match.room_number}` : match.room_number;
       }
+      resolvedName = match.name?.en || match.name?.th || resolvedCode;
     }
 
     setEditingTarget({
       type: 'ROOM',
-      id: resolvedId || (rawElementId ? `RM_${rawElementId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` : `RM_${roomId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`),
-      code: resolvedCode || cleanCode,
-      name: resolvedName ? `Room ${resolvedName}` : `Room ${roomId}`,
+      id: targetId,
+      code: resolvedCode,
+      name: resolvedName,
       floorId: selectedFloorId,
       buildingCode: bCode,
       currentStatus: existing?.status || 'ACTIVE',
@@ -314,17 +415,21 @@ export const BuildingsPage: React.FC = () => {
   const filteredRooms = useMemo(() => {
     const list = statusOverlayData?.rooms || [];
     return list.filter((r) => {
+      const { displayCode, displayName } = getRoomDisplayInfo(r);
+      const query = searchFilter.trim().toLowerCase();
       const matchSearch =
-        !searchFilter.trim() ||
-        r.room_code.toLowerCase().includes(searchFilter.toLowerCase()) ||
-        (r.status_note && r.status_note.toLowerCase().includes(searchFilter.toLowerCase()));
+        !query ||
+        displayCode.toLowerCase().includes(query) ||
+        displayName.toLowerCase().includes(query) ||
+        r.room_code.toLowerCase().includes(query) ||
+        (r.status_note && r.status_note.toLowerCase().includes(query));
 
       const matchStatus =
         statusFilter === 'ALL' || r.status === statusFilter;
 
       return matchSearch && matchStatus;
     });
-  }, [statusOverlayData, searchFilter, statusFilter]);
+  }, [statusOverlayData, searchFilter, statusFilter, getRoomDisplayInfo]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -481,7 +586,7 @@ export const BuildingsPage: React.FC = () => {
 
         {/* Map View Canvas */}
         <div className="relative w-full h-[460px] sm:h-[520px] bg-slate-100 flex items-center justify-center">
-          {isSvgLoading || isLoadingFloors ? (
+          {isSvgLoading || isLoadingFloors || isLoadingFloorDetail ? (
             <div className="flex flex-col items-center gap-2 text-slate-400">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               <span className="text-xs font-medium">Loading floor plan SVG...</span>
@@ -543,6 +648,7 @@ export const BuildingsPage: React.FC = () => {
             <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100">
               <tr>
                 <th className="px-5 py-3">Room Code</th>
+                <th className="px-5 py-3">Room Name</th>
                 <th className="px-5 py-3">Current Status</th>
                 <th className="px-5 py-3">Reason / Status Note</th>
                 <th className="px-5 py-3 text-right">Action</th>
@@ -551,12 +657,13 @@ export const BuildingsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredRooms.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-slate-400">
+                  <td colSpan={5} className="px-5 py-8 text-center text-slate-400">
                     No room matching the current filter.
                   </td>
                 </tr>
               ) : (
                 filteredRooms.map((r) => {
+                  const { displayCode, displayName } = getRoomDisplayInfo(r);
                   const isMaint = r.status === 'MAINTENANCE';
                   const isClosed = r.status === 'CLOSED';
 
@@ -565,12 +672,12 @@ export const BuildingsPage: React.FC = () => {
                       key={r.room_id}
                       className="hover:bg-slate-50/80 transition cursor-pointer"
                       onClick={() => {
-                        setHighlightedRoomId(r.room_code);
+                        setHighlightedRoomId(displayCode);
                         setEditingTarget({
                           type: 'ROOM',
                           id: r.room_id,
-                          code: r.room_code,
-                          name: `Room ${r.room_code}`,
+                          code: displayCode,
+                          name: displayName || `Room ${displayCode}`,
                           floorId: selectedFloorId,
                           buildingCode: currentBuilding?.code,
                           currentStatus: r.status,
@@ -579,8 +686,13 @@ export const BuildingsPage: React.FC = () => {
                         setIsDrawerOpen(true);
                       }}
                     >
-                      <td className="px-5 py-3.5 font-semibold text-slate-900">
-                        {r.room_code}
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-xs font-bold text-blue-800">
+                          {displayCode}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-slate-800 max-w-xs truncate">
+                        {displayName || <span className="text-slate-400 italic">-</span>}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
@@ -610,12 +722,12 @@ export const BuildingsPage: React.FC = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setHighlightedRoomId(r.room_code);
+                            setHighlightedRoomId(displayCode);
                             setEditingTarget({
                               type: 'ROOM',
                               id: r.room_id,
-                              code: r.room_code,
-                              name: `Room ${r.room_code}`,
+                              code: displayCode,
+                              name: displayName || `Room ${displayCode}`,
                               floorId: selectedFloorId,
                               buildingCode: currentBuilding?.code,
                               currentStatus: r.status,
