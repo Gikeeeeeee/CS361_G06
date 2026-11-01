@@ -22,7 +22,7 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
       bounceAtZoomLimits: false,
     }).setView([14.0722, 100.6055], 16);
 
-    // 🎨 Grayscale Base Tiles
+    // Grayscale Base Tiles
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
@@ -35,7 +35,7 @@ export function CampusMapContainer({ buildings }: CampusMapContainerProps) {
       const displayName = building.name.th;
       const status = 'OPEN'; // Mocked since API doesn't provide status yet
 
-      // 📌 Modern Bubble Pin (Matching requested design)
+      // Modern Bubble Pin (Matching requested design)
       const bubbleIcon = L.divIcon({
         className: 'custom-bubble-pin',
         html: `

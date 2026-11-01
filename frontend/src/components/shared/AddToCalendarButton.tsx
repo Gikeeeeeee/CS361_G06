@@ -32,7 +32,7 @@ export interface AddToCalendarButtonProps {
  *   constructs the action=TEMPLATE URL, and opens it in a new tab.
  * - "Outlook / Apple Calendar (.ics)": Fetches data, generates RFC 5545 string
  *   (including UID:${scheduleId}@campus-explorer.app), and triggers a browser download.
- * - Prevents duplicate exports via localStorage tracking with "Added ✓" disabled state.
+ * - Prevents duplicate exports via localStorage tracking with "Added" disabled state.
  */
 export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({
   roomId: propRoomId,
@@ -219,7 +219,7 @@ export const AddToCalendarButton: React.FC<AddToCalendarButtonProps> = ({
         }
       >
         <Check className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-        <span>Added ✓</span>
+        <span>Added</span>
       </button>
     );
   }

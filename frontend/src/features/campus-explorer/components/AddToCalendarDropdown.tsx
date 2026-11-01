@@ -101,7 +101,7 @@ export function AddToCalendarDropdown({
         }
       >
         <Check className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-        <span>Added ✓</span>
+        <span>Added</span>
       </button>
     );
   }

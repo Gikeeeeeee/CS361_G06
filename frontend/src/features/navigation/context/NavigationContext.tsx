@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { X } from 'lucide-react';
 import { navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint, RouteResult } from '../types/navigation.types';
 import { QrScannerModal } from '../components/QrScannerModal';
@@ -194,15 +195,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       {navigationError && (
         <div className="fixed top-4 left-4 right-4 z-[120] max-w-md mx-auto p-3.5 bg-rose-600 text-white rounded-2xl shadow-2xl border border-rose-500/80 flex items-center justify-between gap-3 text-xs animate-in slide-in-from-top duration-200">
           <div className="flex items-center gap-2">
-            <span className="font-bold">⚠️ Route Error:</span>
+            <span className="font-bold">Route Error:</span>
             <span>{navigationError}</span>
           </div>
           <button
             onClick={() => setNavigationError(null)}
-            className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer text-white"
+            className="p-1 rounded-full hover:bg-white/20 transition-colors cursor-pointer text-white flex items-center justify-center"
             aria-label="Dismiss"
           >
-            ✕
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
