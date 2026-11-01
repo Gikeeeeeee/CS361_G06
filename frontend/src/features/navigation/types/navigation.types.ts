@@ -99,4 +99,6 @@ export interface QRCheckpoint {
   floor_number: number;
   floor_id: string;
   description?: string;
+  x?: number;
+  y?: number;
 }

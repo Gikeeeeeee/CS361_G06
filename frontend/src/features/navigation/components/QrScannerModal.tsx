@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, QrCode, Camera, Flashlight, MapPin, CheckCircle2, Download } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, QrCode, Camera, Flashlight, MapPin, CheckCircle2, Download, Map, List, ArrowRight, Loader2 } from 'lucide-react';
 import { DEFAULT_CHECKPOINTS, navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint } from '../types/navigation.types';
+import { campusService } from '../../campus-explorer/services';
+import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
 
 interface QrScannerModalProps {
   isOpen: boolean;
@@ -22,6 +24,43 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [detectedValue, setDetectedValue] = useState<string | null>(null);
   const [previewQr, setPreviewQr] = useState<QRCheckpoint | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Visual Floor Map Checkpoint Guide State
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [selectedBuilding, setSelectedBuilding] = useState<'LC4' | 'LC3'>('LC4');
+  const [activeFloorSvgUrl, setActiveFloorSvgUrl] = useState<string | undefined>(undefined);
+  const [selectedPinCp, setSelectedPinCp] = useState<QRCheckpoint | null>(DEFAULT_CHECKPOINTS[0]);
+
+  // Load building floor plan dynamically
+  useEffect(() => {
+    let isMounted = true;
+    const targetFloorId =
+      selectedBuilding === 'LC4'
+        ? 'a6ab42cb-0abd-57ee-acd2-993d64b20a82'
+        : 'deaef033-ba6c-5c0e-bb50-956202b57947';
+
+    campusService
+      .getFloorById(targetFloorId)
+      .then((floor) => {
+        if (!isMounted) return;
+        const url = (floor as any)?.floor_plan?.url || (floor as any)?.map?.url;
+        if (url) setActiveFloorSvgUrl(url);
+      })
+      .catch(() => {});
+
+    const firstInBldg = DEFAULT_CHECKPOINTS.find((c) => c.building_code === selectedBuilding);
+    if (firstInBldg) setSelectedPinCp(firstInBldg);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBuilding]);
+
+  const { svgContent, loading: mapLoading } = useSvgFloorPlan(activeFloorSvgUrl);
+
+  const buildingCheckpoints = useMemo(() => {
+    return DEFAULT_CHECKPOINTS.filter((cp) => cp.building_code === selectedBuilding);
+  }, [selectedBuilding]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -238,61 +277,270 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         )}
       </div>
 
-      {/* Manual Checkpoint Selector & QR Code Preview */}
-      <div className="bg-white rounded-t-3xl p-5 pb-6 text-slate-900 shadow-2xl z-10 max-h-[45vh] overflow-y-auto">
-        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3" />
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Select Checkpoint or Simulated QR
-          </h3>
-          <span className="text-[11px] text-slate-400 font-medium">Quick Anchor</span>
-        </div>
-        <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-          Select a checkpoint or view its printable QR code for testing:
-        </p>
+      {/* Manual Checkpoint Selector & Floor Map Guide */}
+      <div className="bg-white rounded-t-3xl p-5 pb-6 text-slate-900 shadow-2xl z-10 max-h-[62vh] flex flex-col overflow-hidden">
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-3 shrink-0" />
 
-        <div className="space-y-2">
-          {DEFAULT_CHECKPOINTS.map((cp) => (
-            <div
-              key={cp.id}
-              className="w-full p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between text-left transition-all group"
+        {/* Tab & Mode Switcher */}
+        <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              {viewMode === 'map' ? 'Floor Map Checkpoint Guide' : 'Select Checkpoint'}
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              {viewMode === 'map'
+                ? 'Tap any checkpoint on the floor map to start'
+                : 'Choose a checkpoint or view test QR sticker'}
+            </p>
+          </div>
+
+          {/* Segmented Mode Button */}
+          <div className="bg-slate-100 p-0.5 rounded-xl flex items-center shrink-0 border border-slate-200/60">
+            <button
+              type="button"
+              onClick={() => setViewMode('map')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'map'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
+              <Map className="w-3.5 h-3.5" />
+              <span>Map Guide</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+          </div>
+        </div>
+
+        {viewMode === 'map' ? (
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+            {/* Building Selector Pills */}
+            <div className="flex items-center gap-2 mb-2.5 shrink-0">
               <button
                 type="button"
-                onClick={() => handleSelectCheckpoint(cp)}
-                className="flex items-center gap-3 flex-1 min-w-0"
+                onClick={() => setSelectedBuilding('LC4')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  selectedBuilding === 'LC4'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                }`}
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div className="truncate">
-                  <div className="text-xs font-bold text-slate-900 truncate">{cp.name}</div>
-                  <div className="text-[11px] text-slate-500 truncate">{cp.description}</div>
-                </div>
+                <span>LC4 Building (Floor 1)</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    selectedBuilding === 'LC4' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  3 Points
+                </span>
               </button>
 
-              <div className="flex items-center gap-1.5 ml-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedBuilding('LC3')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  selectedBuilding === 'LC3'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                }`}
+              >
+                <span>LC3 Building (Floor 1)</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    selectedBuilding === 'LC3' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  2 Points
+                </span>
+              </button>
+            </div>
+
+            {/* Interactive SVG Floor Map with Checkpoint Pins */}
+            <div className="relative w-full h-52 sm:h-60 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+              {mapLoading || !svgContent ? (
+                <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  <span className="text-xs font-medium text-slate-500">
+                    Loading {selectedBuilding} floor map...
+                  </span>
+                </div>
+              ) : (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  {/* Base Floor Plan SVG */}
+                  <div
+                    className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full"
+                    dangerouslySetInnerHTML={{ __html: svgContent }}
+                  />
+
+                  {/* Checkpoint Coordinates Marker Layer */}
+                  <svg
+                    viewBox={selectedBuilding === 'LC4' ? '0 0 800 500' : '0 0 1000 650'}
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                  >
+                    {buildingCheckpoints.map((cp, idx) => {
+                      const isSelected = selectedPinCp?.id === cp.id;
+                      const posX = cp.x ?? 200;
+                      const posY = cp.y ?? 200;
+                      const shortLabel = cp.name
+                        .split('(')[0]
+                        .replace(/^(LC3|LC4)\s*/, '')
+                        .trim();
+
+                      return (
+                        <g
+                          key={cp.id}
+                          onClick={() => setSelectedPinCp(cp)}
+                          onDoubleClick={() => handleSelectCheckpoint(cp)}
+                          className="pointer-events-auto cursor-pointer group"
+                          transform={`translate(${posX}, ${posY})`}
+                        >
+                          {/* Pulsing Aura */}
+                          <circle
+                            r={isSelected ? '22' : '15'}
+                            fill={isSelected ? '#3B82F6' : '#64748B'}
+                            opacity={isSelected ? '0.35' : '0.2'}
+                            className={isSelected ? 'animate-ping' : ''}
+                          />
+
+                          {/* Pin Body */}
+                          <circle
+                            r={isSelected ? '12' : '9.5'}
+                            fill={isSelected ? '#2563EB' : '#3B82F6'}
+                            stroke="#FFFFFF"
+                            strokeWidth={isSelected ? '2.8' : '2'}
+                            className="transition-all drop-shadow-sm"
+                          />
+
+                          {/* Number inside Pin */}
+                          <text
+                            y="3.5"
+                            textAnchor="middle"
+                            fill="#FFFFFF"
+                            fontSize={isSelected ? '10' : '8.5'}
+                            fontWeight="bold"
+                            pointerEvents="none"
+                          >
+                            {idx + 1}
+                          </text>
+
+                          {/* Floating Name Badge */}
+                          <g transform="translate(0, -17)" className="pointer-events-none">
+                            <rect
+                              x={-Math.max(34, shortLabel.length * 3.8)}
+                              y="-15"
+                              width={Math.max(68, shortLabel.length * 7.6)}
+                              height="17"
+                              rx="8.5"
+                              fill={isSelected ? '#1E293B' : '#FFFFFF'}
+                              stroke={isSelected ? '#2563EB' : '#CBD5E1'}
+                              strokeWidth="1.2"
+                              className="drop-shadow-xs"
+                            />
+                            <text
+                              y="-3.5"
+                              textAnchor="middle"
+                              fill={isSelected ? '#FFFFFF' : '#334155'}
+                              fontSize="8.5"
+                              fontWeight="bold"
+                            >
+                              {shortLabel}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            {/* Selected Checkpoint Detail & Confirmation Card */}
+            {selectedPinCp && (
+              <div className="mt-2.5 p-3 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-center justify-between gap-3 shrink-0 animate-in fade-in duration-150">
+                <div className="min-w-0 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
+                      <span className="truncate">{selectedPinCp.name}</span>
+                      <span className="text-[10px] font-semibold text-blue-600 bg-blue-100/60 px-1.5 py-0.2 rounded-md shrink-0">
+                        {selectedPinCp.node_id}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {selectedPinCp.description}
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setPreviewQr(cp)}
-                  title="View printable QR code for testing"
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                  onClick={() => handleSelectCheckpoint(selectedPinCp)}
+                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer"
                 >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>View QR</span>
+                  <span>Select Point</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* List Mode */
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {DEFAULT_CHECKPOINTS.map((cp) => (
+              <div
+                key={cp.id}
+                className="w-full p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between text-left transition-all group"
+              >
                 <button
                   type="button"
                   onClick={() => handleSelectCheckpoint(cp)}
-                  className="p-1.5 rounded-lg text-slate-400 group-hover:text-blue-600 transition-colors"
-                  aria-label="Select"
+                  className="flex items-center gap-3 flex-1 min-w-0"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="truncate">
+                    <div className="text-xs font-bold text-slate-900 truncate">{cp.name}</div>
+                    <div className="text-[11px] text-slate-500 truncate">{cp.description}</div>
+                  </div>
                 </button>
+
+                <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewQr(cp)}
+                    title="View printable QR code for testing"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>View QR</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCheckpoint(cp)}
+                    className="p-1.5 rounded-lg text-slate-400 group-hover:text-blue-600 transition-colors"
+                    aria-label="Select"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* QR Code Preview & Generator Modal */}

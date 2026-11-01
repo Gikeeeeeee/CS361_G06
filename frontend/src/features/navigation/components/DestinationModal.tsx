@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, MapPin, Search, ArrowRight, Accessibility, Navigation } from 'lucide-react';
 import type { QRCheckpoint } from '../types/navigation.types';
 import { facilityCache, resolveRoomNumber } from '../../admin-schedule/services/facilityCache';
+import { statusApi } from '../../admin-status/services/statusApi';
 
 interface DestinationModalProps {
   isOpen: boolean;
@@ -194,19 +195,54 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
                 room.building.toLowerCase() === checkpoint.building_code.toLowerCase() &&
                 room.floor === checkpoint.floor_number;
 
+              const roomStatus =
+                statusApi.getRoomStatusSync(room.id) ||
+                statusApi.getRoomStatusSync(room.code) ||
+                statusApi.getRoomStatusSync(room.name);
+              const isClosed = roomStatus?.status === 'CLOSED';
+              const isMaintenance = roomStatus?.status === 'MAINTENANCE';
+
               return (
                 <button
                   key={room.id}
                   onClick={() => onStartNavigation(room.id, `${room.code} - ${room.name}`, wheelchairAccessible)}
-                  className="w-full p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 flex items-center justify-between text-left transition-colors group cursor-pointer"
+                  className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-colors group cursor-pointer ${
+                    isClosed
+                      ? 'bg-rose-50/40 hover:bg-rose-50/80 border-rose-100 hover:border-rose-200'
+                      : isMaintenance
+                      ? 'bg-amber-50/40 hover:bg-amber-50/80 border-amber-100 hover:border-amber-200'
+                      : 'hover:bg-slate-50 border-transparent hover:border-slate-200'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-blue-50 group-hover:text-blue-600 text-slate-600 flex items-center justify-center text-xs font-bold shrink-0 transition-colors">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                        isClosed
+                          ? 'bg-rose-100 text-rose-700'
+                          : isMaintenance
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-slate-100 group-hover:bg-blue-50 group-hover:text-blue-600 text-slate-600'
+                      }`}
+                    >
                       {room.building}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-800 truncate">{room.code}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-800 truncate">{room.code}</span>
+                        {isClosed && (
+                          <span className="shrink-0 text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                            Closed
+                          </span>
+                        )}
+                        {isMaintenance && (
+                          <span className="shrink-0 text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Maintenance
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate mt-0.5">
                         <span className="truncate">{room.name}</span>
                         <span>•</span>
                         <span className="shrink-0">Floor {room.floor}</span>
@@ -216,6 +252,11 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
                           </span>
                         )}
                       </div>
+                      {roomStatus?.status_note && (
+                        <div className="text-[10px] text-slate-400 italic truncate mt-0.5">
+                          Note: {roomStatus.status_note}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 shrink-0 transition-colors ml-2" />
