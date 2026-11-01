@@ -21,6 +21,7 @@ import { NavigationMap } from './NavigationMap';
 import { StepDirectionsDrawer } from './StepDirectionsDrawer';
 import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
 import { facilityCache } from '../../admin-schedule/services/facilityCache';
+import { campusService } from '../../campus-explorer/services';
 import type { RouteResult, NavigationAction } from '../types/navigation.types';
 
 interface NavigationViewProps {
@@ -79,7 +80,22 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       return;
     }
 
-    // Try finding in facility cache
+    let isMounted = true;
+
+    // 1. Check campusService by floorId from database
+    campusService
+      .getFloorById(floorId)
+      .then((floor) => {
+        if (!isMounted) return;
+        const url = (floor as any)?.floor_plan?.url || (floor as any)?.map?.url;
+        if (url) {
+          setFloorSvgUrl(url);
+          return;
+        }
+      })
+      .catch(() => {});
+
+    // 2. Try finding in facility cache
     const cachedFloor = facilityCache.floorsMeta.get(floorId);
     if (cachedFloor) {
       const url = (cachedFloor as any).floor_plan?.url || (cachedFloor as any).map?.url;
@@ -89,8 +105,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       }
     }
 
-    // Query facility cache
-    let isMounted = true;
+    // 3. Query facility cache across buildings
     facilityCache
       .getBuildings()
       .then(async (res) => {
@@ -120,6 +135,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
 
   const steps = route?.steps || [];
   const currentStep = steps[currentStepIndex] || steps[0];
+  const isFinished = currentStepIndex >= steps.length - 1 && steps.length > 0;
 
   const handlePrevStep = () => {
     if (currentStepIndex > 0) setCurrentStepIndex((prev) => prev - 1);
@@ -174,9 +190,11 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       {/* Main Map Canvas Area */}
       <div className="relative flex-1 w-full bg-slate-50 overflow-hidden">
         {isLoading || mapLoading ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-20 gap-2">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 z-20 gap-2.5">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="text-xs font-medium text-slate-500">Calculating shortest route...</span>
+            <span className="text-xs font-semibold text-slate-600">
+              {mapLoading ? 'Loading floor plan from database...' : 'Calculating shortest route...'}
+            </span>
           </div>
         ) : svgContent ? (
           <NavigationMap
@@ -184,10 +202,12 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
             routeNodes={route?.svg_path.nodes || []}
             activeStepNodeIndex={currentStepIndex}
             highlightedRoomId={route?.summary.destination_name}
+            isFinished={isFinished}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-xs">
-            Map unavailable
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-slate-400 gap-2">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="text-xs font-medium text-slate-600">Loading map from database...</span>
           </div>
         )}
 
@@ -275,9 +295,20 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer ${
+              isFinished
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
           >
-            <span>End Navigation</span>
+            {isFinished ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-white" />
+                <span>Finished Navigation</span>
+              </>
+            ) : (
+              <span>End Navigation</span>
+            )}
           </button>
         </div>
       </footer>

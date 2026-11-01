@@ -13,7 +13,18 @@ interface NavigationContextType {
   activeRoute: RouteResult | null;
   openQrScanner: () => void;
   closeQrScanner: () => void;
-  navigateToRoom: (roomIdOrCode: string, roomName?: string) => void;
+  navigateToRoom: (
+    roomIdOrCode: string,
+    roomName?: string,
+    options?: {
+      floorId?: string;
+      floorSvgUrl?: string;
+      buildingCode?: string;
+      floorNumber?: number;
+      roomNumber?: string;
+      roomName?: string;
+    }
+  ) => void;
   endNavigation: () => void;
 }
 
@@ -26,6 +37,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
   const [activeCheckpoint, setActiveCheckpoint] = useState<QRCheckpoint | null>(null);
   const [prefilledDestination, setPrefilledDestination] = useState<string>('');
+  const [prefilledMeta, setPrefilledMeta] = useState<{
+    floorId?: string;
+    floorSvgUrl?: string;
+    buildingCode?: string;
+    floorNumber?: number;
+    roomNumber?: string;
+    roomName?: string;
+  } | null>(null);
   const [activeRoute, setActiveRoute] = useState<RouteResult | null>(null);
 
   const openQrScanner = useCallback(() => {
@@ -43,7 +62,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const startNavigation = useCallback(
-    async (destinationId: string, _destinationName: string, wheelchairAccessible: boolean) => {
+    async (destinationId: string, destinationName: string, wheelchairAccessible: boolean) => {
       if (!activeCheckpoint) return;
 
       setIsLoadingRoute(true);
@@ -59,7 +78,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           preferences: {
             wheelchair_accessible: wheelchairAccessible,
           },
+          destination_metadata: prefilledMeta || {
+            roomName: destinationName,
+          },
         });
+
+        // Ensure floorSvgUrl is preserved if route didn't populate it
+        if (!result.svg_path.url && prefilledMeta?.floorSvgUrl) {
+          result.svg_path.url = prefilledMeta.floorSvgUrl;
+        }
 
         setActiveRoute(result);
       } catch (err) {
@@ -68,20 +95,36 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsLoadingRoute(false);
       }
     },
-    [activeCheckpoint]
+    [activeCheckpoint, prefilledMeta]
   );
 
-  const navigateToRoom = useCallback((roomIdOrCode: string, roomName?: string) => {
-    setPrefilledDestination(roomName || roomIdOrCode);
-    // If we don't have an active checkpoint yet, default to the main lobby checkpoint
-    const defaultCheckpoint = navigationApi.getCheckpoints()[0];
-    setActiveCheckpoint(defaultCheckpoint);
-    setIsDestinationModalOpen(true);
-  }, []);
+  const navigateToRoom = useCallback(
+    (
+      roomIdOrCode: string,
+      roomName?: string,
+      options?: {
+        floorId?: string;
+        floorSvgUrl?: string;
+        buildingCode?: string;
+        floorNumber?: number;
+        roomNumber?: string;
+        roomName?: string;
+      }
+    ) => {
+      setPrefilledDestination(roomName || roomIdOrCode);
+      setPrefilledMeta(options || null);
+      // If we don't have an active checkpoint yet, default to the main lobby checkpoint
+      const defaultCheckpoint = navigationApi.getCheckpoints()[0];
+      setActiveCheckpoint(defaultCheckpoint);
+      setIsDestinationModalOpen(true);
+    },
+    []
+  );
 
   const endNavigation = useCallback(() => {
     setIsNavigating(false);
     setActiveRoute(null);
+    setPrefilledMeta(null);
   }, []);
 
   return (

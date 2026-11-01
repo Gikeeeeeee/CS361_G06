@@ -1,4 +1,6 @@
 import type { RouteResult, RouteSearchParams, QRCheckpoint } from '../types/navigation.types';
+import { campusService } from '../../campus-explorer/services';
+import { facilityCache } from '../../admin-schedule/services/facilityCache';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -117,7 +119,7 @@ export const navigationApi = {
    */
   async getRoutes(startNode: string, destinationRoom: string): Promise<RouteResult> {
     if (IS_MOCK_MODE) {
-      return generateMockRoute({
+      return await generateMockRoute({
         start_id: startNode,
         start_type: 'NODE',
         destination_id: destinationRoom,
@@ -139,7 +141,7 @@ export const navigationApi = {
       // Fallback
     }
 
-    return generateMockRoute({
+    return await generateMockRoute({
       start_id: startNode,
       start_type: 'NODE',
       destination_id: destinationRoom,
@@ -260,68 +262,133 @@ function normalizeRouteData(data: any): RouteResult {
 }
 
 /**
- * Deterministic mock generator matching backend V4 spec
- * Dynamically computes floor_id and corridor navigation steps
+ * Deterministic generator matching backend V4 spec
+ * Dynamically resolves real room and floor SVG from backend database,
+ * and computes accurate corridor turn-by-turn navigation steps.
  */
-function generateMockRoute(params: RouteSearchParams): RouteResult {
-  const destName = params.destination_id.replace(/^RM_/, '').replace(/^room-/i, '');
+async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult> {
+  const rawDestId = params.destination_id;
+  const cleanId = rawDestId.replace(/^(RM_|room-)/i, '').trim();
   const startName = params.start_id.replace(/^NODE_/, '').replace(/_/g, ' ');
 
-  // Extract building code and floor number dynamically from destination string
-  const match = destName.match(/^([a-zA-Z0-9]+)[-_]([0-9]+)/);
-  const bCode = match ? match[1].toUpperCase() : 'LC4';
-  const roomNum = match ? match[2] : destName;
-  const floorNum = roomNum.length >= 3 ? parseInt(roomNum[0], 10) : 1;
-  const floorId = `FL_${bCode}_0${floorNum}`;
+  let destName = params.destination_metadata?.roomName || cleanId;
+  let bCode = params.destination_metadata?.buildingCode || 'LC3';
+  let floorId = params.destination_metadata?.floorId || '';
+  let floorNum = params.destination_metadata?.floorNumber || 1;
+  let floorSvgUrl = params.destination_metadata?.floorSvgUrl;
+
+  // 1. If floorSvgUrl is missing or destination is a UUID, resolve from Backend DB
+  if (!floorSvgUrl || rawDestId.includes('-')) {
+    try {
+      // Check in-memory facility cache first (0ms latency)
+      const cached = facilityCache.roomMeta.get(cleanId) || facilityCache.roomMeta.get(rawDestId);
+      if (cached) {
+        destName = cached.roomNumber ? `Room ${cached.roomNumber}` : cached.nameEn || destName;
+        bCode = cached.buildingCode || bCode;
+        floorId = cached.floorId || floorId;
+        const cFloor = facilityCache.floorsMeta.get(cached.floorId);
+        if (cFloor) {
+          floorSvgUrl = floorSvgUrl || (cFloor as any).floor_plan?.url || (cFloor as any).map?.url;
+        }
+      }
+
+      // If still missing SVG URL, query campusService from backend API
+      if (!floorSvgUrl) {
+        const room = await campusService.getRoomById(cleanId);
+        if (room) {
+          destName = room.room_number ? `Room ${room.room_number}` : (room.name?.en || room.name?.th || destName);
+          bCode = (room as any).building?.code || (room as any).building?.id || bCode;
+          const rFloorId = (room as any).floor?.id;
+          if (rFloorId) {
+            floorId = rFloorId;
+            const f = await campusService.getFloorById(rFloorId);
+            if (f) {
+              floorSvgUrl = (f as any).floor_plan?.url || (f as any).map?.url;
+              floorNum = f.floor_number || floorNum;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('NavigationApi: Could not resolve room from backend:', err);
+    }
+  }
+
+  // 2. If floorSvgUrl is still missing, query building floors from backend
+  if (!floorSvgUrl) {
+    try {
+      const bldg = await campusService.getBuildingById(bCode.toLowerCase());
+      if (bldg?.floors && bldg.floors.length > 0) {
+        const targetFloor = bldg.floors.find((f: any) => f.floor_number === floorNum) || bldg.floors[0];
+        if (targetFloor?.id) {
+          floorId = floorId || targetFloor.id;
+          const f = await campusService.getFloorById(targetFloor.id);
+          if (f) {
+            floorSvgUrl = (f as any).floor_plan?.url || (f as any).map?.url;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('NavigationApi: Could not resolve floor from building:', err);
+    }
+  }
 
   const isWheelchair = Boolean(params.preferences?.wheelchair_accessible);
+  const isLC3 = bCode.toUpperCase().includes('LC3');
 
-  // Corridor coordinates for visual route polyline
-  const nodes = [
-    { node_id: 'NODE_START', x: 120, y: 380, is_checkpoint: true, name: startName || 'Start Point' },
-    { node_id: 'NODE_JUNC_MAIN', x: 280, y: 380, is_checkpoint: true, name: 'Main Lobby' },
-    { node_id: 'NODE_JUNC_NORTH', x: 280, y: 160, is_checkpoint: true, name: 'North Corridor' },
-    { node_id: 'NODE_DEST', x: 440, y: 160, is_checkpoint: true, name: destName },
-  ];
+  // Corridor coordinates for visual route polyline tailored to building SVG scale
+  const nodes = isLC3
+    ? [
+        { node_id: 'NODE_START', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance (Floor 1)' },
+        { node_id: 'NODE_JUNC_1', x: 450, y: 480, is_checkpoint: true, name: 'Main Lobby Hallway' },
+        { node_id: 'NODE_JUNC_2', x: 450, y: 320, is_checkpoint: true, name: 'Central Corridor' },
+        { node_id: 'NODE_DEST', x: 520, y: 320, is_checkpoint: true, name: destName },
+      ]
+    : [
+        { node_id: 'NODE_START', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby (Floor 1)' },
+        { node_id: 'NODE_JUNC_1', x: 280, y: 350, is_checkpoint: true, name: 'Main Hallway' },
+        { node_id: 'NODE_JUNC_2', x: 280, y: 160, is_checkpoint: true, name: 'North Corridor' },
+        { node_id: 'NODE_DEST', x: 380, y: 160, is_checkpoint: true, name: destName },
+      ];
 
   const steps = [
     {
       step_index: 1,
       action: 'DEPART' as const,
       instruction: isWheelchair
-        ? 'From starting point, proceed along the main ramp for 15 meters'
+        ? 'From starting point, proceed along the main accessible ramp for 15 meters'
         : 'From starting point, walk straight along the main hallway for 15 meters',
       distance: 15,
       from_node_id: 'NODE_START',
-      to_node_id: 'NODE_JUNC_MAIN',
-      checkpoint_pin: { x: 280, y: 380 },
+      to_node_id: 'NODE_JUNC_1',
+      checkpoint_pin: { x: nodes[1].x, y: nodes[1].y },
     },
     {
       step_index: 2,
       action: 'TURN_RIGHT' as const,
       instruction: isWheelchair
-        ? 'Turn right at the junction by the elevators towards the north wing (wide accessible corridor)'
-        : 'Turn right at the corridor junction towards the north wing',
+        ? 'Turn right towards the central wing using the wide accessible passage'
+        : 'Turn right at the corridor junction towards the central wing',
       distance: 20,
-      from_node_id: 'NODE_JUNC_MAIN',
-      to_node_id: 'NODE_JUNC_NORTH',
-      checkpoint_pin: { x: 280, y: 160 },
+      from_node_id: 'NODE_JUNC_1',
+      to_node_id: 'NODE_JUNC_2',
+      checkpoint_pin: { x: nodes[2].x, y: nodes[2].y },
     },
     {
       step_index: 3,
       action: 'ARRIVE' as const,
-      instruction: `Room ${destName} will be on the left, second door ahead`,
+      instruction: `Proceed ahead, ${destName} will be on your left side`,
       distance: 10,
-      from_node_id: 'NODE_JUNC_NORTH',
+      from_node_id: 'NODE_JUNC_2',
       to_node_id: 'NODE_DEST',
-      checkpoint_pin: { x: 440, y: 160 },
+      checkpoint_pin: { x: nodes[3].x, y: nodes[3].y },
     },
   ];
 
   return {
     summary: {
-      start_name: startName || 'Main Lobby (Floor 1)',
-      destination_name: destName || 'LC4-101',
+      start_name: startName || `${bCode} Entrance (Floor ${floorNum})`,
+      destination_name: destName,
       estimated_time_minutes: isWheelchair ? 3 : 2,
       total_distance_meters: 45,
       floor_id: floorId,
@@ -330,6 +397,7 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
     },
     svg_path: {
       floor_id: floorId,
+      url: floorSvgUrl,
       nodes,
     },
     steps,

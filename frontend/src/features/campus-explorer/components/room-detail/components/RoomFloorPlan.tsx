@@ -89,7 +89,14 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
         <button
           type="button"
           onClick={() => {
-            navigateToRoom(room?.id || '', roomTitle);
+            navigateToRoom(room?.id || '', roomTitle, {
+              floorId: floor?.id,
+              floorSvgUrl: svgUrl,
+              buildingCode,
+              floorNumber,
+              roomNumber: room?.room_number || room?.name?.en || '',
+              roomName: roomTitle,
+            });
           }}
           className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
         >

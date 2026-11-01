@@ -74,6 +74,14 @@ export interface RouteSearchParams {
   preferences?: {
     wheelchair_accessible?: boolean;
   };
+  destination_metadata?: {
+    floorId?: string;
+    floorSvgUrl?: string;
+    buildingCode?: string;
+    floorNumber?: number;
+    roomNumber?: string;
+    roomName?: string;
+  };
 }
 
 export interface QRCheckpoint {
