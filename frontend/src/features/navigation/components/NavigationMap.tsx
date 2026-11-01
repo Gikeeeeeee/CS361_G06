@@ -43,11 +43,25 @@ function findRoomElement(
     }
   }
 
-  // 2. Search through text labels and select neighboring room polygon / rect / path
+  // 2. Try matching by digits extracted from room name/code (e.g. "103" matches "room-lab103")
+  const digits = clean.match(/[0-9]+/)?.[0];
+  if (digits) {
+    try {
+      const elByDigit = svgElement.querySelector(`[id*="${digits}"]`) as SVGGraphicsElement;
+      if (elByDigit) return elByDigit;
+    } catch {}
+  }
+
+  // 3. Search through text labels and select neighboring room polygon / rect / path
   const textElements = Array.from(svgElement.querySelectorAll('text'));
   for (const t of textElements) {
     const textContent = (t.textContent || '').trim().toLowerCase();
-    if (textContent === clean || textContent.includes(clean)) {
+    const isMatched =
+      textContent === clean ||
+      textContent.includes(clean) ||
+      (digits && textContent.includes(digits));
+
+    if (isMatched) {
       const prev = t.previousElementSibling as SVGGraphicsElement;
       if (
         prev &&

@@ -17,6 +17,7 @@ interface NavigationContextType {
     roomIdOrCode: string,
     roomName?: string,
     options?: {
+      roomId?: string;
       floorId?: string;
       floorSvgUrl?: string;
       buildingCode?: string;
@@ -38,6 +39,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeCheckpoint, setActiveCheckpoint] = useState<QRCheckpoint | null>(null);
   const [prefilledDestination, setPrefilledDestination] = useState<string>('');
   const [prefilledMeta, setPrefilledMeta] = useState<{
+    roomId?: string;
     floorId?: string;
     floorSvgUrl?: string;
     buildingCode?: string;
@@ -78,13 +80,18 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           preferences: {
             wheelchair_accessible: wheelchairAccessible,
           },
-          destination_metadata: prefilledMeta || {
-            roomName: destinationName,
-          },
+          destination_metadata:
+            prefilledMeta && (!prefilledMeta.roomId || prefilledMeta.roomId === destinationId)
+              ? prefilledMeta
+              : { roomName: destinationName },
         });
 
-        // Ensure floorSvgUrl is preserved if route didn't populate it
-        if (!result.svg_path.url && prefilledMeta?.floorSvgUrl) {
+        // Ensure floorSvgUrl is preserved if route didn't populate it and it belongs to this room
+        if (
+          !result.svg_path.url &&
+          prefilledMeta?.floorSvgUrl &&
+          (!prefilledMeta.roomId || prefilledMeta.roomId === destinationId)
+        ) {
           result.svg_path.url = prefilledMeta.floorSvgUrl;
         }
 

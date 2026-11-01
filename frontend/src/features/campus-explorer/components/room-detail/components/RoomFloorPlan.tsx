@@ -90,6 +90,7 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
           type="button"
           onClick={() => {
             navigateToRoom(room?.id || '', roomTitle, {
+              roomId: room?.id,
               floorId: floor?.id,
               floorSvgUrl: svgUrl,
               buildingCode,

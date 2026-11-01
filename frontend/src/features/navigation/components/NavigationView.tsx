@@ -131,11 +131,24 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
     };
   }, [route]);
 
-  const { svgContent, loading: mapLoading } = useSvgFloorPlan(floorSvgUrl);
-
   const steps = route?.steps || [];
   const currentStep = steps[currentStepIndex] || steps[0];
   const isFinished = currentStepIndex >= steps.length - 1 && steps.length > 0;
+  const currentFloorNumber = currentStep?.floor_number || 1;
+
+  // Multi-floor active floor plan resolution
+  const activeFloorPlan = route?.svg_path.floor_plans?.[currentFloorNumber];
+  const activeSvgUrl = activeFloorPlan?.url || floorSvgUrl;
+  const activeRouteNodes = activeFloorPlan?.nodes || route?.svg_path.nodes || [];
+
+  // Calculate local step index on the active floor
+  const floorSteps = steps.filter((s) => (s.floor_number || 1) === currentFloorNumber);
+  const localStepIndex = Math.max(
+    0,
+    floorSteps.findIndex((s) => s.step_index === currentStep?.step_index)
+  );
+
+  const { svgContent, loading: mapLoading } = useSvgFloorPlan(activeSvgUrl);
 
   const handlePrevStep = () => {
     if (currentStepIndex > 0) setCurrentStepIndex((prev) => prev - 1);
@@ -163,9 +176,16 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           <h1 className="text-sm font-bold text-slate-900 leading-tight">
             Navigating to {route?.summary.destination_name || 'Destination'}
           </h1>
-          <p className="text-[11px] text-slate-500 font-medium">
-            From {route?.summary.start_name || 'Start Point'}
-          </p>
+          <div className="flex items-center justify-center gap-1.5 mt-0.5">
+            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+              Level {currentFloorNumber}
+            </span>
+            <span className="text-[11px] text-slate-400">•</span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              From {route?.summary.start_name || 'Start Point'}
+            </span>
+          </div>
         </div>
 
         <button
@@ -193,21 +213,21 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/85 z-20 gap-2.5">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             <span className="text-xs font-semibold text-slate-600">
-              {mapLoading ? 'Loading floor plan from database...' : 'Calculating shortest route...'}
+              {mapLoading ? `Loading Floor ${currentFloorNumber} map...` : 'Calculating shortest route...'}
             </span>
           </div>
         ) : svgContent ? (
           <NavigationMap
             svgContent={svgContent}
-            routeNodes={route?.svg_path.nodes || []}
-            activeStepNodeIndex={currentStepIndex}
+            routeNodes={activeRouteNodes}
+            activeStepNodeIndex={localStepIndex}
             highlightedRoomId={route?.summary.destination_name}
             isFinished={isFinished}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-slate-400 gap-2">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="text-xs font-medium text-slate-600">Loading map from database...</span>
+            <span className="text-xs font-medium text-slate-600">Loading Floor {currentFloorNumber} map...</span>
           </div>
         )}
 

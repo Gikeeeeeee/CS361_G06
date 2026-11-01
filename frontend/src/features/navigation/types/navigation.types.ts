@@ -61,6 +61,12 @@ export interface RouteResult {
     floor_id: string;
     url?: string;
     nodes: RoutePathNode[];
+    floor_plans?: Record<number, {
+      floor_number: number;
+      floor_id: string;
+      url?: string;
+      nodes: RoutePathNode[];
+    }>;
   };
   steps: RouteStep[];
   is_rerouted?: boolean;

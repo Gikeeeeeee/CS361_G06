@@ -336,16 +336,187 @@ async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult
   const isWheelchair = Boolean(params.preferences?.wheelchair_accessible);
   const isLC3 = bCode.toUpperCase().includes('LC3');
 
-  // Corridor coordinates for visual route polyline tailored to building SVG scale
+  // Determine starting checkpoint floor
+  const startCheckpoint =
+    DEFAULT_CHECKPOINTS.find((c) => c.node_id === params.start_id || c.id === params.start_id) ||
+    DEFAULT_CHECKPOINTS[0];
+  const startFloorNum = startCheckpoint.floor_number || 1;
+  const isCrossFloor = startFloorNum !== floorNum;
+
+  // Cross-Floor Routing: Floor 1 -> Stairs/Elevator -> Floor 2 -> Destination Room
+  if (isCrossFloor) {
+    let floor1SvgUrl = '';
+    let floor2SvgUrl = floorSvgUrl || '';
+    let floor1Id = '';
+    let floor2Id = floorId;
+
+    try {
+      const bldg = await campusService.getBuildingById(bCode.toLowerCase());
+      if (bldg?.floors) {
+        const f1 = bldg.floors.find((f: any) => f.floor_number === startFloorNum);
+        if (f1) {
+          floor1Id = f1.id;
+          const res1 = await campusService.getFloorById(f1.id);
+          floor1SvgUrl = (res1 as any)?.floor_plan?.url || (res1 as any)?.map?.url || '';
+        }
+        const f2 = bldg.floors.find((f: any) => f.floor_number === floorNum);
+        if (f2) {
+          floor2Id = f2.id;
+          if (!floor2SvgUrl) {
+            const res2 = await campusService.getFloorById(f2.id);
+            floor2SvgUrl = (res2 as any)?.floor_plan?.url || (res2 as any)?.map?.url || '';
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('NavigationApi: Cross-floor SVG fetch error:', err);
+    }
+
+    // Floor 1 nodes: From Lobby to Stair 1 (or Elevator)
+    const nodesFloor1 = isLC3
+      ? [
+          { node_id: 'NODE_START_FL1', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance (Floor 1)' },
+          { node_id: 'NODE_CORRIDOR_FL1', x: 450, y: 480, is_checkpoint: true, name: 'Main Hallway' },
+          { node_id: 'NODE_STAIR_FL1', x: 450, y: 320, is_checkpoint: true, name: isWheelchair ? 'Elevator (Floor 1)' : 'Stair 1 (Floor 1)' },
+        ]
+      : [
+          { node_id: 'NODE_START_FL1', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby (Floor 1)' },
+          { node_id: 'NODE_CORRIDOR_FL1', x: 280, y: 350, is_checkpoint: true, name: 'Main Hallway' },
+          {
+            node_id: 'NODE_STAIR_FL1',
+            x: isWheelchair ? 100 : 450,
+            y: isWheelchair ? 210 : 350,
+            is_checkpoint: true,
+            name: isWheelchair ? 'Central Elevator' : 'Stair 1 (East Wing)',
+          },
+        ];
+
+    // Floor 2 nodes: From Stair 1 (or Elevator) to Room (e.g. Room 213)
+    // Specific destination node coordinates for known rooms in LC4 Floor 2
+    let destX = 210;
+    let destY = 375;
+    if (destName.includes('211') || cleanId.includes('211')) { destX = 80; destY = 375; }
+    else if (destName.includes('212') || cleanId.includes('212')) { destX = 145; destY = 375; }
+    else if (destName.includes('213') || cleanId.includes('213')) { destX = 210; destY = 375; }
+    else if (destName.includes('214') || cleanId.includes('214')) { destX = 275; destY = 375; }
+    else if (destName.includes('215') || cleanId.includes('215')) { destX = 340; destY = 375; }
+    else if (destName.includes('201') || cleanId.includes('201')) { destX = 90; destY = 130; }
+    else if (destName.includes('204') || cleanId.includes('204')) { destX = 475; destY = 95; }
+    else if (destName.includes('209') || cleanId.includes('209')) { destX = 560; destY = 95; }
+
+    const nodesFloor2 = isLC3
+      ? [
+          { node_id: 'NODE_STAIR_FL2', x: 450, y: 320, is_checkpoint: true, name: isWheelchair ? 'Elevator (Floor 2)' : 'Stair 1 (Floor 2)' },
+          { node_id: 'NODE_CORRIDOR_FL2', x: 480, y: 320, is_checkpoint: true, name: 'Floor 2 Central Hallway' },
+          { node_id: 'NODE_DEST_FL2', x: 520, y: 320, is_checkpoint: true, name: destName },
+        ]
+      : [
+          {
+            node_id: 'NODE_STAIR_FL2',
+            x: isWheelchair ? 100 : 450,
+            y: isWheelchair ? 210 : 350,
+            is_checkpoint: true,
+            name: isWheelchair ? 'Elevator Exit (Floor 2)' : 'Stair 1 Exit (Floor 2)',
+          },
+          { node_id: 'NODE_CORRIDOR_FL2', x: 300, y: 350, is_checkpoint: true, name: 'Floor 2 South Corridor' },
+          { node_id: 'NODE_DEST_FL2', x: destX, y: destY, is_checkpoint: true, name: destName },
+        ];
+
+    const crossSteps = [
+      {
+        step_index: 1,
+        floor_number: startFloorNum,
+        action: 'DEPART' as const,
+        instruction: isWheelchair
+          ? 'From starting point, walk straight towards the central elevator'
+          : 'From starting point, walk straight along the main hallway towards Stair 1 for 15 meters',
+        distance: 15,
+        from_node_id: 'NODE_START_FL1',
+        to_node_id: 'NODE_CORRIDOR_FL1',
+        checkpoint_pin: { x: nodesFloor1[1].x, y: nodesFloor1[1].y },
+      },
+      {
+        step_index: 2,
+        floor_number: startFloorNum,
+        to_floor_number: floorNum,
+        action: isWheelchair ? ('ELEVATOR_UP' as const) : ('STAIRS_UP' as const),
+        instruction: isWheelchair
+          ? `Take the central elevator up to Floor ${floorNum}`
+          : `Take Stair 1 up to Floor ${floorNum}`,
+        distance: 10,
+        from_node_id: 'NODE_CORRIDOR_FL1',
+        to_node_id: 'NODE_STAIR_FL1',
+        checkpoint_pin: { x: nodesFloor1[2].x, y: nodesFloor1[2].y },
+        transition_type: isWheelchair ? 'ELEVATOR' : 'STAIRS',
+      },
+      {
+        step_index: 3,
+        floor_number: floorNum,
+        from_floor_number: startFloorNum,
+        action: 'CONTINUE' as const,
+        instruction: `Exit ${isWheelchair ? 'elevator' : 'Stair 1'} on Floor ${floorNum}, proceed along the corridor`,
+        distance: 15,
+        from_node_id: 'NODE_STAIR_FL2',
+        to_node_id: 'NODE_CORRIDOR_FL2',
+        checkpoint_pin: { x: nodesFloor2[1].x, y: nodesFloor2[1].y },
+      },
+      {
+        step_index: 4,
+        floor_number: floorNum,
+        action: 'ARRIVE' as const,
+        instruction: `Proceed straight ahead, ${destName} will be on your left`,
+        distance: 10,
+        from_node_id: 'NODE_CORRIDOR_FL2',
+        to_node_id: 'NODE_DEST_FL2',
+        checkpoint_pin: { x: destX, y: destY },
+      },
+    ];
+
+    return {
+      summary: {
+        start_name: startName || `${bCode} Lobby (Floor ${startFloorNum})`,
+        destination_name: destName,
+        estimated_time_minutes: 3,
+        total_distance_meters: 50,
+        floor_id: floor1Id || floorId,
+        building_id: bCode,
+        is_rerouted: isWheelchair,
+        is_cross_floor: true,
+      },
+      svg_path: {
+        floor_id: floor1Id || floorId,
+        url: floor1SvgUrl || floorSvgUrl,
+        nodes: nodesFloor1,
+        floor_plans: {
+          [startFloorNum]: {
+            floor_number: startFloorNum,
+            floor_id: floor1Id,
+            url: floor1SvgUrl,
+            nodes: nodesFloor1,
+          },
+          [floorNum]: {
+            floor_number: floorNum,
+            floor_id: floor2Id,
+            url: floor2SvgUrl,
+            nodes: nodesFloor2,
+          },
+        },
+      },
+      steps: crossSteps,
+      is_rerouted: isWheelchair,
+    };
+  }
+
+  // Single-Floor Route
   const nodes = isLC3
     ? [
-        { node_id: 'NODE_START', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance (Floor 1)' },
+        { node_id: 'NODE_START', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance' },
         { node_id: 'NODE_JUNC_1', x: 450, y: 480, is_checkpoint: true, name: 'Main Lobby Hallway' },
         { node_id: 'NODE_JUNC_2', x: 450, y: 320, is_checkpoint: true, name: 'Central Corridor' },
         { node_id: 'NODE_DEST', x: 520, y: 320, is_checkpoint: true, name: destName },
       ]
     : [
-        { node_id: 'NODE_START', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby (Floor 1)' },
+        { node_id: 'NODE_START', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby' },
         { node_id: 'NODE_JUNC_1', x: 280, y: 350, is_checkpoint: true, name: 'Main Hallway' },
         { node_id: 'NODE_JUNC_2', x: 280, y: 160, is_checkpoint: true, name: 'North Corridor' },
         { node_id: 'NODE_DEST', x: 380, y: 160, is_checkpoint: true, name: destName },
@@ -354,6 +525,7 @@ async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult
   const steps = [
     {
       step_index: 1,
+      floor_number: floorNum,
       action: 'DEPART' as const,
       instruction: isWheelchair
         ? 'From starting point, proceed along the main accessible ramp for 15 meters'
@@ -365,6 +537,7 @@ async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult
     },
     {
       step_index: 2,
+      floor_number: floorNum,
       action: 'TURN_RIGHT' as const,
       instruction: isWheelchair
         ? 'Turn right towards the central wing using the wide accessible passage'
@@ -376,6 +549,7 @@ async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult
     },
     {
       step_index: 3,
+      floor_number: floorNum,
       action: 'ARRIVE' as const,
       instruction: `Proceed ahead, ${destName} will be on your left side`,
       distance: 10,
@@ -394,11 +568,20 @@ async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult
       floor_id: floorId,
       building_id: bCode,
       is_rerouted: isWheelchair,
+      is_cross_floor: false,
     },
     svg_path: {
       floor_id: floorId,
       url: floorSvgUrl,
       nodes,
+      floor_plans: {
+        [floorNum]: {
+          floor_number: floorNum,
+          floor_id: floorId,
+          url: floorSvgUrl,
+          nodes,
+        },
+      },
     },
     steps,
     is_rerouted: isWheelchair,
