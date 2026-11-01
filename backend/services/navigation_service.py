@@ -1401,3 +1401,7 @@ class NavigationService:
             steps=steps,
             floor_segments=floor_segments,
         )
+
+    def get_all_qr_locations(self) -> list[dict[str, Any]]:
+        """Retrieve all registered QR locations from navigation source."""
+        return self.source.get_all_qr_locations()

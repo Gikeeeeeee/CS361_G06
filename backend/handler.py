@@ -220,6 +220,17 @@ def _get_me(deps: Dependencies, p: dict) -> dict:
     }
 
 
+QR_LOCATIONS = "/api/v1/qr-locations"
+ROUTES_CHECKPOINTS = "/api/v1/routes/checkpoints"
+
+
+def _get_qr_locations(deps: Dependencies, p: dict) -> dict:
+    locations = deps.navigation.get_all_qr_locations()
+    return {
+        "success": True,
+        "data": locations,
+    }
+
 ROUTES_SEARCH = "/api/v1/routes/search"
 ROUTES_GET = "/api/v1/routes"
 
@@ -513,6 +524,10 @@ ROUTES = {
     f"GET {BOOKMARKS}": Route((), _list_bookmarks),
     f"POST {BOOKMARKS}": Route(("body",), _add_bookmark),
     f"DELETE {BOOKMARK}": Route(("entityId",), _remove_bookmark),
+    f"GET {QR_LOCATIONS}": Route((), _get_qr_locations),
+    "GET /qr-locations": Route((), _get_qr_locations),
+    f"GET {ROUTES_CHECKPOINTS}": Route((), _get_qr_locations),
+    "GET /routes/checkpoints": Route((), _get_qr_locations),
     f"POST {ROUTES_SEARCH}": Route(("body",), _search_routes),
     "POST /routes/search": Route(("body",), _search_routes),
     f"GET {ROUTES_GET}": Route(("start_node", "destination_room"), _get_routes),

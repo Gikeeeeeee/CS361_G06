@@ -268,6 +268,22 @@ resource "aws_apigatewayv2_route" "patch_navigation_node_status" {
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_qr_locations" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/qr-locations"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_routes_checkpoints" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/routes/checkpoints"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "default" {
   api_id = aws_apigatewayv2_api.this.id
 

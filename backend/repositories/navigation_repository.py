@@ -1,3 +1,4 @@
+import time
 """
 Driven adapter: reads navigation graphs, corridor edges, and nodes from Amazon DynamoDB.
 
@@ -290,3 +291,70 @@ class NavigationRepository(NavigationSource):
             raise UpstreamError(
                 f"DynamoDB error fetching vertical connections for building '{building_id}': {exc}"
             ) from exc
+
+    def get_all_qr_locations(self) -> list[dict[str, Any]]:
+        """Fetch all registered QR locations across all buildings and floors with caching."""
+        now = time.time()
+        if hasattr(self, "_qr_cache") and self._qr_cache and (now - getattr(self, "_qr_cache_time", 0) < 300):
+            return self._qr_cache
+
+        try:
+            # 1. Query all floors from GSI0
+            resp = self.table.query(
+                IndexName="GSI0",
+                KeyConditionExpression=Key("GSI0PK").eq("FLOOR")
+            )
+            floors = resp.get("Items", [])
+            while "LastEvaluatedKey" in resp:
+                resp = self.table.query(
+                    IndexName="GSI0",
+                    KeyConditionExpression=Key("GSI0PK").eq("FLOOR"),
+                    ExclusiveStartKey=resp["LastEvaluatedKey"],
+                )
+                floors.extend(resp.get("Items", []))
+
+            results: list[dict[str, Any]] = []
+            seen_ids: set[str] = set()
+
+            for floor_item in floors:
+                floor_id = str(floor_item.get("id") or "")
+                bldg_raw = str(floor_item.get("building_id") or "")
+                bldg_code = bldg_raw.upper()
+                floor_num = int(floor_item.get("floor_number", 1))
+
+                nav_data = self.get_floor_navigation_data(floor_id)
+                node_map = {n.id: n for n in nav_data.get("nodes", [])}
+
+                for qr in nav_data.get("qrs", []):
+                    if qr.id in seen_ids:
+                        continue
+                    seen_ids.add(qr.id)
+                    node = node_map.get(qr.node_id)
+                    x = float(node.svg_x) if node and node.svg_x is not None else 0.0
+                    y = float(node.svg_y) if node and node.svg_y is not None else 0.0
+                    node_name = node.name if node and node.name else None
+                    cp_name = f"{bldg_code} Floor {floor_num} - {node_name or qr.id}"
+
+                    results.append({
+                        "id": qr.id,
+                        "qr_id": qr.id,
+                        "node_id": qr.node_id,
+                        "name": cp_name,
+                        "node_name": node_name,
+                        "building_code": bldg_code,
+                        "building_id": bldg_raw,
+                        "floor_number": floor_num,
+                        "floor_id": floor_id,
+                        "x": x,
+                        "y": y,
+                        "coordinates": {"x": x, "y": y},
+                        "description": qr.location_description or f"Checkpoint at {node_name or qr.node_id}, {bldg_code}",
+                        "status": node.status if node else "ACTIVE",
+                    })
+
+            results.sort(key=lambda r: (r["building_code"], r["floor_number"], r["id"]))
+            self._qr_cache = results
+            self._qr_cache_time = now
+            return results
+        except ClientError as exc:
+            raise UpstreamError(f"DynamoDB error querying all QR locations: {exc}") from exc

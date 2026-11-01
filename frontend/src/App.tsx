@@ -66,6 +66,7 @@ function App() {
             {/* User Layout Routes (Accessible by all: Guest, Student, Staff) */}
             <Route path="/" element={<UserLayout />}>
               <Route index element={<HomePage />} />
+              <Route path="navigation" element={<HomePage />} />
               <Route path="saved" element={<SavedPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="buildings/:buildingId" element={<BuildingInfoPage />} />
