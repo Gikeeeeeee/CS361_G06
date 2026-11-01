@@ -26,6 +26,13 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
     Array<{ id: string; code: string; name: string; building: string; floor: number }>
   >([]);
 
+  // Synchronize initialDestination when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery(initialDestination || '');
+    }
+  }, [isOpen, initialDestination]);
+
   // Dynamically load rooms from facility cache / API
   useEffect(() => {
     if (!isOpen) return;
@@ -211,8 +218,14 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
         {searchQuery.trim() && (
           <button
             onClick={() => {
+              const q = searchQuery.toLowerCase().trim();
               const matched = availableRooms.find(
-                (r) => r.code.toLowerCase() === searchQuery.toLowerCase() || r.id.toLowerCase() === searchQuery.toLowerCase()
+                (r) =>
+                  r.code.toLowerCase() === q ||
+                  r.id.toLowerCase() === q ||
+                  r.name.toLowerCase() === q ||
+                  r.code.toLowerCase().endsWith(`-${q}`) ||
+                  r.code.toLowerCase().includes(q)
               );
               onStartNavigation(
                 matched?.id || `RM_${searchQuery.replace(/[^a-zA-Z0-9]/g, '_')}`,

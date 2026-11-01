@@ -105,7 +105,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             // BarcodeDetector setup fallback
           }
         }
-      } catch (_err) {
+      } catch {
         setCameraError('Cannot access camera. You can select a checkpoint manually below.');
       }
     }
