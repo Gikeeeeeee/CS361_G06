@@ -120,6 +120,21 @@ terraform apply /tmp/cs361-lambda.plan
 Targeting is for recovery or a narrowly scoped Lambda update. Run a normal
 full plan afterward to review any remaining changes.
 
+### Automatic deploy (GitHub Actions CD)
+
+`.github/workflows/cd.yml` applies the `default` workspace on every push to
+`main`, and only `main`. It needs these repository secrets (team AWS account):
+
+| Secret | Value |
+|---|---|
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | team deploy credentials |
+| `AWS_SESSION_TOKEN` | only for temporary credentials; otherwise leave unset |
+| `TF_VARS_FILE` | the full contents of the team's `terraform.tfvars` |
+
+CD stops before applying if the plan deletes or replaces any AWS resource.
+That usually means wrong state or wrong variables. Review the plan locally
+and apply it by hand if the delete is intended.
+
 ---
 
 ## 3. Test the API

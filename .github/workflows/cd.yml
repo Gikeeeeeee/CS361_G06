@@ -4,12 +4,12 @@
 
 name: CD
 
+# Only main deploys. Feature branches must never apply to the
+# default (team) workspace; use the sandbox workspace by hand.
 on:
   push:
     branches:
       - main
-      - v1-known-issue
-      - ci/cd-github-actions
 
 # Prevent multiple Terraform deployments on the same branch
 # from running at the same time.
@@ -59,14 +59,34 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          # Must match the state bucket region in backend.tf
+          aws-region: ap-southeast-2
+
+      # --------------------------------------------------
+      # Write terraform.tfvars
+      # --------------------------------------------------
+      # The TF_VARS_FILE secret holds the exact contents of the
+      # team's terraform.tfvars. Using the same file as a local
+      # `terraform apply` means CD can never plan a different
+      # stack (different names/region) against the shared state.
+
+      - name: Write terraform.tfvars
+        env:
+          TF_VARS_FILE: ${{ secrets.TF_VARS_FILE }}
+        run: |
+          if [ -z "$TF_VARS_FILE" ]; then
+            echo "::error::TF_VARS_FILE secret is not set"
+            exit 1
+          fi
+          printf '%s\n' "$TF_VARS_FILE" > terraform.tfvars
 
       # --------------------------------------------------
       # Terraform Init
       # --------------------------------------------------
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false
 
       # --------------------------------------------------
       # Terraform Validate
@@ -80,22 +100,30 @@ jobs:
       # --------------------------------------------------
 
       - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      # --------------------------------------------------
+      # Refuse Destructive Plans
+      # --------------------------------------------------
+      # A plan that deletes or replaces anything usually means CD
+      # is pointed at the wrong state or wrong variables. Stop and
+      # let a human run it locally instead.
+      # terraform_data (the Lambda pip build step) is replaced on
+      # every code change by design and is not a real AWS resource.
+
+      - name: Refuse destructive plan
         run: |
-          terraform plan \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}"
+          filter='.resource_changes[]? | select(.type != "terraform_data") | select(.change.actions | index("delete"))'
+          deletes=$(terraform show -json tfplan | jq "[$filter] | length")
+          if [ "$deletes" -gt 0 ]; then
+            terraform show -json tfplan | jq -r "$filter | \"  \(.change.actions | join(\"/\")) \(.address)\""
+            echo "::error::Plan deletes or replaces $deletes resource(s). Run it locally after review."
+            exit 1
+          fi
 
       # --------------------------------------------------
       # Terraform Apply
       # --------------------------------------------------
 
       - name: Terraform Apply
-        run: |
-          terraform apply \
-            -auto-approve \
-            -var="aws_region=${{ vars.AWS_REGION }}" \
-            -var="bucket_name=${{ vars.BUCKET_NAME }}" \
-            -var="project_name=${{ vars.PROJECT_NAME }}" \
-            -var="environment=${{ vars.ENVIRONMENT }}"
+        run: terraform apply -input=false tfplan
