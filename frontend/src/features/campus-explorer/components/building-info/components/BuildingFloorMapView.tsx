@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, SlidersHorizontal, Loader2, MapPin } from 'lucide-react';
 import type { Building, Floor, Room } from '../../../../../shared/types/domain.types';
 import { useSvgFloorPlan } from '../../floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../floor-viewer/components/InteractiveSvgMap';
+import { statusApi } from '../../../../admin-status/services/statusApi';
 
 interface BuildingFloorMapViewProps {
   building: Building;
@@ -19,9 +20,49 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [statusOverlay, setStatusOverlay] = useState<Record<string, { status: string; note?: string | null }>>({});
 
   const svgUrl = floor.floor_plan?.url || floor.map?.url;
   const { svgContent, loading, error } = useSvgFloorPlan(svgUrl);
+
+  // Live operational status overlay synchronization
+  useEffect(() => {
+    if (!floor?.id) return;
+    let isMounted = true;
+
+    const loadStatus = () => {
+      statusApi
+        .getFloorStatusOverlay(floor.id)
+        .then((data) => {
+          if (!isMounted) return;
+          const map: Record<string, { status: string; note?: string | null }> = {};
+          data.rooms?.forEach((r) => {
+            const entry = { status: r.status, note: r.status_note };
+            map[r.room_id] = entry;
+            if (r.room_code) {
+              map[r.room_code] = entry;
+              map[r.room_code.toLowerCase()] = entry;
+              map[`room-${r.room_code}`] = entry;
+              map[`room-${r.room_code}`.toLowerCase()] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`.toLowerCase()] = entry;
+            }
+          });
+          setStatusOverlay(map);
+        })
+        .catch(() => {});
+    };
+
+    loadStatus();
+
+    const handleUpdate = () => loadStatus();
+    window.addEventListener('floor-status-updated', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('floor-status-updated', handleUpdate);
+    };
+  }, [floor?.id]);
 
   // Active highlighted room: from search, click, or external prop
   const activeHighlight = useMemo(() => {
@@ -176,6 +217,7 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
             <InteractiveSvgMap
               svgContent={svgContent}
               highlightedRoomId={activeHighlight}
+              statusOverlay={statusOverlay}
               onRoomClick={handleRoomClick}
             />
           </div>
@@ -183,18 +225,26 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
       </div>
 
       {/* Floor Plan Legend */}
-      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 px-1 gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-xs bg-blue-600 inline-block"></span>
-            <span>Selected Room</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-2xs"></span>
+            <span className="text-[11px] font-medium text-slate-600">Available</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-xs bg-slate-200 border border-slate-300 inline-block"></span>
-            <span>Rooms / Labs</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shadow-2xs"></span>
+            <span className="text-[11px] font-medium text-slate-600">Maintenance</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-2xs"></span>
+            <span className="text-[11px] font-medium text-slate-600">Closed</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block shadow-2xs"></span>
+            <span className="text-[11px] font-medium text-slate-600">Selected</span>
           </div>
         </div>
-        <span className="font-semibold text-slate-700">
+        <span className="font-semibold text-slate-700 text-[11px]">
           {building.code} - Floor {floor.floor_number}
         </span>
       </div>

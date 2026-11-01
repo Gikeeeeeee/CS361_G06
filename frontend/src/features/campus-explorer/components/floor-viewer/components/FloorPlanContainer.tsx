@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Maximize2 } from "lucide-react";
 import { useFloorMetadata } from "../hooks/useFloorMetadata";
 import { RoomQuickPeekModal } from "./RoomQuickPeekModal";
@@ -7,6 +7,7 @@ import { useRoomHighlight } from "../hooks/useRoomHighlight";
 import { InteractiveSvgMap } from "./InteractiveSvgMap";
 import { useFullscreenViewer } from "../hooks/useFullscreenViewer";
 import { FullscreenFloorModal } from "./FullscreenFloorModal";
+import { statusApi } from "../../../../admin-status/services/statusApi";
 
 interface FloorPlanContainerProps {
   buildingId: string;
@@ -18,6 +19,44 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
   const { svgContent, loading: svgLoading, error: svgError } = useSvgFloorPlan(floorMetadata?.map?.url);
   const { highlightedRoomId, setHighlightedRoom } = useRoomHighlight();
   const { isFullscreen, openFullscreen, closeFullscreen } = useFullscreenViewer();
+  const [statusOverlay, setStatusOverlay] = useState<Record<string, { status: string; note?: string | null }>>({});
+
+  useEffect(() => {
+    if (!floorId) return;
+    let isMounted = true;
+
+    const loadStatus = () => {
+      statusApi
+        .getFloorStatusOverlay(floorId)
+        .then((data) => {
+          if (!isMounted) return;
+          const map: Record<string, { status: string; note?: string | null }> = {};
+          data.rooms?.forEach((r) => {
+            const entry = { status: r.status, note: r.status_note };
+            map[r.room_id] = entry;
+            if (r.room_code) {
+              map[r.room_code] = entry;
+              map[r.room_code.toLowerCase()] = entry;
+              map[`room-${r.room_code}`] = entry;
+              map[`room-${r.room_code}`.toLowerCase()] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`.toLowerCase()] = entry;
+            }
+          });
+          setStatusOverlay(map);
+        })
+        .catch(() => {});
+    };
+
+    loadStatus();
+    const handleUpdate = () => loadStatus();
+    window.addEventListener('floor-status-updated', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('floor-status-updated', handleUpdate);
+    };
+  }, [floorId]);
 
   const selectedRoom = useMemo(() => {
     if (!floorMetadata?.rooms) return null;
@@ -68,6 +107,8 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
               </div>
               <InteractiveSvgMap
                 svgContent={svgContent}
+                statusOverlay={statusOverlay}
+                highlightedRoomId={highlightedRoomId}
               />
             </>
           )}
@@ -79,16 +120,24 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
           />
         </div>
         
-        <div className="w-full mt-3 flex justify-between items-center text-xs">
+        <div className="w-full mt-3 flex flex-wrap justify-between items-center text-xs gap-2">
           {/* Legend */}
-          <div className="flex gap-4 text-slate-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
-              <span>{highlightedRoomId || "Selected"}</span>
+          <div className="flex flex-wrap items-center gap-3 text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Available</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-white border border-slate-300 rounded-sm"></div>
-              <span>Offices/Labs</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Maintenance</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-rose-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Closed</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">{highlightedRoomId || "Selected"}</span>
             </div>
           </div>
           
@@ -106,6 +155,7 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
         onClose={closeFullscreen}
         svgContent={svgContent || ''}
         floorMetadata={floorMetadata}
+        statusOverlay={statusOverlay}
       />
     </section>
   );
