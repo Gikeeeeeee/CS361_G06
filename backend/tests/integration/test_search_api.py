@@ -2,10 +2,17 @@ import requests
 import pytest
 
 
-BASE_URL = (
-    "https://w5irvlq5mg.execute-api.us-east-1.amazonaws.com"
-)
-SEARCH_URL = f"{BASE_URL}/api/v2/search"
+# Live tests: hit a deployed stack, so CI's `-m "not api"` skips them.
+# Run with: pytest -m api --api-url <endpoint>
+pytestmark = [pytest.mark.api]
+
+SEARCH_URL = ""
+
+
+@pytest.fixture(autouse=True)
+def _search_url(api_base_url):
+    global SEARCH_URL
+    SEARCH_URL = f"{api_base_url}/api/v2/search"
 
 
 def search(**params):

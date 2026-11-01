@@ -2,13 +2,12 @@
 # Runs automated tests and Terraform validation on Pull Requests
 name: CI
 
-# Trigger this workflow when a Pull Request targets the CI branch
+# Trigger this workflow when a Pull Request targets main or the V4 integration branch
 on:
   pull_request:
     branches:
-      - ci/cd-github-actions
-      - v1-known-issue
       - main
+      - V4
 
 jobs:
   # --------------------------------------------------
