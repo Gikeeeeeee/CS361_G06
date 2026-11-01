@@ -168,11 +168,21 @@ export const statusApi = {
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(roomId)}/status`, {
+        // 1. Try exact endpoint: PATCH /api/v1/locations/{id}/status
+        let response = await fetch(`${BASE_URL}/api/v1/locations/${encodeURIComponent(roomId)}/status`, {
           method: 'PATCH',
           headers,
           body: JSON.stringify(payload),
         });
+
+        // 2. Fallback to /api/v1/locations/rooms/{id}/status if needed
+        if (!response.ok && response.status === 404) {
+          response = await fetch(`${BASE_URL}/api/v1/locations/rooms/${encodeURIComponent(roomId)}/status`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload),
+          });
+        }
 
         if (response.ok) {
           const json = await response.json();

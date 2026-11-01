@@ -75,13 +75,15 @@ export function InteractiveSvgMap({
 
       // Find closest interactable room or facility shape
       const interactable = target.closest(
-        '.room-shape, .facility-shape, [id^="room-"], [id^="facility-"], g[id], rect[id], path[id], polygon[id]'
+        '[data-room-id], .room-shape, .facility-shape, [id^="room-"], [id^="facility-"], g[id], rect[id], path[id], polygon[id]'
       ) as Element | null;
 
-      if (interactable && interactable.id) {
-        const rawId = interactable.id;
-        const cleanId = rawId.replace(/^(room-|facility-)/, "");
-        onRoomClick(cleanId, rawId);
+      if (interactable) {
+        const rawId = interactable.id || interactable.getAttribute('data-room-id') || '';
+        const cleanId = interactable.getAttribute('data-room-id') || rawId.replace(/^(room-|facility-)/, '');
+        if (cleanId) {
+          onRoomClick(cleanId, rawId);
+        }
       }
     };
 
@@ -105,11 +107,16 @@ export function InteractiveSvgMap({
     const container = containerRef.current;
     if (!container) return;
 
-    // 1. Reset all previous highlights on shapes
+    // 1. Reset all previous highlights and set data-room-id attributes on shapes
     const allShapes = container.querySelectorAll(
       ".room-shape, .facility-shape, [id^='room-'], [id^='facility-'], rect[id], polygon[id], path[id]"
     );
     allShapes.forEach((el) => {
+      const rawId = el.id || '';
+      const cleanId = rawId.replace(/^(room-|facility-)/, '');
+      if (cleanId) {
+        el.setAttribute('data-room-id', cleanId);
+      }
       el.classList.remove("highlight");
       (el as HTMLElement).style.fill = "";
       (el as HTMLElement).style.stroke = "";
