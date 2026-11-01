@@ -47,7 +47,7 @@ export const BuildingsPage: React.FC = () => {
     currentNote?: string | null;
   } | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Initial load: Fetch buildings dynamically
   useEffect(() => {
@@ -154,7 +154,41 @@ export const BuildingsPage: React.FC = () => {
       map[r.room_id] = entry;
       map[r.room_code] = entry;
       map[r.room_code.toLowerCase()] = entry;
+
+      const meta = facilityCache.roomMeta.get(r.room_id);
+      if (meta) {
+        if (meta.nameEn) {
+          map[meta.nameEn] = entry;
+          map[meta.nameEn.toLowerCase()] = entry;
+        }
+        if (meta.roomNumber) {
+          map[meta.roomNumber] = entry;
+          map[meta.roomNumber.toLowerCase()] = entry;
+        }
+      }
     });
+
+    if (currentFloor) {
+      const fRooms = (currentFloor as any).rooms || [];
+      fRooms.forEach((fr: any) => {
+        const statusItem = statusOverlayData.rooms.find((r) => r.room_id === fr.id);
+        if (statusItem) {
+          const entry = { status: statusItem.status, note: statusItem.status_note };
+          if (fr.name?.en) {
+            map[fr.name.en] = entry;
+            map[fr.name.en.toLowerCase()] = entry;
+          }
+          if (fr.name?.th) {
+            map[fr.name.th] = entry;
+            map[fr.name.th.toLowerCase()] = entry;
+          }
+          if (fr.room_number) {
+            map[fr.room_number] = entry;
+            map[fr.room_number.toLowerCase()] = entry;
+          }
+        }
+      });
+    }
 
     // Corridor edges
     statusOverlayData.corridor_edges.forEach((e) => {
@@ -167,7 +201,7 @@ export const BuildingsPage: React.FC = () => {
     });
 
     return map;
-  }, [statusOverlayData]);
+  }, [statusOverlayData, currentFloor]);
 
   // Status statistics counters
   const stats = useMemo(() => {
@@ -192,18 +226,44 @@ export const BuildingsPage: React.FC = () => {
     // Look up existing status
     const bCode = currentBuilding?.code || '';
     const cleanCode = roomId.toUpperCase().includes(bCode) ? roomId.toUpperCase() : `${bCode}-${roomId.toUpperCase()}`;
-    const existing = statusOverlayData?.rooms.find(
-      (r) =>
-        r.room_id.toLowerCase() === roomId.toLowerCase() ||
-        r.room_code.toLowerCase() === roomId.toLowerCase() ||
-        r.room_code.toLowerCase().endsWith(roomId.toLowerCase())
-    );
+    const existing = statusOverlayData?.rooms.find((r) => {
+      if (r.room_id.toLowerCase() === roomId.toLowerCase()) return true;
+      if (r.room_code.toLowerCase() === roomId.toLowerCase()) return true;
+      if (r.room_code.toLowerCase().endsWith(roomId.toLowerCase())) return true;
+      const meta = facilityCache.roomMeta.get(r.room_id);
+      if (meta) {
+        if (meta.nameEn?.toLowerCase() === roomId.toLowerCase()) return true;
+        if ((meta as any).nameTh?.toLowerCase() === roomId.toLowerCase()) return true;
+        if (meta.roomNumber?.toLowerCase() === roomId.toLowerCase()) return true;
+      }
+      return false;
+    });
+
+    let resolvedId = existing?.room_id;
+    let resolvedCode = existing?.room_code;
+    let resolvedName = existing?.room_code || roomId;
+
+    if (!resolvedId && currentFloor) {
+      const fRooms = (currentFloor as any).rooms || [];
+      const match = fRooms.find((fr: any) => {
+        const idMatch = fr.id?.toLowerCase() === roomId.toLowerCase();
+        const enMatch = fr.name?.en?.toLowerCase() === roomId.toLowerCase();
+        const thMatch = fr.name?.th?.toLowerCase() === roomId.toLowerCase();
+        const numMatch = fr.room_number?.toLowerCase() === roomId.toLowerCase();
+        return idMatch || enMatch || thMatch || numMatch;
+      });
+      if (match) {
+        resolvedId = match.id;
+        resolvedCode = match.name?.en || match.room_number || cleanCode;
+        resolvedName = match.name?.en || match.name?.th || cleanCode;
+      }
+    }
 
     setEditingTarget({
       type: 'ROOM',
-      id: existing?.room_id || (rawElementId ? `RM_${rawElementId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` : `RM_${roomId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`),
-      code: existing?.room_code || cleanCode,
-      name: `Room ${roomId}`,
+      id: resolvedId || (rawElementId ? `RM_${rawElementId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}` : `RM_${roomId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`),
+      code: resolvedCode || cleanCode,
+      name: resolvedName ? `Room ${resolvedName}` : `Room ${roomId}`,
       floorId: selectedFloorId,
       buildingCode: bCode,
       currentStatus: existing?.status || 'ACTIVE',
@@ -220,26 +280,34 @@ export const BuildingsPage: React.FC = () => {
     newStatus: string,
     note: string | null
   ) => {
-    if (type === 'ROOM') {
-      await statusApi.updateRoomStatus(
-        selectedFloorId,
-        id,
-        code,
-        newStatus as RoomStatus,
-        note
-      );
-    } else if (type === 'CORRIDOR') {
-      await statusApi.updateCorridorStatus(selectedFloorId, id, newStatus as any, note);
-    } else {
-      await statusApi.updateNodeStatus(selectedFloorId, id, newStatus as any, note);
+    try {
+      if (type === 'ROOM') {
+        await statusApi.updateRoomStatus(
+          selectedFloorId,
+          id,
+          code,
+          newStatus as RoomStatus,
+          note
+        );
+      } else if (type === 'CORRIDOR') {
+        await statusApi.updateCorridorStatus(selectedFloorId, id, newStatus as any, note);
+      } else {
+        await statusApi.updateNodeStatus(selectedFloorId, id, newStatus as any, note);
+      }
+
+      // Refresh overlay data
+      await fetchStatusOverlay();
+
+      // Show toast
+      setToast({ type: 'success', message: `Updated ${code} status to ${newStatus}` });
+      setTimeout(() => setToast(null), 3500);
+    } catch (err: any) {
+      console.error('Failed to update status:', err);
+      const msg = err?.message || 'Failed to update status. Please try again.';
+      setToast({ type: 'error', message: msg });
+      setTimeout(() => setToast(null), 4500);
+      throw err;
     }
-
-    // Refresh overlay data
-    await fetchStatusOverlay();
-
-    // Show toast
-    setToastMessage(`Updated ${code} status to ${newStatus}`);
-    setTimeout(() => setToastMessage(null), 3500);
   };
 
   // Filtered rooms list for table
@@ -261,10 +329,18 @@ export const BuildingsPage: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 px-4 py-3 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-          <Check className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 text-white text-xs font-semibold rounded-xl shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2 ${
+            toast.type === 'error' ? 'bg-rose-600' : 'bg-slate-900'
+          }`}
+        >
+          {toast.type === 'error' ? (
+            <AlertTriangle className="w-4 h-4 text-white shrink-0" />
+          ) : (
+            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 

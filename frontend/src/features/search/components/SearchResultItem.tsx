@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Building2, DoorOpen, Calendar } from 'lucide-react';
 import type { SearchResultItem as SearchResultItemType } from '../types';
 import { statusApi } from '../../admin-status/services/statusApi';
@@ -63,7 +64,15 @@ export function SearchResultItem({
     subtitle = item.subtitle || '';
   }
 
-  // V4-US2: Dynamic Room Status Indicator
+  // V4-US2: Dynamic Room Status Indicator with live reactivity
+  const [, setStatusTick] = useState(0);
+  useEffect(() => {
+    if (item.type !== 'ROOM') return;
+    const handleUpdate = () => setStatusTick((t) => t + 1);
+    window.addEventListener('floor-status-updated', handleUpdate);
+    return () => window.removeEventListener('floor-status-updated', handleUpdate);
+  }, [item.type]);
+
   const roomStatus = item.type === 'ROOM' ? statusApi.getRoomStatusSync(item.id || item.room_number || title) : null;
   const isMaintenance = roomStatus?.status === 'MAINTENANCE';
   const isClosed = roomStatus?.status === 'CLOSED';
