@@ -42,3 +42,7 @@ output "opensearch_index" {
   description = "OpenSearch index used by this deployment."
   value       = var.opensearch_index
 }
+output "alerts_topic_arn" {
+  description = "SNS topic CloudWatch alarms publish to. Subscribe to receive alerts."
+  value       = aws_sns_topic.alerts.arn
+}
