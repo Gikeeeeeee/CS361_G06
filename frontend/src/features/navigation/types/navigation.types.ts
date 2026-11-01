@@ -69,6 +69,7 @@ export interface RouteResult {
     }>;
   };
   steps: RouteStep[];
+  floor_segments?: any[];
   is_rerouted?: boolean;
 }
 
@@ -98,4 +99,6 @@ export interface QRCheckpoint {
   floor_number: number;
   floor_id: string;
   description?: string;
+  x?: number;
+  y?: number;
 }

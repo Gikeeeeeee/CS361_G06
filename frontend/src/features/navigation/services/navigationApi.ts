@@ -1,69 +1,181 @@
-import type { RouteResult, RouteSearchParams, QRCheckpoint } from '../types/navigation.types';
+import type { RouteResult, RouteSearchParams, QRCheckpoint, RoutePathNode } from '../types/navigation.types';
 import { campusService } from '../../campus-explorer/services';
-import { facilityCache } from '../../admin-schedule/services/facilityCache';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-/**
- * Flag for UI/UX Design & Prototype Review Phase
- * When true, serves dynamic mock route with 0ms latency and zero network errors in console.
- * Set to false when ready to integrate with live backend endpoints.
- */
-const IS_MOCK_MODE = true;
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 /**
- * Standard campus checkpoints with physical QR codes
+ * Standard campus checkpoints with physical QR codes matching backend navigation graph nodes
  */
 export const DEFAULT_CHECKPOINTS: QRCheckpoint[] = [
   {
-    id: 'QR_LC4_FL1_LOBBY',
-    node_id: 'NODE_LC4_100',
-    name: 'LC4 Main Lobby (Floor 1)',
+    id: 'QR_LC4_FL1_MAIN',
+    node_id: 'LC4-F1-N6',
+    name: 'LC4 Main Entrance Lobby (Floor 1)',
     building_code: 'LC4',
     floor_number: 1,
-    floor_id: 'FL_LC4_01',
-    description: 'Main lobby entrance in front of central elevators, LC4',
+    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
+    description: 'Main entrance hall in front of south corridor, LC4',
+    x: 160,
+    y: 325,
+  },
+  {
+    id: 'QR_LC4_FL1_WEST',
+    node_id: 'LC4-F1-N1',
+    name: 'LC4 West Service Junction (Floor 1)',
+    building_code: 'LC4',
+    floor_number: 1,
+    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
+    description: 'West corridor service junction, LC4 Building',
+    x: 160,
+    y: 245,
   },
   {
     id: 'QR_LC4_FL1_STAIRS',
-    node_id: 'NODE_LC4_STAIRS_1',
-    name: 'East Main Stairs (Floor 1)',
+    node_id: 'LC4-F1-N9',
+    name: 'LC4 Elevator & Stairs Access (Floor 1)',
     building_code: 'LC4',
     floor_number: 1,
-    floor_id: 'FL_LC4_01',
-    description: 'In front of central staircase, LC4 Building',
+    floor_id: 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
+    description: 'Central elevator and staircase access, LC4 Building',
+    x: 145,
+    y: 230,
   },
   {
-    id: 'QR_LC4_FL2_ELEV',
-    node_id: 'NODE_ELEV_04',
-    name: 'Glass Elevator Lobby (Floor 2)',
-    building_code: 'LC4',
-    floor_number: 2,
-    floor_id: 'FL_LC4_02',
-    description: 'Glass elevator lobby, central hall, LC4 Building',
-  },
-  {
-    id: 'QR_LC3_FL1_ENTRANCE',
-    node_id: 'NODE_LC3_101',
-    name: 'LC3 South Entrance (Floor 1)',
+    id: 'QR_LC3_FL1_MAIN',
+    node_id: 'LC3-F1-N01',
+    name: 'LC3 West Stair Junction (Floor 1)',
     building_code: 'LC3',
     floor_number: 1,
-    floor_id: 'FL_LC3_01',
-    description: 'Front south entrance pavilion, LC3 Building',
+    floor_id: 'deaef033-ba6c-5c0e-bb50-956202b57947',
+    description: 'West staircase junction, LC3 Building',
+    x: 115,
+    y: 245,
   },
   {
-    id: 'QR_BR2_FL4_ELEV',
-    node_id: 'NODE_ELEV_04',
-    name: 'Glass Elevator Lobby (Floor 4)',
-    building_code: 'BR2',
-    floor_number: 4,
-    floor_id: 'FL_BR2_04',
-    description: 'Glass elevator lobby, Lecture Building 2, Floor 4',
+    id: 'QR_LC3_FL1_HALL',
+    node_id: 'LC3-F1-N04',
+    name: 'LC3 Upper East Hall (Floor 1)',
+    building_code: 'LC3',
+    floor_number: 1,
+    floor_id: 'deaef033-ba6c-5c0e-bb50-956202b57947',
+    description: 'Upper east corridor hall junction, LC3 Building',
+    x: 430,
+    y: 105,
   },
 ];
 
 /**
- * Visual Navigation Service
+ * Normalizes backend route payload into frontend RouteResult format
+ */
+async function normalizeRouteData(data: any): Promise<RouteResult> {
+  const summary = data.summary || {};
+  // Backend calculates Dijkstra distance in SVG coordinate viewBox units (~10 units ≈ 1 meter)
+  const rawTotalDistance = Number(summary.total_distance || summary.total_distance_meters || 45);
+  const isSvgUnitDistance = rawTotalDistance > 100;
+  const scale = isSvgUnitDistance ? 0.1 : 1;
+
+  const totalMeters = Math.max(5, Math.round(rawTotalDistance * scale));
+  const estMinutes =
+    summary.estimated_time_minutes ||
+    (summary.estimated_time_seconds
+      ? Math.max(1, Math.ceil(summary.estimated_time_seconds / 60))
+      : Math.max(1, Math.ceil(totalMeters / 70))); // Average indoor walking speed ~70 m/min
+
+  // 1. Resolve multi-floor segments
+  const floorPlans: Record<number, { floor_number: number; floor_id: string; url?: string; nodes: RoutePathNode[] }> = {};
+  const segments = Array.isArray(data.floor_segments) && data.floor_segments.length > 0
+    ? data.floor_segments
+    : data.svg_path
+    ? [data.svg_path]
+    : [];
+
+  for (const seg of segments) {
+    const fNum = Number(seg.floor_number) || 1;
+    const fId = seg.floor_id || summary.floor_id || '';
+    let url: string | undefined = undefined;
+
+    if (fId) {
+      try {
+        const floorObj = await campusService.getFloorById(fId);
+        url = (floorObj as any)?.floor_plan?.url || (floorObj as any)?.map?.url;
+      } catch {
+        // Fallback gracefully
+      }
+    }
+
+    floorPlans[fNum] = {
+      floor_number: fNum,
+      floor_id: fId,
+      url,
+      nodes: (seg.nodes || []).map((n: any) => ({
+        node_id: n.node_id,
+        x: Number(n.x),
+        y: Number(n.y),
+        is_checkpoint: Boolean(n.is_checkpoint || n.is_room_door),
+        name: n.name,
+      })),
+    };
+  }
+
+  // 2. Primary SVG path
+  const primaryFloorId = data.svg_path?.floor_id || summary.floor_id || segments[0]?.floor_id || '';
+  let primaryUrl: string | undefined = undefined;
+  if (primaryFloorId) {
+    try {
+      const floorObj = await campusService.getFloorById(primaryFloorId);
+      primaryUrl = (floorObj as any)?.floor_plan?.url || (floorObj as any)?.map?.url;
+    } catch {
+      // Fallback gracefully
+    }
+  }
+
+  const primaryNodes: RoutePathNode[] = (data.svg_path?.nodes || segments[0]?.nodes || []).map((n: any) => ({
+    node_id: n.node_id,
+    x: Number(n.x),
+    y: Number(n.y),
+    is_checkpoint: Boolean(n.is_checkpoint || n.is_room_door),
+    name: n.name,
+  }));
+
+  // 3. Turn-by-turn guidance steps
+  const steps = (data.steps || []).map((s: any, idx: number) => ({
+    step_index: s.step_index || idx + 1,
+    action: s.action || 'CONTINUE',
+    instruction: s.instruction || s.message || '',
+    distance: Math.round(Number(s.distance || 0) * scale),
+    from_node_id: s.from_node_id,
+    to_node_id: s.to_node_id,
+    checkpoint_pin: s.checkpoint_pin,
+    floor_number: s.floor_number || 1,
+    to_floor_number: s.to_floor_number,
+    transition_type: s.transition_type,
+  }));
+
+  return {
+    summary: {
+      start_name: summary.start_location?.name || summary.start_name || 'Start Point',
+      destination_name: summary.destination?.name || summary.destination_name || 'Destination',
+      estimated_time_minutes: estMinutes,
+      total_distance_meters: totalMeters,
+      floor_id: primaryFloorId,
+      building_id: summary.building_id || '',
+      is_rerouted: Boolean(data.is_rerouted || summary.is_rerouted),
+      is_cross_floor: Boolean(summary.is_cross_floor),
+    },
+    svg_path: {
+      floor_id: primaryFloorId,
+      url: primaryUrl,
+      nodes: primaryNodes,
+      floor_plans: Object.keys(floorPlans).length > 0 ? floorPlans : undefined,
+    },
+    steps,
+    floor_segments: data.floor_segments,
+    is_rerouted: Boolean(data.is_rerouted || summary.is_rerouted),
+  };
+}
+
+/**
+ * Visual Navigation API Service
  */
 export const navigationApi = {
   /**
@@ -71,46 +183,65 @@ export const navigationApi = {
    * Endpoint: POST /api/v1/routes/search
    */
   async searchRoute(params: RouteSearchParams): Promise<RouteResult> {
-    if (IS_MOCK_MODE) {
-      return generateMockRoute(params);
-    }
+    const payload = {
+      start_id: params.start_id,
+      start_type: params.start_type || 'NODE',
+      destination_id: params.destination_id,
+      destination_type: params.destination_type || 'ROOM',
+      ...(params.preferences ? { preferences: params.preferences } : {}),
+    };
+
+    let response: Response | null = null;
+    let errorDetail = 'Route calculation failed';
 
     try {
-      const response = await fetch(`${BASE_URL}/api/v1/routes/search`, {
+      response = await fetch(`${BASE_URL}/api/v1/routes/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify(payload),
       });
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          return normalizeRouteData(json.data);
-        }
-      }
-    } catch {
-      // Backend not yet deployed or offline, fall back to robust local calculation
+    } catch (err: any) {
+      errorDetail = err?.message || 'Network connection failed';
     }
 
-    // Try alternate route prefix
-    try {
-      const response = await fetch(`${BASE_URL}/routes/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      });
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          return normalizeRouteData(json.data);
+    // Try alternate prefix without /api/v1 if 404
+    if (response && !response.ok && response.status === 404) {
+      try {
+        const altResponse = await fetch(`${BASE_URL}/routes/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (altResponse.ok) {
+          response = altResponse;
         }
+      } catch {
+        // Ignore fallback error
       }
-    } catch {
-      // Fallback
     }
 
-    return generateMockRoute(params);
+    if (response && response.ok) {
+      const json = await response.json();
+      if (json.success && json.data) {
+        return await normalizeRouteData(json.data);
+      }
+    }
+
+    if (response && !response.ok) {
+      try {
+        const json = await response.json();
+        if (json?.error?.message) {
+          throw new Error(json.error.message);
+        }
+      } catch (e: any) {
+        if (e?.message && !e.message.includes('JSON')) {
+          throw e;
+        }
+      }
+      throw new Error(`Routing service returned error status ${response.status}`);
+    }
+
+    throw new Error(errorDetail);
   },
 
   /**
@@ -118,39 +249,35 @@ export const navigationApi = {
    * Endpoint: GET /api/v1/routes?start_node=...&destination_room=...
    */
   async getRoutes(startNode: string, destinationRoom: string): Promise<RouteResult> {
-    if (IS_MOCK_MODE) {
-      return await generateMockRoute({
-        start_id: startNode,
-        start_type: 'NODE',
-        destination_id: destinationRoom,
-        destination_type: 'ROOM',
-      });
+    const url = `${BASE_URL}/api/v1/routes?start_node=${encodeURIComponent(startNode)}&destination_room=${encodeURIComponent(destinationRoom)}`;
+    const response = await fetch(url);
+
+    if (response.ok) {
+      const json = await response.json();
+      if (json.success && json.data) {
+        return await normalizeRouteData(json.data);
+      }
     }
 
-    try {
-      const url = `${BASE_URL}/api/v1/routes?start_node=${encodeURIComponent(startNode)}&destination_room=${encodeURIComponent(destinationRoom)}`;
-      const response = await fetch(url);
-
-      if (response.ok) {
+    if (!response.ok) {
+      try {
         const json = await response.json();
-        if (json.success && json.data) {
-          return normalizeRouteData(json.data);
+        if (json?.error?.message) {
+          throw new Error(json.error.message);
+        }
+      } catch (e: any) {
+        if (e?.message && !e.message.includes('JSON')) {
+          throw e;
         }
       }
-    } catch {
-      // Fallback
     }
 
-    return await generateMockRoute({
-      start_id: startNode,
-      start_type: 'NODE',
-      destination_id: destinationRoom,
-      destination_type: 'ROOM',
-    });
+    throw new Error('Failed to retrieve route from server.');
   },
 
   /**
-   * Get all registered QR checkpoints
+   * Fetch registered QR checkpoints from Backend
+   * Endpoint: GET /api/v1/routes/checkpoints
    */
   async getCheckpointsAsync(): Promise<QRCheckpoint[]> {
     try {
@@ -162,7 +289,7 @@ export const navigationApi = {
         }
       }
     } catch {
-      // Offline fallback
+      // Fallback to default registered checkpoints
     }
     return DEFAULT_CHECKPOINTS;
   },
@@ -175,15 +302,15 @@ export const navigationApi = {
   },
 
   /**
-   * Resolve a QR Code payload or ID into a checkpoint
+   * Resolve a QR Code payload or string into a verified checkpoint
    */
   resolveCheckpoint(qrContent: string): QRCheckpoint {
     const trimmed = qrContent.trim();
-    // 1. Direct match by ID
+    // 1. Direct match by ID or Node ID
     const byId = DEFAULT_CHECKPOINTS.find((c) => c.id === trimmed || c.node_id === trimmed);
     if (byId) return byId;
 
-    // 2. Check if URL containing node_id or checkpoint query
+    // 2. Check if URL containing node_id or checkpoint parameter
     try {
       const parsed = new URL(trimmed);
       const node = parsed.searchParams.get('start_node') || parsed.searchParams.get('checkpoint');
@@ -201,389 +328,22 @@ export const navigationApi = {
     );
     if (byName) return byName;
 
-    // 4. Dynamic Node or Room code matching (e.g. NODE_..., QR_..., RM_...)
-    if (trimmed.startsWith('NODE_') || trimmed.startsWith('QR_') || trimmed.startsWith('RM_')) {
+    // 4. Dynamic Node code matching (e.g. LC4-F1-N..., LC3-F1-N..., NODE_...)
+    if (trimmed.includes('-F') || trimmed.startsWith('NODE_') || trimmed.startsWith('QR_')) {
+      const bCode = trimmed.includes('LC3') ? 'LC3' : trimmed.includes('BR2') ? 'BR2' : 'LC4';
       const cleanName = trimmed.replace(/^(NODE_|QR_|RM_)/, '').replace(/_/g, ' ');
-      const bCode = trimmed.includes('LC4') ? 'LC4' : trimmed.includes('LC3') ? 'LC3' : trimmed.includes('BR2') ? 'BR2' : 'LC4';
       return {
         id: trimmed,
-        node_id: trimmed.startsWith('NODE_') ? trimmed : `NODE_${trimmed}`,
+        node_id: trimmed,
         name: `Checkpoint ${cleanName}`,
         building_code: bCode,
         floor_number: 1,
-        floor_id: `FL_${bCode}_01`,
-        description: `Reference checkpoint from QR (${trimmed})`,
+        floor_id: bCode === 'LC3' ? 'deaef033-ba6c-5c0e-bb50-956202b57947' : 'a6ab42cb-0abd-57ee-acd2-993d64b20a82',
+        description: `Verified checkpoint from QR code (${trimmed})`,
       };
     }
 
-    // Fallback default
+    // Default to main entrance checkpoint
     return DEFAULT_CHECKPOINTS[0];
   },
 };
-
-function normalizeRouteData(data: any): RouteResult {
-  const summary = data.summary || {};
-  const totalMeters = summary.total_distance_meters || summary.total_distance || 45;
-  const estMinutes = summary.estimated_time_minutes || (summary.estimated_time_seconds ? Math.ceil(summary.estimated_time_seconds / 60) : 2);
-
-  return {
-    summary: {
-      start_name: summary.start_name || 'Start Point',
-      destination_name: summary.destination_name || 'Destination',
-      estimated_time_minutes: estMinutes,
-      total_distance_meters: totalMeters,
-      floor_id: data.svg_path?.floor_id || summary.floor_id || '',
-      building_id: summary.building_id || '',
-      is_rerouted: Boolean(data.is_rerouted || summary.is_rerouted),
-      is_cross_floor: Boolean(summary.is_cross_floor),
-    },
-    svg_path: {
-      floor_id: data.svg_path?.floor_id || '',
-      nodes: (data.svg_path?.nodes || []).map((n: any) => ({
-        node_id: n.node_id,
-        x: Number(n.x),
-        y: Number(n.y),
-        is_checkpoint: Boolean(n.is_checkpoint),
-        name: n.name,
-      })),
-    },
-    steps: (data.steps || []).map((s: any, idx: number) => ({
-      step_index: s.step_index || idx + 1,
-      action: s.action || 'CONTINUE',
-      instruction: s.instruction || s.message || '',
-      distance: s.distance || 15,
-      from_node_id: s.from_node_id,
-      to_node_id: s.to_node_id,
-      checkpoint_pin: s.checkpoint_pin,
-      floor_number: s.floor_number,
-    })),
-    is_rerouted: Boolean(data.is_rerouted || summary.is_rerouted),
-  };
-}
-
-/**
- * Deterministic generator matching backend V4 spec
- * Dynamically resolves real room and floor SVG from backend database,
- * and computes accurate corridor turn-by-turn navigation steps.
- */
-async function generateMockRoute(params: RouteSearchParams): Promise<RouteResult> {
-  const rawDestId = params.destination_id;
-  const cleanId = rawDestId.replace(/^(RM_|room-)/i, '').trim();
-  const startName = params.start_id.replace(/^NODE_/, '').replace(/_/g, ' ');
-
-  let destName = params.destination_metadata?.roomName || cleanId;
-  let bCode = params.destination_metadata?.buildingCode || 'LC3';
-  let floorId = params.destination_metadata?.floorId || '';
-  let floorNum = params.destination_metadata?.floorNumber || 1;
-  let floorSvgUrl = params.destination_metadata?.floorSvgUrl;
-
-  // 1. If floorSvgUrl is missing or destination is a UUID, resolve from Backend DB
-  if (!floorSvgUrl || rawDestId.includes('-')) {
-    try {
-      // Check in-memory facility cache first (0ms latency)
-      const cached = facilityCache.roomMeta.get(cleanId) || facilityCache.roomMeta.get(rawDestId);
-      if (cached) {
-        destName = cached.roomNumber ? `Room ${cached.roomNumber}` : cached.nameEn || destName;
-        bCode = cached.buildingCode || bCode;
-        floorId = cached.floorId || floorId;
-        const cFloor = facilityCache.floorsMeta.get(cached.floorId);
-        if (cFloor) {
-          floorSvgUrl = floorSvgUrl || (cFloor as any).floor_plan?.url || (cFloor as any).map?.url;
-        }
-      }
-
-      // If still missing SVG URL, query campusService from backend API
-      if (!floorSvgUrl) {
-        const room = await campusService.getRoomById(cleanId);
-        if (room) {
-          destName = room.room_number ? `Room ${room.room_number}` : (room.name?.en || room.name?.th || destName);
-          bCode = (room as any).building?.code || (room as any).building?.id || bCode;
-          const rFloorId = (room as any).floor?.id;
-          if (rFloorId) {
-            floorId = rFloorId;
-            const f = await campusService.getFloorById(rFloorId);
-            if (f) {
-              floorSvgUrl = (f as any).floor_plan?.url || (f as any).map?.url;
-              floorNum = f.floor_number || floorNum;
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('NavigationApi: Could not resolve room from backend:', err);
-    }
-  }
-
-  // 2. If floorSvgUrl is still missing, query building floors from backend
-  if (!floorSvgUrl) {
-    try {
-      const bldg = await campusService.getBuildingById(bCode.toLowerCase());
-      if (bldg?.floors && bldg.floors.length > 0) {
-        const targetFloor = bldg.floors.find((f: any) => f.floor_number === floorNum) || bldg.floors[0];
-        if (targetFloor?.id) {
-          floorId = floorId || targetFloor.id;
-          const f = await campusService.getFloorById(targetFloor.id);
-          if (f) {
-            floorSvgUrl = (f as any).floor_plan?.url || (f as any).map?.url;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('NavigationApi: Could not resolve floor from building:', err);
-    }
-  }
-
-  const isWheelchair = Boolean(params.preferences?.wheelchair_accessible);
-  const isLC3 = bCode.toUpperCase().includes('LC3');
-
-  // Determine starting checkpoint floor
-  const startCheckpoint =
-    DEFAULT_CHECKPOINTS.find((c) => c.node_id === params.start_id || c.id === params.start_id) ||
-    DEFAULT_CHECKPOINTS[0];
-  const startFloorNum = startCheckpoint.floor_number || 1;
-  const isCrossFloor = startFloorNum !== floorNum;
-
-  // Cross-Floor Routing: Floor 1 -> Stairs/Elevator -> Floor 2 -> Destination Room
-  if (isCrossFloor) {
-    let floor1SvgUrl = '';
-    let floor2SvgUrl = floorSvgUrl || '';
-    let floor1Id = '';
-    let floor2Id = floorId;
-
-    try {
-      const bldg = await campusService.getBuildingById(bCode.toLowerCase());
-      if (bldg?.floors) {
-        const f1 = bldg.floors.find((f: any) => f.floor_number === startFloorNum);
-        if (f1) {
-          floor1Id = f1.id;
-          const res1 = await campusService.getFloorById(f1.id);
-          floor1SvgUrl = (res1 as any)?.floor_plan?.url || (res1 as any)?.map?.url || '';
-        }
-        const f2 = bldg.floors.find((f: any) => f.floor_number === floorNum);
-        if (f2) {
-          floor2Id = f2.id;
-          if (!floor2SvgUrl) {
-            const res2 = await campusService.getFloorById(f2.id);
-            floor2SvgUrl = (res2 as any)?.floor_plan?.url || (res2 as any)?.map?.url || '';
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('NavigationApi: Cross-floor SVG fetch error:', err);
-    }
-
-    // Floor 1 nodes: From Lobby to Stair 1 (or Elevator)
-    const nodesFloor1 = isLC3
-      ? [
-          { node_id: 'NODE_START_FL1', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance (Floor 1)' },
-          { node_id: 'NODE_CORRIDOR_FL1', x: 450, y: 480, is_checkpoint: true, name: 'Main Hallway' },
-          { node_id: 'NODE_STAIR_FL1', x: 450, y: 320, is_checkpoint: true, name: isWheelchair ? 'Elevator (Floor 1)' : 'Stair 1 (Floor 1)' },
-        ]
-      : [
-          { node_id: 'NODE_START_FL1', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby (Floor 1)' },
-          { node_id: 'NODE_CORRIDOR_FL1', x: 280, y: 350, is_checkpoint: true, name: 'Main Hallway' },
-          {
-            node_id: 'NODE_STAIR_FL1',
-            x: isWheelchair ? 100 : 450,
-            y: isWheelchair ? 210 : 350,
-            is_checkpoint: true,
-            name: isWheelchair ? 'Central Elevator' : 'Stair 1 (East Wing)',
-          },
-        ];
-
-    // Floor 2 nodes: From Stair 1 (or Elevator) to Room (e.g. Room 213)
-    // Specific destination node coordinates for known rooms in LC4 Floor 2
-    let destX = 210;
-    let destY = 375;
-    if (destName.includes('211') || cleanId.includes('211')) { destX = 80; destY = 375; }
-    else if (destName.includes('212') || cleanId.includes('212')) { destX = 145; destY = 375; }
-    else if (destName.includes('213') || cleanId.includes('213')) { destX = 210; destY = 375; }
-    else if (destName.includes('214') || cleanId.includes('214')) { destX = 275; destY = 375; }
-    else if (destName.includes('215') || cleanId.includes('215')) { destX = 340; destY = 375; }
-    else if (destName.includes('201') || cleanId.includes('201')) { destX = 90; destY = 130; }
-    else if (destName.includes('204') || cleanId.includes('204')) { destX = 475; destY = 95; }
-    else if (destName.includes('209') || cleanId.includes('209')) { destX = 560; destY = 95; }
-
-    const nodesFloor2 = isLC3
-      ? [
-          { node_id: 'NODE_STAIR_FL2', x: 450, y: 320, is_checkpoint: true, name: isWheelchair ? 'Elevator (Floor 2)' : 'Stair 1 (Floor 2)' },
-          { node_id: 'NODE_CORRIDOR_FL2', x: 480, y: 320, is_checkpoint: true, name: 'Floor 2 Central Hallway' },
-          { node_id: 'NODE_DEST_FL2', x: 520, y: 320, is_checkpoint: true, name: destName },
-        ]
-      : [
-          {
-            node_id: 'NODE_STAIR_FL2',
-            x: isWheelchair ? 100 : 450,
-            y: isWheelchair ? 210 : 350,
-            is_checkpoint: true,
-            name: isWheelchair ? 'Elevator Exit (Floor 2)' : 'Stair 1 Exit (Floor 2)',
-          },
-          { node_id: 'NODE_CORRIDOR_FL2', x: 300, y: 350, is_checkpoint: true, name: 'Floor 2 South Corridor' },
-          { node_id: 'NODE_DEST_FL2', x: destX, y: destY, is_checkpoint: true, name: destName },
-        ];
-
-    const crossSteps = [
-      {
-        step_index: 1,
-        floor_number: startFloorNum,
-        action: 'DEPART' as const,
-        instruction: isWheelchair
-          ? 'From starting point, walk straight towards the central elevator'
-          : 'From starting point, walk straight along the main hallway towards Stair 1 for 15 meters',
-        distance: 15,
-        from_node_id: 'NODE_START_FL1',
-        to_node_id: 'NODE_CORRIDOR_FL1',
-        checkpoint_pin: { x: nodesFloor1[1].x, y: nodesFloor1[1].y },
-      },
-      {
-        step_index: 2,
-        floor_number: startFloorNum,
-        to_floor_number: floorNum,
-        action: isWheelchair ? ('ELEVATOR_UP' as const) : ('STAIRS_UP' as const),
-        instruction: isWheelchair
-          ? `Take the central elevator up to Floor ${floorNum}`
-          : `Take Stair 1 up to Floor ${floorNum}`,
-        distance: 10,
-        from_node_id: 'NODE_CORRIDOR_FL1',
-        to_node_id: 'NODE_STAIR_FL1',
-        checkpoint_pin: { x: nodesFloor1[2].x, y: nodesFloor1[2].y },
-        transition_type: isWheelchair ? 'ELEVATOR' : 'STAIRS',
-      },
-      {
-        step_index: 3,
-        floor_number: floorNum,
-        from_floor_number: startFloorNum,
-        action: 'CONTINUE' as const,
-        instruction: `Exit ${isWheelchair ? 'elevator' : 'Stair 1'} on Floor ${floorNum}, proceed along the corridor`,
-        distance: 15,
-        from_node_id: 'NODE_STAIR_FL2',
-        to_node_id: 'NODE_CORRIDOR_FL2',
-        checkpoint_pin: { x: nodesFloor2[1].x, y: nodesFloor2[1].y },
-      },
-      {
-        step_index: 4,
-        floor_number: floorNum,
-        action: 'ARRIVE' as const,
-        instruction: `Proceed straight ahead, ${destName} will be on your left`,
-        distance: 10,
-        from_node_id: 'NODE_CORRIDOR_FL2',
-        to_node_id: 'NODE_DEST_FL2',
-        checkpoint_pin: { x: destX, y: destY },
-      },
-    ];
-
-    return {
-      summary: {
-        start_name: startName || `${bCode} Lobby (Floor ${startFloorNum})`,
-        destination_name: destName,
-        estimated_time_minutes: 3,
-        total_distance_meters: 50,
-        floor_id: floor1Id || floorId,
-        building_id: bCode,
-        is_rerouted: isWheelchair,
-        is_cross_floor: true,
-      },
-      svg_path: {
-        floor_id: floor1Id || floorId,
-        url: floor1SvgUrl || floorSvgUrl,
-        nodes: nodesFloor1,
-        floor_plans: {
-          [startFloorNum]: {
-            floor_number: startFloorNum,
-            floor_id: floor1Id,
-            url: floor1SvgUrl,
-            nodes: nodesFloor1,
-          },
-          [floorNum]: {
-            floor_number: floorNum,
-            floor_id: floor2Id,
-            url: floor2SvgUrl,
-            nodes: nodesFloor2,
-          },
-        },
-      },
-      steps: crossSteps,
-      is_rerouted: isWheelchair,
-    };
-  }
-
-  // Single-Floor Route
-  const nodes = isLC3
-    ? [
-        { node_id: 'NODE_START', x: 240, y: 480, is_checkpoint: true, name: startName || 'South Entrance' },
-        { node_id: 'NODE_JUNC_1', x: 450, y: 480, is_checkpoint: true, name: 'Main Lobby Hallway' },
-        { node_id: 'NODE_JUNC_2', x: 450, y: 320, is_checkpoint: true, name: 'Central Corridor' },
-        { node_id: 'NODE_DEST', x: 520, y: 320, is_checkpoint: true, name: destName },
-      ]
-    : [
-        { node_id: 'NODE_START', x: 130, y: 350, is_checkpoint: true, name: startName || 'Main Lobby' },
-        { node_id: 'NODE_JUNC_1', x: 280, y: 350, is_checkpoint: true, name: 'Main Hallway' },
-        { node_id: 'NODE_JUNC_2', x: 280, y: 160, is_checkpoint: true, name: 'North Corridor' },
-        { node_id: 'NODE_DEST', x: 380, y: 160, is_checkpoint: true, name: destName },
-      ];
-
-  const steps = [
-    {
-      step_index: 1,
-      floor_number: floorNum,
-      action: 'DEPART' as const,
-      instruction: isWheelchair
-        ? 'From starting point, proceed along the main accessible ramp for 15 meters'
-        : 'From starting point, walk straight along the main hallway for 15 meters',
-      distance: 15,
-      from_node_id: 'NODE_START',
-      to_node_id: 'NODE_JUNC_1',
-      checkpoint_pin: { x: nodes[1].x, y: nodes[1].y },
-    },
-    {
-      step_index: 2,
-      floor_number: floorNum,
-      action: 'TURN_RIGHT' as const,
-      instruction: isWheelchair
-        ? 'Turn right towards the central wing using the wide accessible passage'
-        : 'Turn right at the corridor junction towards the central wing',
-      distance: 20,
-      from_node_id: 'NODE_JUNC_1',
-      to_node_id: 'NODE_JUNC_2',
-      checkpoint_pin: { x: nodes[2].x, y: nodes[2].y },
-    },
-    {
-      step_index: 3,
-      floor_number: floorNum,
-      action: 'ARRIVE' as const,
-      instruction: `Proceed ahead, ${destName} will be on your left side`,
-      distance: 10,
-      from_node_id: 'NODE_JUNC_2',
-      to_node_id: 'NODE_DEST',
-      checkpoint_pin: { x: nodes[3].x, y: nodes[3].y },
-    },
-  ];
-
-  return {
-    summary: {
-      start_name: startName || `${bCode} Entrance (Floor ${floorNum})`,
-      destination_name: destName,
-      estimated_time_minutes: isWheelchair ? 3 : 2,
-      total_distance_meters: 45,
-      floor_id: floorId,
-      building_id: bCode,
-      is_rerouted: isWheelchair,
-      is_cross_floor: false,
-    },
-    svg_path: {
-      floor_id: floorId,
-      url: floorSvgUrl,
-      nodes,
-      floor_plans: {
-        [floorNum]: {
-          floor_number: floorNum,
-          floor_id: floorId,
-          url: floorSvgUrl,
-          nodes,
-        },
-      },
-    },
-    steps,
-    is_rerouted: isWheelchair,
-  };
-}

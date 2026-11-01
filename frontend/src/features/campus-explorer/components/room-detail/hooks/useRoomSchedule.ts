@@ -85,7 +85,7 @@ export function useRoomSchedule(roomId: string, type?: 'COURSE' | 'EXAM' | 'ACTI
     return () => {
       isMounted = false;
     };
-  }, [roomId, type, startDate?.toISOString(), endDate?.toISOString(), role, isAuthenticated]);
+  }, [roomId, type, startDate, endDate, role, isAuthenticated]);
 
   return { schedules, isLoading, error };
 }

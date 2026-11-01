@@ -10,7 +10,40 @@ export interface CachedRoomMeta {
   floorId: string;
 }
 
-const SESSION_CACHE_KEY = 'ku_long_facility_rooms_cache';
+export function resolveRoomNumber(
+  rawRoomNumber: string | null | undefined,
+  nameEn?: string | null,
+  nameTh?: string | null
+): string {
+  if (rawRoomNumber && rawRoomNumber.trim()) {
+    return rawRoomNumber.trim();
+  }
+  const en = (nameEn || '').trim();
+  const th = (nameTh || '').trim();
+
+  if (/common\s*room/i.test(en) || /commonroom/i.test(th)) {
+    return en || th;
+  }
+  if (/restroom/i.test(en) || /ห้องน้ำ/i.test(th)) {
+    return 'Restroom';
+  }
+  if (/landmark/i.test(en) || /จุดเด่น/i.test(th)) {
+    return 'Landmark';
+  }
+  if (/faculty\s*office/i.test(en) || /ห้องพักอาจารย์/i.test(th)) {
+    return 'Faculty Offices';
+  }
+
+  const combined = `${en} ${th}`;
+  const match = combined.match(/(?:lab(?:oratory)?|room|lec(?:ture)?|ห้อง)?\s*(\d+[a-zA-Z0-9_\/-]*)/i);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  return en || th || '';
+}
+
+const SESSION_CACHE_KEY = 'ku_long_facility_rooms_cache_v3';
 
 class FacilityCache {
   private buildingsPromise: Promise<{ buildings: Building[] }> | null = null;
@@ -134,9 +167,10 @@ class FacilityCache {
           const building = floor ? this.buildingsMeta.get(floor.buildingId) : null;
           
           res.rooms.forEach(r => {
+            const resolvedNum = resolveRoomNumber(r.room_number, r.name?.en, r.name?.th);
             this.roomMeta.set(r.id, {
               roomId: r.id,
-              roomNumber: r.room_number || '',
+              roomNumber: resolvedNum,
               nameEn: r.name?.en || '',
               buildingId: building?.id || '',
               buildingCode: building?.code || '',
@@ -191,9 +225,10 @@ class FacilityCache {
     if (!this.roomPromises.has(roomId)) {
       const promise = scheduleApi.getRoom(roomId)
         .then(res => {
+          const resolvedNum = resolveRoomNumber(res.room_number, res.name?.en, res.name?.th);
           this.roomMeta.set(res.id, {
             roomId: res.id,
-            roomNumber: res.room_number || '',
+            roomNumber: resolvedNum,
             nameEn: res.name?.en || '',
             buildingId: res.building?.id || '',
             buildingCode: res.building?.code || '',
