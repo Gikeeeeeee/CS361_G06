@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   X,
   QrCode,
@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Maximize2,
 } from 'lucide-react';
+import { motion, useAnimation, useDragControls, type PanInfo } from 'framer-motion';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { DEFAULT_CHECKPOINTS, navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint } from '../types/navigation.types';
@@ -50,37 +51,74 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [activeFloorSvgUrl, setActiveFloorSvgUrl] = useState<string | undefined>(undefined);
   const [selectedPinCp, setSelectedPinCp] = useState<QRCheckpoint | null>(DEFAULT_CHECKPOINTS[0]);
 
-  // Bottom Sheet Collapse & Touch Gestures
-  const [isSheetCollapsed, setIsSheetCollapsed] = useState<boolean>(false);
-  const touchStartY = useRef<number | null>(null);
+  // Window dimensions for fluid drag constraints (matches homepage PeekBottomSheet)
+  const getWindowHeight = () => (typeof window !== 'undefined' ? window.innerHeight : 800);
+  const [windowHeight, setWindowHeight] = useState(getWindowHeight);
+
+  useEffect(() => {
+    const handleResize = () => setWindowHeight(window.innerHeight);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const PEEK_HEADER_HEIGHT = 64;
+  const peekY = windowHeight - PEEK_HEADER_HEIGHT;
+  // Top constraint when expanded (~22% from screen top)
+  const expandedY = Math.max(80, Math.round(windowHeight * 0.22));
+
+  // Draggable Bottom Sheet Animation Controls (matches homepage PeekBottomSheet)
+  type BottomSheetSnap = 'peek' | 'expanded';
+  const [snap, setSnap] = useState<BottomSheetSnap>('peek');
+  const controls = useAnimation();
+  const dragControls = useDragControls();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const snapTo = useCallback(
+    async (target: BottomSheetSnap) => {
+      setSnap(target);
+      const targetY = target === 'peek' ? peekY : expandedY;
+      await controls.start({
+        y: targetY,
+        transition: { type: 'spring', damping: 26, stiffness: 280, mass: 0.8 },
+      });
+    },
+    [controls, peekY, expandedY]
+  );
+
+  const toggleSheet = () => {
+    snapTo(snap === 'expanded' ? 'peek' : 'expanded');
+  };
+
+  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const { offset, velocity } = info;
+    const velocityThreshold = 180;
+    const distanceThreshold = 50;
+
+    if (snap === 'expanded') {
+      if (offset.y > distanceThreshold || velocity.y > velocityThreshold) {
+        snapTo('peek');
+      } else {
+        snapTo('expanded');
+      }
+    } else {
+      if (offset.y < -distanceThreshold || velocity.y < -velocityThreshold) {
+        snapTo('expanded');
+      } else {
+        snapTo('peek');
+      }
+    }
+  };
+
+  // Sync animation position on modal open / resize
+  useEffect(() => {
+    if (isOpen && windowHeight > 0) {
+      controls.set({ y: snap === 'peek' ? peekY : expandedY });
+    }
+  }, [isOpen, windowHeight, peekY, expandedY, controls, snap]);
 
   // Fullscreen Floor Map Modal
   const [isMapFullscreen, setIsMapFullscreen] = useState<boolean>(false);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current === null) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - touchStartY.current;
-
-    // Swiped down by more than 35px -> collapse
-    if (deltaY > 35 && !isSheetCollapsed) {
-      setIsSheetCollapsed(true);
-      touchStartY.current = null;
-    }
-    // Swiped up by more than 35px -> expand
-    else if (deltaY < -35 && isSheetCollapsed) {
-      setIsSheetCollapsed(false);
-      touchStartY.current = null;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    touchStartY.current = null;
-  };
 
   // Load building floor plan dynamically
   useEffect(() => {
@@ -255,12 +293,12 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       {/* Center Viewfinder */}
       <div
         className={`relative flex-1 flex flex-col items-center justify-center px-6 transition-all duration-300 ease-out ${
-          isSheetCollapsed ? 'py-12 sm:py-16' : 'py-3 sm:py-6'
+          snap === 'peek' ? 'py-12 pb-24' : 'py-3 pb-8'
         }`}
       >
         <div
           className={`relative rounded-3xl overflow-hidden border-2 transition-all duration-300 shadow-[0_0_40px_rgba(37,99,235,0.3)] bg-slate-900 flex items-center justify-center ${
-            isSheetCollapsed ? 'w-64 h-64 sm:w-72 sm:h-72' : 'w-52 h-52 sm:w-64 sm:h-64'
+            snap === 'peek' ? 'w-64 h-64 sm:w-72 sm:h-72' : 'w-48 h-48 sm:w-56 sm:h-56'
           } ${
             detectedValue ? 'border-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.5)]' : 'border-blue-500'
           }`}
@@ -334,371 +372,404 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         )}
       </div>
 
-      {/* Manual Checkpoint Selector & Floor Map Guide Bottom Sheet */}
-      <div
-        className={`bg-white rounded-t-3xl text-slate-900 shadow-2xl z-10 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          isSheetCollapsed
-            ? 'max-h-[64px] pb-1'
-            : 'max-h-[65vh] sm:max-h-[60vh] pb-5 sm:pb-6'
-        }`}
+      {/* Real-time Draggable Bottom Sheet (matches homepage PeekBottomSheet) */}
+      <motion.div
+        className="fixed inset-x-0 bottom-0 z-30 flex flex-col bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.35)] border-t border-slate-100 touch-none max-w-md mx-auto"
+        style={{ height: '100vh', y: peekY }}
+        initial={{ y: windowHeight }}
+        animate={controls}
+        drag="y"
+        dragDirectionLock
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: expandedY, bottom: peekY }}
+        dragElastic={0.03}
+        onDragEnd={handleDragEnd}
       >
-        {/* Interactive Handle Header (Swipe down to collapse / Swipe up or tap to expand) */}
+        {/* Interactive Handle Header (Drag with mouse or finger) */}
         <div
-          className="w-full pt-3 pb-2 px-4 flex flex-col items-center cursor-pointer select-none shrink-0 group hover:bg-slate-50/50 transition-colors"
-          onClick={() => setIsSheetCollapsed(!isSheetCollapsed)}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          title={isSheetCollapsed ? 'Tap or swipe up to expand' : 'Tap or swipe down to minimize'}
+          ref={headerRef}
+          onPointerDown={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('button, a, input, select')) return;
+            dragControls.start(e);
+          }}
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('button, a, input, select')) return;
+            if (snap === 'peek') snapTo('expanded');
+          }}
+          className="w-full flex flex-col items-center pt-3 pb-2.5 px-4 rounded-t-3xl bg-white select-none cursor-grab active:cursor-grabbing border-b border-slate-100 shrink-0 touch-none"
         >
-          <div className="w-12 h-1.5 bg-slate-200 group-hover:bg-slate-300 rounded-full transition-colors mb-1" />
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 group-hover:text-slate-600 transition-colors">
-            {isSheetCollapsed ? (
-              <>
-                <Map className="w-3 h-3 text-blue-600" />
-                <span className="text-slate-700 font-bold">Floor Map & Checkpoints ({DEFAULT_CHECKPOINTS.length})</span>
-                <span className="text-slate-400">• Tap to expand</span>
-                <ChevronUp className="w-3.5 h-3.5 text-blue-600 ml-0.5" />
-              </>
-            ) : (
-              <>
-                <span>Swipe down or tap to minimize</span>
-                <ChevronDown className="w-3 h-3" />
-              </>
-            )}
+          <div className="w-12 h-1.5 bg-slate-300 rounded-full mb-2 pointer-events-none" />
+          <div className="w-full flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0 pointer-events-none">
+              <div className="w-6 h-6 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Map className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-xs font-bold text-slate-800 truncate">
+                Floor Map & Checkpoints ({DEFAULT_CHECKPOINTS.length})
+              </span>
+              <span className="text-[10px] text-slate-400 hidden sm:inline truncate">
+                • {snap === 'peek' ? 'Drag up or tap to expand' : 'Drag down or tap to collapse'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSheet();
+              }}
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 transition-colors text-slate-600 cursor-pointer shrink-0 ml-2"
+              title={snap === 'peek' ? 'Expand' : 'Collapse'}
+            >
+              {snap === 'peek' ? (
+                <ChevronUp className="w-4 h-4 text-slate-600" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-600" />
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Sheet Content (Visible when not collapsed) */}
-        {!isSheetCollapsed && (
-          <div className="flex-1 flex flex-col min-h-0 px-4 sm:px-6 overflow-hidden">
-            {/* Tab & Mode Switcher */}
-            <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
-              <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  {viewMode === 'map' ? 'Floor Map Checkpoint Guide' : 'Select Checkpoint'}
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  {viewMode === 'map'
-                    ? 'Pinch or zoom floor map, tap pin to start'
-                    : 'Choose a checkpoint or view test QR sticker'}
-                </p>
-              </div>
-
-              {/* Segmented Mode Button */}
-              <div className="bg-slate-100 p-0.5 rounded-xl flex items-center shrink-0 border border-slate-200/60">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('map')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    viewMode === 'map'
-                      ? 'bg-white text-blue-600 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <Map className="w-3.5 h-3.5" />
-                  <span>Map Guide</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    viewMode === 'list'
-                      ? 'bg-white text-blue-600 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <List className="w-3.5 h-3.5" />
-                  <span>List</span>
-                </button>
-              </div>
+        {/* Scrollable Sheet Content */}
+        <div
+          ref={scrollRef}
+          className={`flex-1 w-full px-4 sm:px-6 pt-3 pb-8 overscroll-contain flex flex-col min-h-0 custom-scrollbar ${
+            snap !== 'expanded' ? 'overflow-hidden' : 'overflow-y-auto'
+          }`}
+          onPointerDown={(e) => {
+            // Stop scroll events inside sheet from triggering sheet dragging
+            e.stopPropagation();
+          }}
+        >
+          {/* Tab & Mode Switcher */}
+          <div className="flex items-center justify-between gap-2 mb-3 shrink-0">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                {viewMode === 'map' ? 'Floor Map Checkpoint Guide' : 'Select Checkpoint'}
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                {viewMode === 'map'
+                  ? 'Pinch or zoom floor map, tap pin to start'
+                  : 'Choose a checkpoint or view test QR sticker'}
+              </p>
             </div>
 
-            {viewMode === 'map' ? (
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-                {/* Building Selector Pills */}
-                <div className="flex items-center gap-2 mb-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBuilding('LC4')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      selectedBuilding === 'LC4'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+            {/* Segmented Mode Button */}
+            <div className="bg-slate-100 p-0.5 rounded-xl flex items-center shrink-0 border border-slate-200/60">
+              <button
+                type="button"
+                onClick={() => setViewMode('map')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'map'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Map className="w-3.5 h-3.5" />
+                <span>Map Guide</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>List</span>
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'map' ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+              {/* Building Selector Pills */}
+              <div className="flex items-center gap-2 mb-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBuilding('LC4')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedBuilding === 'LC4'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                  }`}
+                >
+                  <span>LC4 Building (Floor 1)</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      selectedBuilding === 'LC4' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
-                    <span>LC4 Building (Floor 1)</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        selectedBuilding === 'LC4' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      3 Points
-                    </span>
-                  </button>
+                    3 Points
+                  </span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBuilding('LC3')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      selectedBuilding === 'LC3'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                <button
+                  type="button"
+                  onClick={() => setSelectedBuilding('LC3')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedBuilding === 'LC3'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200/70 text-slate-700'
+                  }`}
+                >
+                  <span>LC3 Building (Floor 1)</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      selectedBuilding === 'LC3' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
-                    <span>LC3 Building (Floor 1)</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        selectedBuilding === 'LC3' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      2 Points
+                    2 Points
+                  </span>
+                </button>
+              </div>
+
+              {/* Interactive SVG Floor Map with Pinch-to-Zoom & Checkpoint Pins */}
+              <div className="relative w-full h-52 sm:h-60 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shrink-0">
+                {mapLoading || !svgContent ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <span className="text-xs font-medium text-slate-500">
+                      Loading {selectedBuilding} floor map...
                     </span>
-                  </button>
-                </div>
-
-                {/* Interactive SVG Floor Map with Pinch-to-Zoom & Checkpoint Pins */}
-                <div className="relative w-full h-52 sm:h-60 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shrink-0">
-                  {mapLoading || !svgContent ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                      <span className="text-xs font-medium text-slate-500">
-                        Loading {selectedBuilding} floor map...
-                      </span>
-                    </div>
-                  ) : (
-                    <TransformWrapper
-                      initialScale={1}
-                      minScale={0.8}
-                      maxScale={4}
-                      centerOnInit={true}
-                      limitToBounds={false}
-                    >
-                      {({ zoomIn, zoomOut, resetTransform }) => (
-                        <div className="relative w-full h-full">
-                          <TransformComponent
-                            wrapperClass="!w-full !h-full flex items-center justify-center"
-                            contentClass="!w-full !h-full flex items-center justify-center relative select-none"
-                          >
-                            <div className="relative w-full h-full flex items-center justify-center">
-                              {/* Base Floor Plan SVG */}
-                              <div
-                                className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full"
-                                dangerouslySetInnerHTML={{ __html: svgContent }}
-                              />
-
-                              {/* Checkpoint Coordinates Marker Layer */}
-                              <svg
-                                viewBox={selectedBuilding === 'LC4' ? '0 0 800 500' : '0 0 1000 650'}
-                                preserveAspectRatio="xMidYMid meet"
-                                className="absolute inset-0 w-full h-full pointer-events-none"
-                              >
-                                {buildingCheckpoints.map((cp, idx) => {
-                                  const isSelected = selectedPinCp?.id === cp.id;
-                                  const posX = cp.x ?? 200;
-                                  const posY = cp.y ?? 200;
-                                  const shortLabel = cp.name
-                                    .split('(')[0]
-                                    .replace(/^(LC3|LC4)\s*/, '')
-                                    .trim();
-
-                                  return (
-                                    <g
-                                      key={cp.id}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPinCp(cp);
-                                      }}
-                                      onDoubleClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSelectCheckpoint(cp);
-                                      }}
-                                      className="pointer-events-auto cursor-pointer group"
-                                      transform={`translate(${posX}, ${posY})`}
-                                    >
-                                      {/* Pulsing Aura */}
-                                      <circle
-                                        r={isSelected ? '22' : '15'}
-                                        fill={isSelected ? '#3B82F6' : '#64748B'}
-                                        opacity={isSelected ? '0.35' : '0.2'}
-                                        className={isSelected ? 'animate-ping' : ''}
-                                      />
-
-                                      {/* Pin Body */}
-                                      <circle
-                                        r={isSelected ? '12' : '9.5'}
-                                        fill={isSelected ? '#2563EB' : '#3B82F6'}
-                                        stroke="#FFFFFF"
-                                        strokeWidth={isSelected ? '2.8' : '2'}
-                                        className="transition-all drop-shadow-sm"
-                                      />
-
-                                      {/* Number inside Pin */}
-                                      <text
-                                        y="3.5"
-                                        textAnchor="middle"
-                                        fill="#FFFFFF"
-                                        fontSize={isSelected ? '10' : '8.5'}
-                                        fontWeight="bold"
-                                        pointerEvents="none"
-                                      >
-                                        {idx + 1}
-                                      </text>
-
-                                      {/* Floating Name Badge */}
-                                      <g transform="translate(0, -17)" className="pointer-events-none">
-                                        <rect
-                                          x={-Math.max(34, shortLabel.length * 3.8)}
-                                          y="-15"
-                                          width={Math.max(68, shortLabel.length * 7.6)}
-                                          height="17"
-                                          rx="8.5"
-                                          fill={isSelected ? '#1E293B' : '#FFFFFF'}
-                                          stroke={isSelected ? '#2563EB' : '#CBD5E1'}
-                                          strokeWidth="1.2"
-                                          className="drop-shadow-xs"
-                                        />
-                                        <text
-                                          y="-3.5"
-                                          textAnchor="middle"
-                                          fill={isSelected ? '#FFFFFF' : '#334155'}
-                                          fontSize="8.5"
-                                          fontWeight="bold"
-                                        >
-                                          {shortLabel}
-                                        </text>
-                                      </g>
-                                    </g>
-                                  );
-                                })}
-                              </svg>
-                            </div>
-                          </TransformComponent>
-
-                          {/* Floating Zoom & Fullscreen Expand Controls */}
-                          <div
-                            className="absolute top-2 right-2 z-20 flex flex-col items-center bg-white/95 backdrop-blur-xs rounded-xl shadow-xs border border-slate-200/80 p-0.5 gap-0.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => zoomIn(0.25)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Zoom In"
-                            >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => zoomOut(0.25)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Zoom Out"
-                            >
-                              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            <div className="w-4 h-[1px] bg-slate-200" />
-                            <button
-                              type="button"
-                              onClick={() => resetTransform()}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Reset Zoom"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIsMapFullscreen(true)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Expand Map Fullscreen"
-                            >
-                              <Maximize2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </TransformWrapper>
-                  )}
-                </div>
-
-                {/* Selected Checkpoint Detail & Confirmation Card */}
-                {selectedPinCp && (
-                  <div className="mt-2.5 p-3 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-center justify-between gap-3 shrink-0 animate-in fade-in duration-150">
-                    <div className="min-w-0 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
-                          <span className="truncate">{selectedPinCp.name}</span>
-                          <span className="text-[10px] font-semibold text-blue-600 bg-blue-100/60 px-1.5 py-0.2 rounded-md shrink-0">
-                            {selectedPinCp.node_id}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                          {selectedPinCp.description}
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectCheckpoint(selectedPinCp)}
-                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer"
-                    >
-                      <span>Select Point</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
                   </div>
+                ) : (
+                  <TransformWrapper
+                    initialScale={1}
+                    minScale={0.8}
+                    maxScale={4}
+                    centerOnInit={true}
+                    limitToBounds={false}
+                  >
+                    {({ zoomIn, zoomOut, resetTransform }) => (
+                      <div className="relative w-full h-full">
+                        <TransformComponent
+                          wrapperClass="!w-full !h-full flex items-center justify-center"
+                          contentClass="!w-full !h-full flex items-center justify-center relative select-none"
+                        >
+                          <div className="relative w-full h-full flex items-center justify-center">
+                            {/* Base Floor Plan SVG */}
+                            <div
+                              className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full"
+                              dangerouslySetInnerHTML={{ __html: svgContent }}
+                            />
+
+                            {/* Checkpoint Coordinates Marker Layer */}
+                            <svg
+                              viewBox={selectedBuilding === 'LC4' ? '0 0 800 500' : '0 0 1000 650'}
+                              preserveAspectRatio="xMidYMid meet"
+                              className="absolute inset-0 w-full h-full pointer-events-none"
+                            >
+                              {buildingCheckpoints.map((cp, idx) => {
+                                const isSelected = selectedPinCp?.id === cp.id;
+                                const posX = cp.x ?? 200;
+                                const posY = cp.y ?? 200;
+                                const shortLabel = cp.name
+                                  .split('(')[0]
+                                  .replace(/^(LC3|LC4)\s*/, '')
+                                  .trim();
+
+                                return (
+                                  <g
+                                    key={cp.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedPinCp(cp);
+                                    }}
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelectCheckpoint(cp);
+                                    }}
+                                    className="pointer-events-auto cursor-pointer group"
+                                    transform={`translate(${posX}, ${posY})`}
+                                  >
+                                    {/* Pulsing Aura */}
+                                    <circle
+                                      r={isSelected ? '22' : '15'}
+                                      fill={isSelected ? '#3B82F6' : '#64748B'}
+                                      opacity={isSelected ? '0.35' : '0.2'}
+                                      className={isSelected ? 'animate-ping' : ''}
+                                    />
+
+                                    {/* Pin Body */}
+                                    <circle
+                                      r={isSelected ? '12' : '9.5'}
+                                      fill={isSelected ? '#2563EB' : '#3B82F6'}
+                                      stroke="#FFFFFF"
+                                      strokeWidth={isSelected ? '2.8' : '2'}
+                                      className="transition-all drop-shadow-sm"
+                                    />
+
+                                    {/* Number inside Pin */}
+                                    <text
+                                      y="3.5"
+                                      textAnchor="middle"
+                                      fill="#FFFFFF"
+                                      fontSize={isSelected ? '10' : '8.5'}
+                                      fontWeight="bold"
+                                      pointerEvents="none"
+                                    >
+                                      {idx + 1}
+                                    </text>
+
+                                    {/* Floating Name Badge */}
+                                    <g transform="translate(0, -17)" className="pointer-events-none">
+                                      <rect
+                                        x={-Math.max(34, shortLabel.length * 3.8)}
+                                        y="-15"
+                                        width={Math.max(68, shortLabel.length * 7.6)}
+                                        height="17"
+                                        rx="8.5"
+                                        fill={isSelected ? '#1E293B' : '#FFFFFF'}
+                                        stroke={isSelected ? '#2563EB' : '#CBD5E1'}
+                                        strokeWidth="1.2"
+                                        className="drop-shadow-xs"
+                                      />
+                                      <text
+                                        y="-3.5"
+                                        textAnchor="middle"
+                                        fill={isSelected ? '#FFFFFF' : '#334155'}
+                                        fontSize="8.5"
+                                        fontWeight="bold"
+                                      >
+                                        {shortLabel}
+                                      </text>
+                                    </g>
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          </div>
+                        </TransformComponent>
+
+                        {/* Floating Zoom & Fullscreen Expand Controls */}
+                        <div
+                          className="absolute top-2 right-2 z-20 flex flex-col items-center bg-white/95 backdrop-blur-xs rounded-xl shadow-xs border border-slate-200/80 p-0.5 gap-0.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => zoomIn(0.25)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Zoom In"
+                          >
+                            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => zoomOut(0.25)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Zoom Out"
+                          >
+                            <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          </button>
+                          <div className="w-4 h-[1px] bg-slate-200" />
+                          <button
+                            type="button"
+                            onClick={() => resetTransform()}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Reset Zoom"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsMapFullscreen(true)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-blue-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Expand Map Fullscreen"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </TransformWrapper>
                 )}
               </div>
-            ) : (
-              /* List Mode */
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                {DEFAULT_CHECKPOINTS.map((cp) => (
-                  <div
-                    key={cp.id}
-                    className="w-full p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between text-left transition-all group"
+
+              {/* Selected Checkpoint Detail & Confirmation Card */}
+              {selectedPinCp && (
+                <div className="mt-2.5 p-3 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-center justify-between gap-3 shrink-0 animate-in fade-in duration-150">
+                  <div className="min-w-0 flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
+                        <span className="truncate">{selectedPinCp.name}</span>
+                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-100/60 px-1.5 py-0.2 rounded-md shrink-0">
+                          {selectedPinCp.node_id}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {selectedPinCp.description}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCheckpoint(selectedPinCp)}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all shrink-0 cursor-pointer"
                   >
+                    <span>Select Point</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* List Mode */
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {DEFAULT_CHECKPOINTS.map((cp) => (
+                <div
+                  key={cp.id}
+                  className="w-full p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 flex items-center justify-between text-left transition-all group"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCheckpoint(cp)}
+                    className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-slate-900 truncate">{cp.name}</div>
+                      <div className="text-[11px] text-slate-500 truncate">{cp.description}</div>
+                    </div>
+                  </button>
+
+                  <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewQr(cp)}
+                      title="View printable QR code for testing"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                      <span>View QR</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleSelectCheckpoint(cp)}
-                      className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-400 group-hover:text-blue-600 transition-colors cursor-pointer"
+                      aria-label="Select"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <div className="truncate">
-                        <div className="text-xs font-bold text-slate-900 truncate">{cp.name}</div>
-                        <div className="text-[11px] text-slate-500 truncate">{cp.description}</div>
-                      </div>
+                      <CheckCircle2 className="w-4 h-4" />
                     </button>
-
-                    <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewQr(cp)}
-                        title="View printable QR code for testing"
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>View QR</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectCheckpoint(cp)}
-                        className="p-1.5 rounded-lg text-slate-400 group-hover:text-blue-600 transition-colors cursor-pointer"
-                        aria-label="Select"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
 
       {/* Fullscreen Floor Map Modal (Expand Map) */}
       {isMapFullscreen && (
