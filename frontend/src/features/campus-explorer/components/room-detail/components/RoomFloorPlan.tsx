@@ -1,4 +1,5 @@
-import { MapPin, Loader2, Navigation } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Loader2, Navigation, QrCode, X, Download } from 'lucide-react';
 import type { Floor, Room, Building } from '../../../../../shared/types/domain.types';
 import { useSvgFloorPlan } from '../../floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../floor-viewer/components/InteractiveSvgMap';
@@ -12,6 +13,7 @@ interface RoomFloorPlanProps {
 
 export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
   const { navigateToRoom } = useNavigation();
+  const [showQrModal, setShowQrModal] = useState(false);
   const buildingCode = building?.code || (room as any)?.building?.code || 'LC3';
   const floorNumber = floor?.floor_number || (room as any)?.floor?.floor_number || 1;
   const svgUrl = floor?.floor_plan?.url || floor?.map?.url;
@@ -24,6 +26,9 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
   if (!highlightedRoomId && room) {
     highlightedRoomId = room.name?.en || room.name?.th || (room as any).id || null;
   }
+
+  const roomTitle = room?.room_number || room?.name?.en || room?.name?.th || room?.id || '';
+  const qrPayload = `RM_${room?.room_number || room?.id || 'ROOM'}`;
 
   return (
     <section className="px-5 pt-4 pb-6">
@@ -79,18 +84,96 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
         </span>
       </div>
 
-      {/* Navigate Action Button */}
-      <button
-        type="button"
-        onClick={() => {
-          const roomTitle = room?.room_number || room?.name?.en || room?.name?.th || room?.id || '';
-          navigateToRoom(room?.id || '', roomTitle);
-        }}
-        className="w-full mt-4 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
-      >
-        <Navigation className="w-4 h-4" />
-        <span>Navigate to Room</span>
-      </button>
+      {/* Action Buttons: Navigate & Room QR */}
+      <div className="flex items-center gap-2 mt-4">
+        <button
+          type="button"
+          onClick={() => {
+            navigateToRoom(room?.id || '', roomTitle);
+          }}
+          className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+        >
+          <Navigation className="w-4 h-4" />
+          <span>Navigate to Room</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowQrModal(true)}
+          title="ดูและพิมพ์ QR Code สำหรับติดหน้าห้อง"
+          className="py-3 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
+        >
+          <QrCode className="w-4 h-4 text-slate-600" />
+          <span className="hidden sm:inline">QR Code ห้อง</span>
+        </button>
+      </div>
+
+      {/* Room QR Code Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl relative">
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 mb-3">
+              <QrCode className="w-5 h-5" />
+            </div>
+
+            <h3 className="text-sm font-bold text-slate-900 mb-1">
+              QR Code ห้อง {roomTitle}
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">
+              {buildingCode} • ชั้น {floorNumber}
+            </p>
+
+            {/* Generated QR Image */}
+            <div className="mx-auto w-48 h-48 p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center shadow-inner mb-3">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                  qrPayload
+                )}`}
+                alt={`QR Code for room ${roomTitle}`}
+                className="w-full h-full object-contain rounded-lg"
+              />
+            </div>
+
+            <div className="text-[11px] font-mono text-slate-500 bg-slate-100 py-1 px-2.5 rounded-lg inline-block mb-3">
+              Payload: <span className="font-bold text-slate-800">{qrPayload}</span>
+            </div>
+
+            <p className="text-[11px] text-slate-500 mb-5 leading-relaxed">
+              สำหรับฝ่ายอาคาร: พิมพ์สติกเกอร์นี้ติดที่หน้าประตูห้อง เพื่อให้นิสิตสแกนเช็กอินหรือเริ่มนำทางจากจุดนี้ได้ทันที
+            </p>
+
+            <div className="flex gap-2">
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
+                  qrPayload
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                download={`qr-${qrPayload}.png`}
+                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>ดาวน์โหลดรูป</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <span>ปิดหน้าต่าง</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

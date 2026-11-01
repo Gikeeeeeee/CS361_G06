@@ -199,6 +199,21 @@ export const navigationApi = {
     );
     if (byName) return byName;
 
+    // 4. Dynamic Node or Room code matching (e.g. NODE_..., QR_..., RM_...)
+    if (trimmed.startsWith('NODE_') || trimmed.startsWith('QR_') || trimmed.startsWith('RM_')) {
+      const cleanName = trimmed.replace(/^(NODE_|QR_|RM_)/, '').replace(/_/g, ' ');
+      const bCode = trimmed.includes('LC4') ? 'LC4' : trimmed.includes('LC3') ? 'LC3' : trimmed.includes('BR2') ? 'BR2' : 'LC4';
+      return {
+        id: trimmed,
+        node_id: trimmed.startsWith('NODE_') ? trimmed : `NODE_${trimmed}`,
+        name: `จุดเช็กอิน ${cleanName}`,
+        building_code: bCode,
+        floor_number: 1,
+        floor_id: `FL_${bCode}_01`,
+        description: `จุดอ้างอิงจากรหัส QR (${trimmed})`,
+      };
+    }
+
     // Fallback default
     return DEFAULT_CHECKPOINTS[0];
   },
