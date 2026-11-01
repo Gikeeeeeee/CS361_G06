@@ -16,47 +16,47 @@ export const DEFAULT_CHECKPOINTS: QRCheckpoint[] = [
   {
     id: 'QR_LC4_FL1_LOBBY',
     node_id: 'NODE_LC4_100',
-    name: 'LC4 Main Lobby (โถงกลาง ชั้น 1)',
+    name: 'LC4 Main Lobby (Floor 1)',
     building_code: 'LC4',
     floor_number: 1,
     floor_id: 'FL_LC4_01',
-    description: 'ทางเข้าหลักหน้าลิฟต์กลาง อาคาร LC4',
+    description: 'Main lobby entrance in front of central elevators, LC4',
   },
   {
     id: 'QR_LC4_FL1_STAIRS',
     node_id: 'NODE_LC4_STAIRS_1',
-    name: 'บันไดกลาง ทิศตะวันออก ชั้น 1',
+    name: 'East Main Stairs (Floor 1)',
     building_code: 'LC4',
     floor_number: 1,
     floor_id: 'FL_LC4_01',
-    description: 'หน้าทางขึ้นบันไดหลัก อาคาร LC4',
+    description: 'In front of central staircase, LC4 Building',
   },
   {
     id: 'QR_LC4_FL2_ELEV',
     node_id: 'NODE_ELEV_04',
-    name: 'โถงลิฟต์แก้ว ชั้น 2',
+    name: 'Glass Elevator Lobby (Floor 2)',
     building_code: 'LC4',
     floor_number: 2,
     floor_id: 'FL_LC4_02',
-    description: 'หน้าลิฟต์แก้ว โถงกลาง อาคาร LC4',
+    description: 'Glass elevator lobby, central hall, LC4 Building',
   },
   {
     id: 'QR_LC3_FL1_ENTRANCE',
     node_id: 'NODE_LC3_101',
-    name: 'LC3 ทางเข้าทิศใต้ ชั้น 1',
+    name: 'LC3 South Entrance (Floor 1)',
     building_code: 'LC3',
     floor_number: 1,
     floor_id: 'FL_LC3_01',
-    description: 'ซุ้มทางเข้าด้านหน้า อาคาร LC3',
+    description: 'Front south entrance pavilion, LC3 Building',
   },
   {
     id: 'QR_BR2_FL4_ELEV',
     node_id: 'NODE_ELEV_04',
-    name: 'โถงลิฟต์แก้ว ชั้น 4',
+    name: 'Glass Elevator Lobby (Floor 4)',
     building_code: 'BR2',
     floor_number: 4,
     floor_id: 'FL_BR2_04',
-    description: 'โถงลิฟต์แก้ว อาคารบรรยาย 2 ชั้น 4',
+    description: 'Glass elevator lobby, Lecture Building 2, Floor 4',
   },
 ];
 
@@ -206,11 +206,11 @@ export const navigationApi = {
       return {
         id: trimmed,
         node_id: trimmed.startsWith('NODE_') ? trimmed : `NODE_${trimmed}`,
-        name: `จุดเช็กอิน ${cleanName}`,
+        name: `Checkpoint ${cleanName}`,
         building_code: bCode,
         floor_number: 1,
         floor_id: `FL_${bCode}_01`,
-        description: `จุดอ้างอิงจากรหัส QR (${trimmed})`,
+        description: `Reference checkpoint from QR (${trimmed})`,
       };
     }
 
@@ -226,8 +226,8 @@ function normalizeRouteData(data: any): RouteResult {
 
   return {
     summary: {
-      start_name: summary.start_name || 'จุดเริ่มต้น',
-      destination_name: summary.destination_name || 'ห้องเป้าหมาย',
+      start_name: summary.start_name || 'Start Point',
+      destination_name: summary.destination_name || 'Destination',
       estimated_time_minutes: estMinutes,
       total_distance_meters: totalMeters,
       floor_id: data.svg_path?.floor_id || summary.floor_id || '',
@@ -278,9 +278,9 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
 
   // Corridor coordinates for visual route polyline
   const nodes = [
-    { node_id: 'NODE_START', x: 120, y: 380, is_checkpoint: true, name: startName || 'จุดเริ่มต้น' },
-    { node_id: 'NODE_JUNC_MAIN', x: 280, y: 380, is_checkpoint: true, name: 'โถงกลาง' },
-    { node_id: 'NODE_JUNC_NORTH', x: 280, y: 160, is_checkpoint: true, name: 'โถงทิศเหนือ' },
+    { node_id: 'NODE_START', x: 120, y: 380, is_checkpoint: true, name: startName || 'Start Point' },
+    { node_id: 'NODE_JUNC_MAIN', x: 280, y: 380, is_checkpoint: true, name: 'Main Lobby' },
+    { node_id: 'NODE_JUNC_NORTH', x: 280, y: 160, is_checkpoint: true, name: 'North Corridor' },
     { node_id: 'NODE_DEST', x: 440, y: 160, is_checkpoint: true, name: destName },
   ];
 
@@ -289,8 +289,8 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
       step_index: 1,
       action: 'DEPART' as const,
       instruction: isWheelchair
-        ? 'จากจุดเริ่มต้น มุ่งหน้าไปตามทางลาดโถงหลัก 15 เมตร'
-        : 'จากจุดเริ่มต้น เดินตรงไปตามทางเดินหลัก 15 เมตร',
+        ? 'From starting point, proceed along the main ramp for 15 meters'
+        : 'From starting point, walk straight along the main hallway for 15 meters',
       distance: 15,
       from_node_id: 'NODE_START',
       to_node_id: 'NODE_JUNC_MAIN',
@@ -300,8 +300,8 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
       step_index: 2,
       action: 'TURN_RIGHT' as const,
       instruction: isWheelchair
-        ? 'เลี้ยวขวาที่ทางแยกหน้าโถงลิฟต์ เข้าสู่โถงทิศเหนือ (มีทางลาดกว้าง)'
-        : 'เลี้ยวขวาที่ทางแยกหน้าห้องน้ำ เข้าสู่โถงทิศเหนือ',
+        ? 'Turn right at the junction by the elevators towards the north wing (wide accessible corridor)'
+        : 'Turn right at the corridor junction towards the north wing',
       distance: 20,
       from_node_id: 'NODE_JUNC_MAIN',
       to_node_id: 'NODE_JUNC_NORTH',
@@ -310,7 +310,7 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
     {
       step_index: 3,
       action: 'ARRIVE' as const,
-      instruction: `ห้อง ${destName} จะอยู่ทางซ้ายมือ เป็นห้องที่ 2`,
+      instruction: `Room ${destName} will be on the left, second door ahead`,
       distance: 10,
       from_node_id: 'NODE_JUNC_NORTH',
       to_node_id: 'NODE_DEST',
@@ -320,7 +320,7 @@ function generateMockRoute(params: RouteSearchParams): RouteResult {
 
   return {
     summary: {
-      start_name: startName || 'โถงกลาง ชั้น 1',
+      start_name: startName || 'Main Lobby (Floor 1)',
       destination_name: destName || 'LC4-101',
       estimated_time_minutes: isWheelchair ? 3 : 2,
       total_distance_meters: 45,

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
-import { Plus, Minus, RotateCcw } from 'lucide-react';
+import { Plus, Minus, RotateCcw, MapPin } from 'lucide-react';
 import type { RoutePathNode } from '../types/navigation.types';
 
 interface NavigationMapProps {
@@ -17,6 +17,18 @@ export function NavigationMap({
   highlightedRoomId,
 }: NavigationMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  if (!svgContent) {
+    return (
+      <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-slate-50">
+        <MapPin className="w-10 h-10 opacity-30 text-slate-400 mb-2" />
+        <p className="text-xs font-semibold text-slate-600">Floor Plan Unavailable</p>
+        <p className="text-[11px] text-slate-400 mt-1 max-w-xs">
+          No SVG floor plan found in database for this floor.
+        </p>
+      </div>
+    );
+  }
 
   // Inject route polyline and checkpoint pins into SVG DOM
   useEffect(() => {

@@ -59,6 +59,7 @@ export interface RouteResult {
   summary: RouteSummary;
   svg_path: {
     floor_id: string;
+    url?: string;
     nodes: RoutePathNode[];
   };
   steps: RouteStep[];

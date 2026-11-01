@@ -275,11 +275,11 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPreviewQr(cp)}
-                  title="ดู QR Code สำหรับพิมพ์หรือสแกนทดสอบ"
+                  title="View printable QR code for testing"
                   className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-700 text-[11px] font-semibold flex items-center gap-1 transition-colors"
                 >
                   <QrCode className="w-3.5 h-3.5" />
-                  <span>ดู QR</span>
+                  <span>View QR</span>
                 </button>
                 <button
                   type="button"
@@ -301,7 +301,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl relative">
             <button
               onClick={() => setPreviewQr(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
@@ -330,7 +330,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </div>
 
             <p className="text-[11px] text-slate-400 mb-4 leading-relaxed">
-              สแกนด้วยกล้องมือถืออีกเครื่องเพื่อทดสอบ หรือพิมพ์สติกเกอร์นี้ไปติดที่เสา/หน้าลิฟต์จริง
+              Scan with another phone to test camera detection, or print this QR sticker for physical building checkpoints.
             </p>
 
             <div className="flex gap-2">
@@ -341,10 +341,10 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 target="_blank"
                 rel="noreferrer"
                 download={`qr-${previewQr.node_id}.png`}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors"
+                className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>โหลดรูป</span>
+                <span>Download</span>
               </a>
               <button
                 type="button"
@@ -353,10 +353,10 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   setPreviewQr(null);
                   handleSelectCheckpoint(target);
                 }}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>จำลองสแกนจุดนี้</span>
+                <span>Select Checkpoint</span>
               </button>
             </div>
           </div>

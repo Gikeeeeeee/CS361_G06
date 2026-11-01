@@ -100,11 +100,11 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
         <button
           type="button"
           onClick={() => setShowQrModal(true)}
-          title="ดูและพิมพ์ QR Code สำหรับติดหน้าห้อง"
+          title="View and print Room QR Code"
           className="py-3 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
         >
           <QrCode className="w-4 h-4 text-slate-600" />
-          <span className="hidden sm:inline">QR Code ห้อง</span>
+          <span className="hidden sm:inline">Room QR</span>
         </button>
       </div>
 
@@ -125,10 +125,10 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
             </div>
 
             <h3 className="text-sm font-bold text-slate-900 mb-1">
-              QR Code ห้อง {roomTitle}
+              Room {roomTitle} QR Code
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              {buildingCode} • ชั้น {floorNumber}
+              {buildingCode} • Level {floorNumber}
             </p>
 
             {/* Generated QR Image */}
@@ -147,7 +147,7 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
             </div>
 
             <p className="text-[11px] text-slate-500 mb-5 leading-relaxed">
-              สำหรับฝ่ายอาคาร: พิมพ์สติกเกอร์นี้ติดที่หน้าประตูห้อง เพื่อให้นิสิตสแกนเช็กอินหรือเริ่มนำทางจากจุดนี้ได้ทันที
+              For facility staff: Attach this QR sticker to the room entrance for indoor navigation and student check-ins.
             </p>
 
             <div className="flex gap-2">
@@ -161,14 +161,14 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
                 className="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>ดาวน์โหลดรูป</span>
+                <span>Download Image</span>
               </a>
               <button
                 type="button"
                 onClick={() => setShowQrModal(false)}
                 className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <span>ปิดหน้าต่าง</span>
+                <span>Close</span>
               </button>
             </div>
           </div>

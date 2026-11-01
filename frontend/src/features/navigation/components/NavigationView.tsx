@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, 
   ArrowLeft, 
@@ -20,6 +20,7 @@ import {
 import { NavigationMap } from './NavigationMap';
 import { StepDirectionsDrawer } from './StepDirectionsDrawer';
 import { useSvgFloorPlan } from '../../campus-explorer/components/floor-viewer/hooks/useSvgFloorPlan';
+import { facilityCache } from '../../admin-schedule/services/facilityCache';
 import type { RouteResult, NavigationAction } from '../types/navigation.types';
 
 interface NavigationViewProps {
@@ -63,17 +64,56 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [floorSvgUrl, setFloorSvgUrl] = useState<string | undefined>(route?.svg_path?.url);
 
-  // Determine SVG floor plan URL dynamically based on route target floor
-  const floorSvgUrl = useMemo(() => {
-    const floorId = route?.svg_path?.floor_id || route?.summary?.floor_id;
-    if (floorId) {
-      const parts = floorId.replace(/^FL_/, '').split('_');
-      const bCode = parts[0] || 'LC4';
-      const fNum = parseInt(parts[1], 10) || 1;
-      return `/floor-plans/${bCode}-floor${fNum}-neutral.svg`;
+  // Determine SVG floor plan URL dynamically from backend database / facility cache
+  useEffect(() => {
+    if (route?.svg_path?.url) {
+      setFloorSvgUrl(route.svg_path.url);
+      return;
     }
-    return '/floor-plans/LC4-floor1-neutral.svg';
+
+    const floorId = route?.svg_path?.floor_id || route?.summary?.floor_id;
+    if (!floorId) {
+      setFloorSvgUrl(undefined);
+      return;
+    }
+
+    // Try finding in facility cache
+    const cachedFloor = facilityCache.floorsMeta.get(floorId);
+    if (cachedFloor) {
+      const url = (cachedFloor as any).floor_plan?.url || (cachedFloor as any).map?.url;
+      if (url) {
+        setFloorSvgUrl(url);
+        return;
+      }
+    }
+
+    // Query facility cache
+    let isMounted = true;
+    facilityCache
+      .getBuildings()
+      .then(async (res) => {
+        if (!isMounted) return;
+        for (const b of res.buildings || []) {
+          const floorRes = await facilityCache.getBuildingFloors(b.id).catch(() => ({ floors: [] }));
+          const matched = floorRes.floors?.find(
+            (f) => f.id === floorId || `FL_${b.code}_0${f.floor_number}` === floorId
+          );
+          if (matched) {
+            const url = (matched as any).floor_plan?.url || (matched as any).map?.url;
+            if (url && isMounted) {
+              setFloorSvgUrl(url);
+              return;
+            }
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
   }, [route]);
 
   const { svgContent, loading: mapLoading } = useSvgFloorPlan(floorSvgUrl);
