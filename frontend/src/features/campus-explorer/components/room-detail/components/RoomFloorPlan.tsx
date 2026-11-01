@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { MapPin, Loader2, Navigation, QrCode, X, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Loader2, Navigation, QrCode, X, Download, RotateCcw } from 'lucide-react';
 import type { Floor, Room, Building } from '../../../../../shared/types/domain.types';
 import { useSvgFloorPlan } from '../../floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../floor-viewer/components/InteractiveSvgMap';
 import { useNavigation } from '../../../../navigation/context/NavigationContext';
+import { campusService } from '../../../services';
 
 interface RoomFloorPlanProps {
   room?: Room | null;
@@ -14,11 +15,28 @@ interface RoomFloorPlanProps {
 export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
   const { navigateToRoom } = useNavigation();
   const [showQrModal, setShowQrModal] = useState(false);
-  const buildingCode = building?.code || (room as any)?.building?.code || 'LC3';
-  const floorNumber = floor?.floor_number || (room as any)?.floor?.floor_number || 1;
-  const svgUrl = floor?.floor_plan?.url || floor?.map?.url;
+  const [resolvedFloor, setResolvedFloor] = useState<Floor | null>(null);
 
-  const { svgContent, loading, error } = useSvgFloorPlan(svgUrl);
+  useEffect(() => {
+    if (!floor?.floor_plan?.url && floor?.id) {
+      campusService
+        .getFloorById(floor.id)
+        .then((fullFloor) => {
+          if (fullFloor?.floor_plan?.url) {
+            setResolvedFloor(fullFloor as any);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [floor?.id, floor?.floor_plan?.url]);
+
+  const activeFloor = (resolvedFloor?.id === floor?.id && resolvedFloor?.floor_plan?.url) ? resolvedFloor : floor;
+
+  const buildingCode = building?.code || (room as any)?.building?.code || 'LC3';
+  const floorNumber = activeFloor?.floor_number || floor?.floor_number || (room as any)?.floor?.floor_number || 1;
+  const svgUrl = activeFloor?.floor_plan?.url || activeFloor?.map?.url || floor?.floor_plan?.url || floor?.map?.url;
+
+  const { svgContent, loading, error, retry } = useSvgFloorPlan(svgUrl);
 
   if (!floor && !room) return null;
 
@@ -51,9 +69,17 @@ export function RoomFloorPlan({ room, floor, building }: RoomFloorPlanProps) {
         )}
 
         {error && !svgContent && (
-          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2">
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2.5 z-10">
             <MapPin className="w-8 h-8 opacity-40 text-slate-400" />
-            <span className="text-xs font-medium">Floor Plan Unavailable</span>
+            <span className="text-xs font-semibold text-slate-700">Floor Plan Unavailable</span>
+            <p className="text-[11px] text-slate-400 max-w-xs">{error.message || String(error)}</p>
+            <button
+              onClick={retry}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
           </div>
         )}
 

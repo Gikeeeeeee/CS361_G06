@@ -1,52 +1,68 @@
-import { useState, useEffect } from "react";
-import { fetchAndCacheSvg, getCachedSvg } from "../../../../../utils/svgCache";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { fetchAndCacheSvg, getCachedSvg, clearSvgCache } from "../../../../../utils/svgCache";
 
 export function useSvgFloorPlan(url: string | undefined) {
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const activeUrlRef = useRef<string | undefined>(url);
 
   useEffect(() => {
-    if (!url) {
-      setSvgContent(null);
-      return;
+    activeUrlRef.current = url;
+  }, [url]);
+
+  const loadSvg = useCallback(async (targetUrl: string, isManualRetry = false) => {
+    if (isManualRetry) {
+      clearSvgCache(targetUrl);
     }
 
-    let isMounted = true;
-    
-    // Check if we already have it in cache for instant render
-    const cached = getCachedSvg(url);
+    // Check memory cache first
+    const cached = getCachedSvg(targetUrl);
     if (cached) {
-      setSvgContent(cached);
-      setLoading(false);
-      return; // Already loaded
+      if (activeUrlRef.current === targetUrl) {
+        setSvgContent(cached);
+        setLoading(false);
+        setError(null);
+      }
+      return;
     }
 
     setLoading(true);
     setError(null);
 
-    const loadSvg = async () => {
-      try {
-        const text = await fetchAndCacheSvg(url);
-        if (isMounted) {
-          setSvgContent(text);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          console.error("SVG fetch error:", err);
-          setError(err instanceof Error ? err : new Error("Failed to load floor plan SVG"));
-          setLoading(false);
-        }
+    try {
+      const text = await fetchAndCacheSvg(targetUrl);
+      if (activeUrlRef.current === targetUrl) {
+        setSvgContent(text);
+        setLoading(false);
+        setError(null);
       }
-    };
+    } catch (err: any) {
+      if (activeUrlRef.current === targetUrl) {
+        console.error("SVG fetch error:", err);
+        setError(err instanceof Error ? err : new Error("Failed to load floor plan SVG"));
+        setLoading(false);
+      }
+    }
+  }, []);
 
-    loadSvg();
+  useEffect(() => {
+    activeUrlRef.current = url;
+    if (!url) {
+      setSvgContent(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [url]);
+    loadSvg(url);
+  }, [url, loadSvg]);
 
-  return { svgContent, loading, error };
+  const retry = useCallback(() => {
+    if (url) {
+      loadSvg(url, true);
+    }
+  }, [url, loadSvg]);
+
+  return { svgContent, loading, error, retry };
 }

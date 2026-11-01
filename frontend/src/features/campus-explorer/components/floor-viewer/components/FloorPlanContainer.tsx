@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Maximize2 } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Maximize2, RotateCcw } from "lucide-react";
 import { useFloorMetadata } from "../hooks/useFloorMetadata";
 import { RoomQuickPeekModal } from "./RoomQuickPeekModal";
 import { useSvgFloorPlan } from "../hooks/useSvgFloorPlan";
@@ -15,8 +15,21 @@ interface FloorPlanContainerProps {
 }
 
 export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerProps) {
-  const { metadata: floorMetadata, loading: metaLoading, error: metaError } = useFloorMetadata(buildingId, floorId);
-  const { svgContent, loading: svgLoading, error: svgError } = useSvgFloorPlan(floorMetadata?.map?.url);
+  const {
+    metadata: floorMetadata,
+    loading: metaLoading,
+    error: metaError,
+    refetch: refetchMetadata,
+  } = useFloorMetadata(buildingId, floorId);
+
+  const svgUrl = floorMetadata?.floor_plan?.url || floorMetadata?.map?.url;
+  const {
+    svgContent,
+    loading: svgLoading,
+    error: svgError,
+    retry: retrySvg,
+  } = useSvgFloorPlan(svgUrl);
+
   const { highlightedRoomId, setHighlightedRoom } = useRoomHighlight();
   const { isFullscreen, openFullscreen, closeFullscreen } = useFullscreenViewer();
   const [statusOverlay, setStatusOverlay] = useState<Record<string, { status: string; note?: string | null }>>({});
@@ -61,14 +74,30 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
   const selectedRoom = useMemo(() => {
     if (!floorMetadata?.rooms) return null;
     return floorMetadata.rooms.find((r) => r.id === highlightedRoomId) || null;
-  }, [highlightedRoomId, floorMetadata?.rooms]);
+  }, [highlightedRoomId, floorMetadata]);
+
+  const handleRetryAll = useCallback(() => {
+    refetchMetadata();
+    retrySvg();
+  }, [refetchMetadata, retrySvg]);
 
   if (metaLoading) {
     return <div className="p-8 text-center text-slate-500">Loading location data...</div>;
   }
 
   if (metaError || !floorMetadata) {
-    return <div className="p-8 text-center text-red-500">Failed to load location data.</div>;
+    return (
+      <div className="p-8 text-center flex flex-col items-center justify-center gap-3">
+        <p className="text-red-500 font-medium">Failed to load location data.</p>
+        <button
+          onClick={handleRetryAll}
+          className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Retry</span>
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -87,11 +116,18 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
             </div>
           )}
           {svgError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500 p-4 text-center">
-              <p className="font-semibold">Failed to load map.</p>
-              <p className="text-xs mt-2 overflow-auto max-h-32 w-full break-words border border-red-200 p-2 rounded bg-red-50">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500 p-4 text-center z-10">
+              <p className="font-semibold text-sm">Failed to load floor plan map.</p>
+              <p className="text-xs mt-1 text-slate-500 max-w-sm">
                 {svgError.message || String(svgError)}
               </p>
+              <button
+                onClick={handleRetryAll}
+                className="mt-3 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry Loading Map</span>
+              </button>
             </div>
           )}
           {svgContent && (
@@ -113,7 +149,7 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
             </>
           )}
           
-          {/* Overlay Modal (for quick peek if we re-enable click, currently unused since click is disabled) */}
+          {/* Overlay Modal */}
           <RoomQuickPeekModal
             room={selectedRoom}
             onClose={() => setHighlightedRoom(null)}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, SlidersHorizontal, Loader2, MapPin } from 'lucide-react';
+import { Search, SlidersHorizontal, Loader2, MapPin, RotateCcw } from 'lucide-react';
 import type { Building, Floor, Room } from '../../../../../shared/types/domain.types';
 import { useSvgFloorPlan } from '../../floor-viewer/hooks/useSvgFloorPlan';
 import { InteractiveSvgMap } from '../../floor-viewer/components/InteractiveSvgMap';
 import { statusApi } from '../../../../admin-status/services/statusApi';
+import { campusService } from '../../../services';
 
 interface BuildingFloorMapViewProps {
   building: Building;
@@ -22,8 +23,24 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [statusOverlay, setStatusOverlay] = useState<Record<string, { status: string; note?: string | null }>>({});
 
-  const svgUrl = floor.floor_plan?.url || floor.map?.url;
-  const { svgContent, loading, error } = useSvgFloorPlan(svgUrl);
+  const [resolvedFloor, setResolvedFloor] = useState<Floor | null>(null);
+
+  useEffect(() => {
+    if (!floor.floor_plan?.url && floor.id) {
+      campusService
+        .getFloorById(floor.id)
+        .then((fullFloor) => {
+          if (fullFloor?.floor_plan?.url) {
+            setResolvedFloor(fullFloor as any);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [floor.id, floor.floor_plan?.url]);
+
+  const activeFloor = (resolvedFloor?.id === floor.id && resolvedFloor.floor_plan?.url) ? resolvedFloor : floor;
+  const svgUrl = activeFloor.floor_plan?.url || activeFloor.map?.url;
+  const { svgContent, loading, error, retry } = useSvgFloorPlan(svgUrl);
 
   // Live operational status overlay synchronization
   useEffect(() => {
@@ -206,9 +223,24 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
         )}
 
         {error && !svgContent && (
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2.5 z-10">
+            <MapPin className="w-8 h-8 opacity-40 text-slate-400" />
+            <p className="text-xs font-semibold text-slate-700">Failed to load floor plan</p>
+            <p className="text-[11px] text-slate-400 max-w-xs">{error.message || String(error)}</p>
+            <button
+              onClick={retry}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && !svgContent && !svgUrl && (
           <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2">
             <MapPin className="w-8 h-8 opacity-40 text-slate-400" />
-            <p className="text-xs font-medium">Floor plan unavailable</p>
+            <p className="text-xs font-medium">Floor plan unavailable for this level</p>
           </div>
         )}
 
