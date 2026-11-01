@@ -1,5 +1,6 @@
 import { Building2, DoorOpen, Calendar } from 'lucide-react';
 import type { SearchResultItem as SearchResultItemType } from '../types';
+import { statusApi } from '../../admin-status/services/statusApi';
 
 interface SearchResultItemProps {
   item: SearchResultItemType;
@@ -62,6 +63,11 @@ export function SearchResultItem({
     subtitle = item.subtitle || '';
   }
 
+  // V4-US2: Dynamic Room Status Indicator
+  const roomStatus = item.type === 'ROOM' ? statusApi.getRoomStatusSync(item.id || item.room_number || title) : null;
+  const isMaintenance = roomStatus?.status === 'MAINTENANCE';
+  const isClosed = roomStatus?.status === 'CLOSED';
+
   return (
     <div
       role="option"
@@ -74,18 +80,34 @@ export function SearchResultItem({
     >
       <div className={`p-2 rounded-lg flex-shrink-0 ${
         item.type === 'BUILDING' ? 'bg-indigo-100 text-indigo-600' :
-        item.type === 'ROOM' ? 'bg-emerald-100 text-emerald-600' :
+        item.type === 'ROOM' ? (isClosed ? 'bg-red-100 text-red-600' : isMaintenance ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600') :
         'bg-amber-100 text-amber-600'
       }`}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-sm font-semibold text-slate-800 truncate">
-          {renderHighlightedText(title, highlightQuery)}
-        </span>
-        {subtitle && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-slate-800 truncate">
+            {renderHighlightedText(title, highlightQuery)}
+          </span>
+          {isMaintenance && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+              Maintenance
+            </span>
+          )}
+          {isClosed && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200 shrink-0">
+              Closed
+            </span>
+          )}
+        </div>
+        {(subtitle || roomStatus?.status_note) && (
           <span className="text-xs text-slate-500 truncate">
-            {renderHighlightedText(subtitle, highlightQuery)}
+            {roomStatus?.status_note ? (
+              <span className="text-amber-600 font-medium">{roomStatus.status_note}</span>
+            ) : (
+              renderHighlightedText(subtitle, highlightQuery)
+            )}
           </span>
         )}
       </div>
