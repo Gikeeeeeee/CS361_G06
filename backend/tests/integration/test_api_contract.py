@@ -95,6 +95,18 @@ def test_api_get_buildings_warm_repeat_is_cached(api_base_url: str):
     print(f"\nGET /buildings first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
 
 
+@pytest.mark.skipif(not os.getenv("STAFF_TOKEN"), reason="needs a Supabase token: export STAFF_TOKEN")
+def test_api_get_me_warm_repeat_reuses_supabase_connection(api_base_url: str):
+    """Live API (#245): repeated GET /api/v1/users/me stays 200 over the shared Supabase Session."""
+    auth = {"Authorization": f"Bearer {os.environ['STAFF_TOKEN']}"}
+    first = _request("GET", "/api/v1/users/me", api_base_url, headers=auth)
+    warm = [_request("GET", "/api/v1/users/me", api_base_url, headers=auth) for _ in range(5)]
+
+    assert all(r.status_code == 200 and r.json() == first.json() for r in [first, *warm])
+    best_ms = min(r.elapsed.total_seconds() for r in warm) * 1000
+    print(f"\nGET /users/me first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
+
+
 def test_api_get_building_not_found_contract(api_base_url: str):
     """Live API contract: Non-existent building returns 404 with standard error body."""
     res = _request("GET", "/api/v1/buildings/NON_EXISTENT_BUILDING_XYZ", api_base_url)

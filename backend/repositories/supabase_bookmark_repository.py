@@ -15,7 +15,7 @@ import requests
 from errors import AlreadyBookmarked, UpstreamError
 from models.bookmark import Bookmark
 from ports.bookmark_source import BookmarkSource
-from repositories.supabase_user_repository import DEFAULT_ANON_KEY
+from repositories.supabase_user_repository import DEFAULT_ANON_KEY, SESSION
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class SupabaseBookmarkRepository(BookmarkSource):
             "Prefer": "return=representation",
         }
         try:
-            return requests.request(
+            return SESSION.request(
                 method,
                 f"{self.supabase_url}/rest/v1/User_Bookmark",
                 headers=headers,
