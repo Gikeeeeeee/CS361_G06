@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   QrCode,
@@ -18,7 +18,7 @@ import {
   RotateCcw,
   Maximize2,
 } from 'lucide-react';
-import { motion, useAnimation, useDragControls, type PanInfo } from 'framer-motion';
+import { motion, useDragControls, type PanInfo } from 'framer-motion';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { DEFAULT_CHECKPOINTS, navigationApi } from '../services/navigationApi';
 import type { QRCheckpoint } from '../types/navigation.types';
@@ -52,6 +52,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [selectedPinCp, setSelectedPinCp] = useState<QRCheckpoint | null>(DEFAULT_CHECKPOINTS[0]);
 
   // Window dimensions for fluid drag constraints (matches homepage PeekBottomSheet)
+  // Window dimensions for bottom sheet calculation
   const getWindowHeight = () => (typeof window !== 'undefined' ? window.innerHeight : 800);
   const [windowHeight, setWindowHeight] = useState(getWindowHeight);
 
@@ -61,33 +62,19 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const SHEET_HEIGHT = Math.min(540, Math.round(windowHeight * 0.70));
   const PEEK_HEADER_HEIGHT = 64;
-  const peekY = windowHeight - PEEK_HEADER_HEIGHT;
-  // Top constraint when expanded (~22% from screen top)
-  const expandedY = Math.max(80, Math.round(windowHeight * 0.22));
+  const COLLAPSED_Y = Math.max(120, SHEET_HEIGHT - PEEK_HEADER_HEIGHT);
 
-  // Draggable Bottom Sheet Animation Controls (matches homepage PeekBottomSheet)
+  // Draggable Bottom Sheet Animation Controls
   type BottomSheetSnap = 'peek' | 'expanded';
   const [snap, setSnap] = useState<BottomSheetSnap>('peek');
-  const controls = useAnimation();
   const dragControls = useDragControls();
   const headerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const snapTo = useCallback(
-    async (target: BottomSheetSnap) => {
-      setSnap(target);
-      const targetY = target === 'peek' ? peekY : expandedY;
-      await controls.start({
-        y: targetY,
-        transition: { type: 'spring', damping: 26, stiffness: 280, mass: 0.8 },
-      });
-    },
-    [controls, peekY, expandedY]
-  );
-
   const toggleSheet = () => {
-    snapTo(snap === 'expanded' ? 'peek' : 'expanded');
+    setSnap((prev) => (prev === 'expanded' ? 'peek' : 'expanded'));
   };
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -97,25 +84,18 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
     if (snap === 'expanded') {
       if (offset.y > distanceThreshold || velocity.y > velocityThreshold) {
-        snapTo('peek');
+        setSnap('peek');
       } else {
-        snapTo('expanded');
+        setSnap('expanded');
       }
     } else {
       if (offset.y < -distanceThreshold || velocity.y < -velocityThreshold) {
-        snapTo('expanded');
+        setSnap('expanded');
       } else {
-        snapTo('peek');
+        setSnap('peek');
       }
     }
   };
-
-  // Sync animation position on modal open / resize
-  useEffect(() => {
-    if (isOpen && windowHeight > 0) {
-      controls.set({ y: snap === 'peek' ? peekY : expandedY });
-    }
-  }, [isOpen, windowHeight, peekY, expandedY, controls, snap]);
 
   // Fullscreen Floor Map Modal
   const [isMapFullscreen, setIsMapFullscreen] = useState<boolean>(false);
@@ -372,18 +352,19 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         )}
       </div>
 
-      {/* Real-time Draggable Bottom Sheet (matches homepage PeekBottomSheet) */}
+      {/* Real-time Draggable Bottom Sheet */}
       <motion.div
-        className="fixed inset-x-0 bottom-0 z-30 flex flex-col bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.35)] border-t border-slate-100 touch-none max-w-md mx-auto"
-        style={{ height: '100vh', y: peekY }}
-        initial={{ y: windowHeight }}
-        animate={controls}
+        className="fixed inset-x-0 bottom-0 z-30 flex flex-col bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.35)] border-t border-slate-100 max-w-md mx-auto overflow-hidden"
+        style={{ height: SHEET_HEIGHT }}
+        initial={{ y: COLLAPSED_Y }}
+        animate={{ y: snap === 'expanded' ? 0 : COLLAPSED_Y }}
+        transition={{ type: 'spring', damping: 26, stiffness: 280, mass: 0.8 }}
         drag="y"
         dragDirectionLock
         dragControls={dragControls}
         dragListener={false}
-        dragConstraints={{ top: expandedY, bottom: peekY }}
-        dragElastic={0.03}
+        dragConstraints={{ top: 0, bottom: COLLAPSED_Y }}
+        dragElastic={0.04}
         onDragEnd={handleDragEnd}
       >
         {/* Interactive Handle Header (Drag with mouse or finger) */}
@@ -397,7 +378,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
           onClick={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('button, a, input, select')) return;
-            if (snap === 'peek') snapTo('expanded');
+            toggleSheet();
           }}
           className="w-full flex flex-col items-center pt-3 pb-2.5 px-4 rounded-t-3xl bg-white select-none cursor-grab active:cursor-grabbing border-b border-slate-100 shrink-0 touch-none"
         >

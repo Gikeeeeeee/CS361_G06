@@ -17,8 +17,8 @@ interface StepDirectionsDrawerProps {
   isOpen: boolean;
   steps: RouteStep[];
   currentStepIndex: number;
-  totalDistance: number;
-  estimatedMinutes: number;
+  totalDistance?: number;
+  estimatedMinutes?: number;
   destinationName: string;
   onClose: () => void;
   onSelectStep?: (index: number) => void;
@@ -54,8 +54,6 @@ export const StepDirectionsDrawer: React.FC<StepDirectionsDrawerProps> = ({
   isOpen,
   steps,
   currentStepIndex,
-  totalDistance,
-  estimatedMinutes,
   destinationName,
   onClose,
   onSelectStep,
@@ -76,7 +74,7 @@ export const StepDirectionsDrawer: React.FC<StepDirectionsDrawerProps> = ({
           <div>
             <h2 className="text-sm font-bold text-slate-900">Step-by-Step Directions</h2>
             <p className="text-[11px] text-slate-500">
-              Total {totalDistance} m • ~{estimatedMinutes} min to {destinationName}
+              {steps.length} steps to {destinationName}
             </p>
           </div>
           <button
@@ -123,9 +121,6 @@ export const StepDirectionsDrawer: React.FC<StepDirectionsDrawerProps> = ({
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">
                       Step {step.step_index || idx + 1} • {step.action.replace('_', ' ')}
-                    </span>
-                    <span className="text-[11px] font-semibold text-slate-500">
-                      {step.distance} m
                     </span>
                   </div>
                   <p className="text-xs font-medium text-slate-800 leading-snug">

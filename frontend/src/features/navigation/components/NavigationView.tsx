@@ -275,9 +275,6 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
                 <h2 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                   {currentStep.instruction}
                 </h2>
-                <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  Distance: {currentStep.distance} meters
-                </div>
               </div>
             </div>
           </div>
@@ -287,32 +284,18 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       {/* Bottom Summary & Controls Sheet */}
       <footer className="bg-white border-t border-slate-200 p-4 pb-5 shadow-2xl z-30 shrink-0">
         <div className="flex items-center justify-between mb-3">
-          {/* Distance and Estimated Time */}
+          {/* Destination & Navigation State */}
           <div>
-            <div className="text-lg font-black text-slate-900 tracking-tight flex items-baseline gap-1.5">
-              <span>{route?.summary.total_distance_meters || 45} m</span>
-              <span className="text-xs font-semibold text-slate-400">•</span>
-              <span className="text-sm font-bold text-blue-600">
-                ~{route?.summary.estimated_time_minutes || 2} min
-              </span>
+            <div className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+              {route?.summary.destination_name || 'Destination'}
             </div>
             <p className="text-[11px] font-medium text-slate-500">
-              Shortest path via corridor-spine
+              Step {safeStepIndex + 1} of {steps.length} • Navigation Active
             </p>
           </div>
 
           {/* Stepper Controls & All Steps Button */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={handlePrevStep}
-              disabled={safeStepIndex === 0}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-              title="Previous Step"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Prev</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setIsDrawerOpen(true)}
@@ -325,20 +308,10 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           </div>
         </div>
 
-        {/* Action Buttons Row: End Nav (Left) & Next Step (Right) */}
+        {/* Action Buttons Row: End Nav (Left) & Next/Prev Stepper (Right) */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Left: End Navigation */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 active:scale-[0.98] text-slate-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-            <span>End Navigation</span>
-          </button>
-
-          {/* Right: Next Step (or Finish when arrived) */}
-          {isFinished ? (
+          {/* Left: End Navigation / Arrived Finish */}
+          {safeStepIndex === steps.length - 1 ? (
             <button
               type="button"
               onClick={handleClose}
@@ -350,15 +323,60 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           ) : (
             <button
               type="button"
+              onClick={handleClose}
+              className="py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 active:scale-[0.98] text-slate-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4 text-slate-500" />
+              <span>End Navigation</span>
+            </button>
+          )}
+
+          {/* Right: Stepper Navigation */}
+          {safeStepIndex === steps.length - 1 ? (
+            /* Final Step: Back to previous step only */
+            <button
+              type="button"
+              onClick={handlePrevStep}
+              className="py-3 px-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 active:scale-[0.98] text-slate-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4 text-slate-600" />
+              <span>Back to Step {steps.length - 1}</span>
+            </button>
+          ) : safeStepIndex === 0 ? (
+            /* Step 1: Next Step Full Width */
+            <button
+              type="button"
               onClick={handleNextStep}
               className="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
             >
               <span>Next Step</span>
               <span className="text-[11px] font-normal opacity-85">
-                ({safeStepIndex + 1}/{steps.length})
+                (1/{steps.length})
               </span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
+          ) : (
+            /* Steps 2 to 4: Prev and Next Side-by-Side */
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handlePrevStep}
+                className="w-12 sm:w-16 py-3 rounded-xl border border-slate-200 hover:bg-slate-100 active:scale-[0.98] text-slate-700 text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all cursor-pointer shrink-0"
+                title={`Back to Step ${safeStepIndex}`}
+              >
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
+                <span className="hidden sm:inline">Prev</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="flex-1 min-w-0 py-3 px-2 sm:px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/25 transition-all cursor-pointer"
+              >
+                <span className="truncate">Next ({safeStepIndex + 1}/{steps.length})</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5] shrink-0" />
+              </button>
+            </div>
           )}
         </div>
       </footer>
