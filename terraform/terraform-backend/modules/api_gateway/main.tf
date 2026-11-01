@@ -11,6 +11,7 @@ resource "aws_apigatewayv2_api" "this" {
       "GET",
       "POST",
       "PUT",
+      "PATCH",
       "DELETE",
       "OPTIONS"
     ]
@@ -215,6 +216,54 @@ resource "aws_apigatewayv2_route" "delete_bookmark" {
   api_id = aws_apigatewayv2_api.this.id
 
   route_key = "DELETE /api/v1/bookmarks/{entityId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_routes_search" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "POST /api/v1/routes/search"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_routes" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/routes"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "get_floor_status_overlay" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/floors/{floorId}/status-overlay"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "patch_room_status" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "PATCH /api/v1/locations/rooms/{roomId}/status"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "patch_corridor_edge_status" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "PATCH /api/v1/routes/corridor-edges/{edgeId}/status"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "patch_navigation_node_status" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "PATCH /api/v1/routes/navigation-nodes/{nodeId}/status"
 
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
