@@ -180,12 +180,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       />
 
       {/* Active Navigation Fullscreen View */}
-      <NavigationView
-        isOpen={isNavigating}
-        route={activeRoute}
-        isLoading={isLoadingRoute}
-        onClose={endNavigation}
-      />
+      {isNavigating && (
+        <NavigationView
+          key={activeRoute ? `${activeRoute.summary.start_name}-${activeRoute.summary.destination_name}-${activeRoute.svg_path.floor_id}` : 'active-nav'}
+          isOpen={isNavigating}
+          route={activeRoute}
+          isLoading={isLoadingRoute}
+          onClose={endNavigation}
+        />
+      )}
 
       {/* Route Error Notification Toast */}
       {navigationError && (

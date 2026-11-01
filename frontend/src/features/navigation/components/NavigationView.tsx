@@ -131,9 +131,16 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
     };
   }, [route]);
 
+  // Always reset to step 0 whenever route changes or modal opens
+  useEffect(() => {
+    setCurrentStepIndex(0);
+    setIsDrawerOpen(false);
+  }, [route, isOpen]);
+
   const steps = route?.steps || [];
-  const currentStep = steps[currentStepIndex] || steps[0];
-  const isFinished = currentStepIndex >= steps.length - 1 && steps.length > 0;
+  const safeStepIndex = Math.min(Math.max(0, currentStepIndex), Math.max(0, steps.length - 1));
+  const currentStep = steps[safeStepIndex] || steps[0];
+  const isFinished = safeStepIndex >= steps.length - 1 && steps.length > 0;
   const currentFloorNumber = currentStep?.floor_number || 1;
 
   // Multi-floor active floor plan resolution
@@ -151,11 +158,17 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
   const { svgContent, loading: mapLoading } = useSvgFloorPlan(activeSvgUrl);
 
   const handlePrevStep = () => {
-    if (currentStepIndex > 0) setCurrentStepIndex((prev) => prev - 1);
+    if (safeStepIndex > 0) setCurrentStepIndex(safeStepIndex - 1);
   };
 
   const handleNextStep = () => {
-    if (currentStepIndex < steps.length - 1) setCurrentStepIndex((prev) => prev + 1);
+    if (safeStepIndex < steps.length - 1) setCurrentStepIndex(safeStepIndex + 1);
+  };
+
+  const handleClose = () => {
+    setCurrentStepIndex(0);
+    setIsDrawerOpen(false);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -165,7 +178,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       {/* Top Header */}
       <header className="h-14 px-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0 z-30">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors"
           aria-label="Back"
         >
@@ -189,7 +202,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
         </div>
 
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors"
           aria-label="Exit Navigation"
         >
@@ -245,7 +258,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
                     {currentStep.action.replace('_', ' ')}
                   </span>
                   <span className="text-[11px] font-semibold text-slate-400">
-                    Step {currentStepIndex + 1} of {steps.length}
+                    Step {safeStepIndex + 1} of {steps.length}
                   </span>
                 </div>
                 <h2 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
@@ -281,18 +294,18 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           <div className="flex items-center gap-1.5">
             <button
               onClick={handlePrevStep}
-              disabled={currentStepIndex === 0}
+              disabled={safeStepIndex === 0}
               className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-slate-700 transition-colors"
               title="Previous Step"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-xs font-bold text-slate-700 px-1">
-              {currentStepIndex + 1}/{steps.length || 1}
+              {safeStepIndex + 1}/{steps.length || 1}
             </span>
             <button
               onClick={handleNextStep}
-              disabled={currentStepIndex >= steps.length - 1}
+              disabled={safeStepIndex >= steps.length - 1}
               className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center text-slate-700 transition-colors"
               title="Next Step"
             >
@@ -314,7 +327,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer ${
               isFinished
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -337,7 +350,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
       <StepDirectionsDrawer
         isOpen={isDrawerOpen}
         steps={steps}
-        currentStepIndex={currentStepIndex}
+        currentStepIndex={safeStepIndex}
         totalDistance={route?.summary.total_distance_meters || 45}
         estimatedMinutes={route?.summary.estimated_time_minutes || 2}
         destinationName={route?.summary.destination_name || 'Room'}
