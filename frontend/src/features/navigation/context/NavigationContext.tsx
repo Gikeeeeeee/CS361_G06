@@ -72,7 +72,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const startNavigation = useCallback(
-    async (destinationId: string, _destinationName: string, wheelchairAccessible: boolean) => {
+    async (destinationId: string, _destinationName: string, wheelchairAccessible: boolean = false) => {
       if (!activeCheckpoint) return;
 
       setIsLoadingRoute(true);

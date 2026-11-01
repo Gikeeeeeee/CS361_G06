@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, MapPin, Search, ArrowRight, Accessibility, Navigation } from 'lucide-react';
+import { X, MapPin, Search, ArrowRight, Navigation } from 'lucide-react';
 import type { QRCheckpoint } from '../types/navigation.types';
 import { facilityCache, resolveRoomNumber } from '../../admin-schedule/services/facilityCache';
 import { statusApi } from '../../admin-status/services/statusApi';
@@ -9,7 +9,7 @@ interface DestinationModalProps {
   checkpoint: QRCheckpoint | null;
   initialDestination?: string;
   onClose: () => void;
-  onStartNavigation: (destinationId: string, destinationName: string, wheelchairAccessible: boolean) => void;
+  onStartNavigation: (destinationId: string, destinationName: string, wheelchairAccessible?: boolean) => void;
   onChangeCheckpoint: () => void;
 }
 
@@ -22,7 +22,6 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
   onChangeCheckpoint,
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialDestination);
-  const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<
     Array<{ id: string; code: string; name: string; building: string; floor: number }>
   >([]);
@@ -205,7 +204,7 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
               return (
                 <button
                   key={room.id}
-                  onClick={() => onStartNavigation(room.id, `${room.code} - ${room.name}`, wheelchairAccessible)}
+                  onClick={() => onStartNavigation(room.id, `${room.code} - ${room.name}`)}
                   className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-colors group cursor-pointer ${
                     isClosed
                       ? 'bg-rose-50/40 hover:bg-rose-50/80 border-rose-100 hover:border-rose-200'
@@ -266,23 +265,6 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
           )}
         </div>
 
-        {/* Accessibility Preference Toggle */}
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Accessibility className="w-4 h-4 text-slate-600" />
-            <div>
-              <div className="text-xs font-semibold text-slate-800">Wheelchair Accessible</div>
-              <div className="text-[10px] text-slate-400">Avoid stairs, use elevators only</div>
-            </div>
-          </div>
-          <input
-            type="checkbox"
-            checked={wheelchairAccessible}
-            onChange={(e) => setWheelchairAccessible(e.target.checked)}
-            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-          />
-        </div>
-
         {/* Start Button */}
         {searchQuery.trim() && (
           <button
@@ -298,8 +280,7 @@ export const DestinationModal: React.FC<DestinationModalProps> = ({
               );
               onStartNavigation(
                 matched?.id || `RM_${searchQuery.replace(/[^a-zA-Z0-9]/g, '_')}`,
-                matched ? `${matched.code} - ${matched.name}` : searchQuery,
-                wheelchairAccessible
+                matched ? `${matched.code} - ${matched.name}` : searchQuery
               );
             }}
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
