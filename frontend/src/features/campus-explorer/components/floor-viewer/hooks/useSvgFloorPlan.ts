@@ -1,68 +1,38 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { fetchAndCacheSvg, getCachedSvg, clearSvgCache } from "../../../../../utils/svgCache";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchAndCacheSvg, clearSvgCache } from '../../../../../utils/svgCache';
 
-export function useSvgFloorPlan(url: string | undefined) {
-  const [svgContent, setSvgContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<Error | null>(null);
-  const activeUrlRef = useRef<string | undefined>(url);
+type SvgState = { url: string | undefined; svgContent: string | null; loading: boolean; error: Error | null };
 
-  useEffect(() => {
-    activeUrlRef.current = url;
-  }, [url]);
+export function useSvgFloorPlan(url: string | undefined, refreshUrl?: () => Promise<string | undefined>) {
+  const [state, setState] = useState<SvgState>({ url, svgContent: null, loading: !!url, error: null });
+  const generation = useRef(0);
+  const refreshRef = useRef(refreshUrl);
+  useEffect(() => { refreshRef.current = refreshUrl; }, [refreshUrl]);
 
-  const loadSvg = useCallback(async (targetUrl: string, isManualRetry = false) => {
-    if (isManualRetry) {
-      clearSvgCache(targetUrl);
-    }
-
-    // Check memory cache first
-    const cached = getCachedSvg(targetUrl);
-    if (cached) {
-      if (activeUrlRef.current === targetUrl) {
-        setSvgContent(cached);
-        setLoading(false);
-        setError(null);
-      }
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
+  const load = useCallback(async (source: string, manual = false) => {
+    const id = ++generation.current;
+    setState({ url: source, svgContent: null, loading: true, error: null });
     try {
-      const text = await fetchAndCacheSvg(targetUrl);
-      if (activeUrlRef.current === targetUrl) {
-        setSvgContent(text);
-        setLoading(false);
-        setError(null);
-      }
-    } catch (err: any) {
-      if (activeUrlRef.current === targetUrl) {
-        console.error("SVG fetch error:", err);
-        setError(err instanceof Error ? err : new Error("Failed to load floor plan SVG"));
-        setLoading(false);
-      }
+      const target = manual && refreshRef.current ? await refreshRef.current() : source;
+      if (id !== generation.current) return;
+      if (!target) throw new Error('Floor plan unavailable for this level.');
+      if (manual) clearSvgCache(target);
+      const svgContent = await fetchAndCacheSvg(target, manual);
+      if (id === generation.current) setState({ url: source, svgContent, loading: false, error: null });
+    } catch (err: unknown) {
+      if (id === generation.current) setState({ url: source, svgContent: null, loading: false,
+        error: err instanceof Error ? err : new Error('Failed to load floor plan') });
     }
   }, []);
 
   useEffect(() => {
-    activeUrlRef.current = url;
-    if (!url) {
-      setSvgContent(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+    if (url) void load(url);
+    else setState({ url, svgContent: null, loading: false, error: null });
+    return () => { ++generation.current; };
+  }, [url, load]);
 
-    loadSvg(url);
-  }, [url, loadSvg]);
-
-  const retry = useCallback(() => {
-    if (url) {
-      loadSvg(url, true);
-    }
-  }, [url, loadSvg]);
-
-  return { svgContent, loading, error, retry };
+  const retry = useCallback(() => { if (url) void load(url, true); }, [url, load]);
+  // Hide the previous floor synchronously, before effects run for the new URL.
+  const visible = state.url === url ? state : { svgContent: null, loading: !!url, error: null };
+  return { svgContent: visible.svgContent, loading: visible.loading, error: visible.error, retry };
 }

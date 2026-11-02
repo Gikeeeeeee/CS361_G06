@@ -15,10 +15,14 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
   const [selectedFloor, setSelectedFloor] = useState<Floor | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const selectionRef = useRef(0);
   const floorCacheRef = useRef<Map<string, Floor>>(new Map());
 
   useEffect(() => {
     let isMounted = true;
+    const initialSelection = ++selectionRef.current;
+    setBuilding(null);
+    setSelectedFloor(null);
     floorCacheRef.current.clear();
 
     async function fetchBuilding() {
@@ -43,14 +47,14 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
               // Fetch detailed floor info for the default floor
               try {
                 const floorDetails = await campusService.getFloorById(defaultFloor.id);
-                if (isMounted) {
+                if (isMounted && selectionRef.current === initialSelection) {
                   const resolved = (floorDetails || defaultFloor) as any;
                   floorCacheRef.current.set(defaultFloor.id, resolved);
                   setSelectedFloor(resolved);
                 }
               } catch (floorErr) {
                 console.error("Failed to load default floor details:", floorErr);
-                if (isMounted) {
+                if (isMounted && selectionRef.current === initialSelection) {
                   const fallback = {
                     ...defaultFloor,
                     rooms: [],
@@ -64,7 +68,7 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
               // Background prefetch remaining floors for 0ms floor switching latency
               sortedFloors.slice(1).forEach((otherFloor) => {
                 campusService.getFloorById(otherFloor.id).then((details) => {
-                  if (details) {
+                  if (isMounted && details) {
                     floorCacheRef.current.set(otherFloor.id, details as any);
                   }
                 }).catch(() => {});
@@ -90,12 +94,18 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
 
     return () => {
       isMounted = false;
+      ++selectionRef.current;
     };
   }, [buildingId]);
 
   const selectFloor = async (floorId: string) => {
     if (!buildingId) return;
 
+    const selection = ++selectionRef.current;
+    setError(null);
+    // Clear the old map immediately while the selected floor details load.
+    const summary = building?.floors?.find((floor) => floor.id === floorId);
+    setSelectedFloor(summary || null);
     // Fast path: use cached floor detail if available
     const cached = floorCacheRef.current.get(floorId);
     if (cached) {
@@ -105,11 +115,15 @@ export function useBuildingDetails(buildingId: string | undefined): UseBuildingD
 
     try {
       const floorDetails = await campusService.getFloorById(floorId);
+      if (selection !== selectionRef.current) return;
       if (floorDetails) {
         floorCacheRef.current.set(floorId, floorDetails as any);
         setSelectedFloor(floorDetails as any);
+      } else {
+        setError("Failed to load selected floor details. Select the floor to retry.");
       }
     } catch (err) {
+      if (selection === selectionRef.current) setError("Failed to load selected floor details. Select the floor to retry.");
       console.error("Failed to load selected floor details:", err);
     }
   };

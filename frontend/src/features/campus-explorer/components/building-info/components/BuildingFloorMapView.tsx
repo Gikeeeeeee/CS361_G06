@@ -26,21 +26,27 @@ export const BuildingFloorMapView: React.FC<BuildingFloorMapViewProps> = ({
   const [resolvedFloor, setResolvedFloor] = useState<Floor | null>(null);
 
   useEffect(() => {
+    let active = true;
     if (!floor.floor_plan?.url && floor.id) {
       campusService
         .getFloorById(floor.id)
         .then((fullFloor) => {
-          if (fullFloor?.floor_plan?.url) {
+          if (active && fullFloor?.floor_plan?.url) {
             setResolvedFloor(fullFloor as any);
           }
         })
         .catch(console.error);
     }
+    return () => { active = false; };
   }, [floor.id, floor.floor_plan?.url]);
 
-  const activeFloor = (resolvedFloor?.id === floor.id && resolvedFloor.floor_plan?.url) ? resolvedFloor : floor;
+  const activeFloor = (!floor?.floor_plan?.url && resolvedFloor?.id === floor.id && resolvedFloor.floor_plan?.url) ? resolvedFloor : floor;
   const svgUrl = activeFloor.floor_plan?.url || activeFloor.map?.url;
-  const { svgContent, loading, error, retry } = useSvgFloorPlan(svgUrl);
+  const { svgContent, loading, error, retry } = useSvgFloorPlan(svgUrl, async () => {
+    if (!floor?.id) return svgUrl;
+    const refreshed = await campusService.getFloorById(floor.id);
+    return refreshed?.floor_plan?.url || refreshed?.map?.url;
+  });
 
   // Live operational status overlay synchronization
   useEffect(() => {
