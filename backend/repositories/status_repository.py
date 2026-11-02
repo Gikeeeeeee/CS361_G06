@@ -95,6 +95,8 @@ class StatusRepository:
             items: list[dict[str, Any]] = []
             kwargs = {
                 "KeyConditionExpression": Key("PK").eq(f"FLOOR#{floor_id}"),
+                # A refresh immediately after PATCH must include the confirmed write.
+                "ConsistentRead": True,
             }
             while True:
                 response = self.table.query(**kwargs)
@@ -137,6 +139,8 @@ class StatusRepository:
                     corridor_edges.append(
                         {
                             "edge_id": e_id,
+                            "from_node_id": clean.get("from_node_id"),
+                            "to_node_id": clean.get("to_node_id"),
                             "status": clean.get("status", "ACTIVE"),
                             "status_note": clean.get("status_note", None),
                         }
@@ -146,6 +150,8 @@ class StatusRepository:
                     navigation_nodes.append(
                         {
                             "node_id": n_id,
+                            "svg_x": clean.get("svg_x"),
+                            "svg_y": clean.get("svg_y"),
                             "status": clean.get("status", "ACTIVE"),
                             "status_note": clean.get("status_note", None),
                         }

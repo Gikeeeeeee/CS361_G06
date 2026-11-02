@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Clock, Save } from 'lucide-react';
 import type { RoomStatus, CorridorStatus, NodeStatus } from '../types/status.types';
 
@@ -34,12 +34,15 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
   const [statusNote, setStatusNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const submitting = useRef(false);
 
   useEffect(() => {
     if (target) {
       setSelectedStatus(target.currentStatus || 'ACTIVE');
       setStatusNote(target.currentNote || '');
       setErrorMsg(null);
+      setConfirming(false);
     }
   }, [target]);
 
@@ -47,6 +50,12 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
+    if (target.type === 'CORRIDOR') {
+      if (selectedStatus === target.currentStatus) return;
+      if (!confirming) { setConfirming(true); return; }
+    }
+    submitting.current = true;
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -60,9 +69,11 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
       );
       onClose();
     } catch (err: any) {
+      setConfirming(false);
       setErrorMsg(err?.message || 'Failed to update status. Please try again.');
     } finally {
       setIsSubmitting(false);
+      submitting.current = false;
     }
   };
 
@@ -73,11 +84,11 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+        onClick={() => { if (!submitting.current) onClose(); }}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+        <div role="dialog" aria-modal="true" aria-label="Status Configuration" className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
           {/* Header */}
           <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between">
             <div>
@@ -91,6 +102,7 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition"
               aria-label="Close"
             >
@@ -99,7 +111,7 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
           </div>
 
           {/* Body Form */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+          <form onSubmit={handleSubmit} inert={isSubmitting} onChange={() => setConfirming(false)} className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Target Information Card */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
@@ -114,7 +126,10 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                   {target.type}
                 </span>
                 <span>Floor: {target.floorId}</span>
+                <span>Building: {target.buildingCode}</span>
               </div>
+              <p className="text-xs mt-2">Current status: {target.currentStatus}</p>
+              {target.type === 'CORRIDOR' && <p className="text-xs mt-1">Connected nodes: {target.name}</p>}
             </div>
 
             {/* Status Options */}
@@ -128,7 +143,7 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                   {/* ACTIVE */}
                   <button
                     type="button"
-                    onClick={() => setSelectedStatus('ACTIVE')}
+                    onClick={() => { setSelectedStatus('ACTIVE'); setConfirming(false); }}
                     className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition ${
                       selectedStatus === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50/70 text-emerald-950 ring-2 ring-emerald-500/20'
@@ -187,7 +202,7 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setSelectedStatus('ACTIVE')}
+                    onClick={() => { setSelectedStatus('ACTIVE'); setConfirming(false); }}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border text-center transition ${
                       selectedStatus === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500/20'
@@ -199,7 +214,7 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setSelectedStatus('BLOCKED')}
+                    onClick={() => { setSelectedStatus('BLOCKED'); setConfirming(false); }}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border text-center transition ${
                       selectedStatus === 'BLOCKED'
                         ? 'border-red-500 bg-red-50 text-red-950 ring-2 ring-red-500/20'
@@ -233,8 +248,9 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
               </p>
             </div>
 
+            {confirming && <p role="alert" className="p-3 rounded-xl bg-amber-50 text-sm text-amber-900">Confirm changing corridor {target.id} from {target.currentStatus} to {selectedStatus}? This affects navigation routes.</p>}
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+              <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
                 {errorMsg}
               </div>
             )}
@@ -253,11 +269,11 @@ export const StatusEditDrawer: React.FC<StatusEditDrawerProps> = ({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (target.type === 'CORRIDOR' && selectedStatus === target.currentStatus)}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:scale-95 transition shadow-sm disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Updating...' : 'Save & Publish'}</span>
+              <span>{isSubmitting ? 'Updating...' : confirming ? 'Confirm change' : 'Save changes'}</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Building2, 
   Layers, 
@@ -16,6 +16,8 @@ import { InteractiveSvgMap } from '../../campus-explorer/components/floor-viewer
 import { statusApi } from '../../admin-status/services/statusApi';
 import type { FloorStatusOverlayData, RoomStatus, RoomStatusItem } from '../../admin-status/types/status.types';
 import { StatusEditDrawer } from '../../admin-status/components/StatusEditDrawer';
+import { getCorridorSegments } from '../../admin-status/components/corridorOverlay';
+import { useAuth } from '../../auth/context/AuthContext';
 import { campusService } from '../../campus-explorer/services';
 import { 
   resolveRoomEntity, 
@@ -24,6 +26,13 @@ import {
 } from '../../campus-explorer/services/roomResolver';
 
 export const BuildingsPage: React.FC = () => {
+  const { role, isAuthenticated } = useAuth();
+  const canManage = isAuthenticated && (role === 'STAFF' || role === 'ADMIN');
+  const overlayRequest = useRef(0);
+  const saving = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [selectedCorridorId, setSelectedCorridorId] = useState<string | null>(null);
   // 1. Dynamic Facility Selectors State (Zero Hardcoding)
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
@@ -182,21 +191,55 @@ export const BuildingsPage: React.FC = () => {
 
   // Fetch status overlay for selected floor
   const fetchStatusOverlay = useCallback(async () => {
-    if (!selectedFloorId) return;
+    const request = ++overlayRequest.current;
+    if (!selectedFloorId) {
+      setStatusOverlayData(null);
+      return;
+    }
     setIsLoadingStatus(true);
+    setStatusError(null);
     try {
-      const data = await statusApi.getFloorStatusOverlay(selectedFloorId);
-      setStatusOverlayData(data);
+      const data = await statusApi.getFloorStatusOverlay(selectedFloorId, true);
+      if (request === overlayRequest.current) setStatusOverlayData(data);
     } catch (err) {
-      console.error('Failed to load status overlay:', err);
+      if (request === overlayRequest.current) {
+        setStatusError(err instanceof Error ? err.message : 'Failed to load status overlay.');
+      }
     } finally {
-      setIsLoadingStatus(false);
+      if (request === overlayRequest.current) setIsLoadingStatus(false);
     }
   }, [selectedFloorId]);
 
   useEffect(() => {
     fetchStatusOverlay();
+    return () => { ++overlayRequest.current; };
   }, [fetchStatusOverlay]);
+
+  const corridors = useMemo(() => getCorridorSegments(statusOverlayData?.floor_id === selectedFloorId ? statusOverlayData : null), [statusOverlayData, selectedFloorId]);
+
+  const resetFloor = (floorId: string) => {
+    ++overlayRequest.current;
+    setSelectedFloorId(floorId);
+    setFloorDetail(null);
+    setStatusOverlayData(null);
+    setSelectedCorridorId(null);
+    setHighlightedRoomId(null);
+    setIsDrawerOpen(false);
+    setEditingTarget(null);
+  };
+
+  const handleCorridorClick = (edgeId: string) => {
+    if (!canManage || isLoadingStatus || isSaving || statusError) return;
+    const edge = corridors.find(item => item.edge_id === edgeId);
+    if (!edge) return;
+    setSelectedCorridorId(edgeId);
+    setHighlightedRoomId(null);
+    setEditingTarget({ type: 'CORRIDOR', id: edge.edge_id, code: edge.edge_id,
+      name: `${edge.from_node_id} → ${edge.to_node_id}`,
+      floorId: selectedFloorId, buildingCode: currentBuilding?.code,
+      currentStatus: edge.status, currentNote: edge.status_note });
+    setIsDrawerOpen(true);
+  };
 
   // Format status overlay for InteractiveSvgMap prop
   const statusOverlayMap = useMemo(() => {
@@ -271,6 +314,7 @@ export const BuildingsPage: React.FC = () => {
 
   // Handle clicking a room on SVG via Centralized Room Resolver
   const handleRoomClick = (roomId: string, rawElementId: string) => {
+    if (!canManage || isLoadingStatus || isSaving) return;
     setHighlightedRoomId(roomId);
 
     const bCode = currentBuilding?.code || '';
@@ -308,6 +352,12 @@ export const BuildingsPage: React.FC = () => {
     newStatus: string,
     note: string | null
   ) => {
+    if (!canManage) throw new Error('Staff or Admin permission required.');
+    if (saving.current) return;
+    if (!editingTarget || editingTarget.floorId !== selectedFloorId) throw new Error('Reload and select the corridor again.');
+    if (type === 'CORRIDOR' && editingTarget.currentStatus === newStatus) return;
+    saving.current = true;
+    setIsSaving(true);
     try {
       if (type === 'ROOM') {
         await statusApi.updateRoomStatus(
@@ -318,7 +368,11 @@ export const BuildingsPage: React.FC = () => {
           note
         );
       } else if (type === 'CORRIDOR') {
-        await statusApi.updateCorridorStatus(selectedFloorId, id, newStatus as any, note);
+        const updated = await statusApi.updateCorridorStatus(selectedFloorId, id, newStatus as 'ACTIVE' | 'BLOCKED', note);
+        setStatusOverlayData(previous => previous && previous.floor_id === selectedFloorId ? {
+          ...previous,
+          corridor_edges: previous.corridor_edges.map(edge => edge.edge_id === id ? { ...edge, ...updated } : edge),
+        } : previous);
       } else {
         await statusApi.updateNodeStatus(selectedFloorId, id, newStatus as any, note);
       }
@@ -335,6 +389,9 @@ export const BuildingsPage: React.FC = () => {
       setToast({ type: 'error', message: msg });
       setTimeout(() => setToast(null), 4500);
       throw err;
+    } finally {
+      saving.current = false;
+      setIsSaving(false);
     }
   };
 
@@ -357,6 +414,8 @@ export const BuildingsPage: React.FC = () => {
       return matchSearch && matchStatus;
     });
   }, [statusOverlayData, searchFilter, statusFilter, getRoomDisplayInfo]);
+
+  if (!canManage) return <div className="p-6" role="alert">Staff or Admin access required.</div>;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -394,8 +453,8 @@ export const BuildingsPage: React.FC = () => {
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <select
               value={selectedBuildingId}
-              onChange={(e) => setSelectedBuildingId(e.target.value)}
-              disabled={isLoadingBuildings}
+              onChange={(e) => { resetFloor(''); setFloors([]); setSelectedBuildingId(e.target.value); }}
+              disabled={isLoadingBuildings || isSaving}
               className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none cursor-pointer"
             >
               {buildings.map((b) => (
@@ -411,8 +470,8 @@ export const BuildingsPage: React.FC = () => {
             <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <select
               value={selectedFloorId}
-              onChange={(e) => setSelectedFloorId(e.target.value)}
-              disabled={isLoadingFloors || floors.length === 0}
+              onChange={(e) => resetFloor(e.target.value)}
+              disabled={isLoadingFloors || floors.length === 0 || isSaving}
               className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition appearance-none cursor-pointer"
             >
               {floors.map((f) => (
@@ -427,7 +486,7 @@ export const BuildingsPage: React.FC = () => {
           <button
             type="button"
             onClick={fetchStatusOverlay}
-            disabled={isLoadingStatus}
+            disabled={isLoadingStatus || isSaving || !selectedFloorId}
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-slate-50 transition active:scale-95 shadow-xs"
             title="Reload Floor Status"
           >
@@ -466,7 +525,7 @@ export const BuildingsPage: React.FC = () => {
           <div className="font-semibold text-slate-700 flex items-center gap-2">
             <span>Interactive Floor Overlay:</span>
             <span className="font-normal text-slate-500">
-              Click any room on the plan to modify its operational status
+              Select a room or corridor to change its status
             </span>
           </div>
 
@@ -504,6 +563,9 @@ export const BuildingsPage: React.FC = () => {
               highlightedRoomId={highlightedRoomId}
               statusOverlay={statusOverlayMap}
               onRoomClick={handleRoomClick}
+              corridors={corridors}
+              selectedCorridorId={selectedCorridorId}
+              onCorridorClick={handleCorridorClick}
               enableZoomPan={true}
               showControls={true}
             />
@@ -514,6 +576,8 @@ export const BuildingsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {statusError && <p role="alert" className="text-sm text-red-700">{statusError}</p>}
 
       {/* Room Status Directory & Quick Table */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -663,6 +727,7 @@ export const BuildingsPage: React.FC = () => {
         onClose={() => {
           setIsDrawerOpen(false);
           setHighlightedRoomId(null);
+          setSelectedCorridorId(null);
         }}
         target={editingTarget}
         onSave={handleSaveStatus}

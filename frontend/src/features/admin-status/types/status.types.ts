@@ -23,6 +23,8 @@ export interface RoomStatusItem {
 
 export interface CorridorStatusItem {
   edge_id: string;
+  from_node_id?: string;
+  to_node_id?: string;
   status: CorridorStatus;
   status_note: string | null;
   updated_at?: string;
@@ -31,6 +33,8 @@ export interface CorridorStatusItem {
 
 export interface NodeStatusItem {
   node_id: string;
+  svg_x?: number | null;
+  svg_y?: number | null;
   status: NodeStatus;
   status_note: string | null;
   updated_at?: string;

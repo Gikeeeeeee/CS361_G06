@@ -3,7 +3,8 @@ import type {
   RoomStatus, 
   CorridorStatus, 
   NodeStatus, 
-  RoomStatusItem 
+  RoomStatusItem,
+  CorridorStatusItem
 } from '../types/status.types';
 import { facilityCache } from '../../admin-schedule/services/facilityCache';
 
@@ -51,12 +52,13 @@ export const statusApi = {
    * Fetch live status overlay for a given floor from Backend API Gateway
    * Endpoint: GET /api/v1/floors/{floor_id}/status-overlay
    */
-  async getFloorStatusOverlay(floorId: string): Promise<FloorStatusOverlayData> {
+  async getFloorStatusOverlay(floorId: string, requireFresh = false): Promise<FloorStatusOverlayData> {
     const local = getLocalCache()[floorId];
 
     try {
       const response = await fetch(`${BASE_URL}/api/v1/floors/${encodeURIComponent(floorId)}/status-overlay`, {
         method: 'GET',
+        cache: 'no-store',
         headers: {
           'Accept': 'application/json',
         },
@@ -97,11 +99,12 @@ export const statusApi = {
           });
 
           const mergedEdges = rawEdges.map((e: any) => {
-            const localEdge = local?.corridor_edges?.find((le) => le.edge_id === e.edge_id);
             return {
               edge_id: e.edge_id,
-              status: localEdge?.status || (e.status as CorridorStatus) || 'ACTIVE',
-              status_note: localEdge ? localEdge.status_note : e.status_note ?? null,
+              from_node_id: e.from_node_id,
+              to_node_id: e.to_node_id,
+              status: (e.status as CorridorStatus) || 'ACTIVE',
+              status_note: e.status_note ?? null,
             };
           });
 
@@ -109,6 +112,8 @@ export const statusApi = {
             const localNode = local?.navigation_nodes?.find((ln) => ln.node_id === n.node_id);
             return {
               node_id: n.node_id,
+              svg_x: n.svg_x,
+              svg_y: n.svg_y,
               status: localNode?.status || (n.status as NodeStatus) || 'ACTIVE',
               status_note: localNode ? localNode.status_note : n.status_note ?? null,
             };
@@ -133,6 +138,7 @@ export const statusApi = {
     }
 
     // Return session cache if network fails
+    if (requireFresh) throw new Error('Unable to load current floor status. Please refresh and try again.');
     if (local) return local;
 
     // Fallback baseline structure if floor not yet saved
@@ -250,7 +256,7 @@ export const statusApi = {
     status: CorridorStatus,
     statusNote: string | null,
     token?: string
-  ) {
+  ): Promise<CorridorStatusItem> {
     const authToken = getAuthToken(token);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -283,7 +289,16 @@ export const statusApi = {
       if (response.status === 403) {
         throw new Error(errorDetail || 'Permission denied. Staff or Admin privilege required.');
       }
+      if (response.status === 400) throw new Error(errorDetail || 'Invalid corridor status. Choose ACTIVE or BLOCKED.');
+      if (response.status === 404) throw new Error(errorDetail || 'Corridor no longer exists. Reload this floor.');
+      if (response.status >= 500) throw new Error(errorDetail || 'Server error saving corridor status. Please try again later.');
       throw new Error(errorDetail || `Failed to update corridor edge status (HTTP ${response.status}).`);
+    }
+
+    const json = await response.json();
+    const updated = json?.data;
+    if (!json.success || updated?.edge_id !== edgeId || !['ACTIVE', 'BLOCKED'].includes(updated?.status)) {
+      throw new Error('Server did not confirm the corridor update. Reload this floor before retrying.');
     }
 
     // Apply to local session cache & broadcast
@@ -291,21 +306,23 @@ export const statusApi = {
     if (cache[floorId]) {
       const edge = cache[floorId].corridor_edges.find((e) => e.edge_id === edgeId);
       if (edge) {
-        edge.status = status;
-        edge.status_note = statusNote;
+        edge.status = updated.status;
+        edge.status_note = updated.status_note ?? null;
       } else {
-        cache[floorId].corridor_edges.push({ edge_id: edgeId, status, status_note: statusNote });
+        cache[floorId].corridor_edges.push(updated);
       }
       saveLocalCache(cache);
     }
 
     if (typeof window !== 'undefined') {
+      try { localStorage.setItem('ku_long_corridor_revision', `${Date.now()}:${edgeId}:${updated.status}`); } catch { /* Storage may be unavailable. */ }
       window.dispatchEvent(
         new CustomEvent('floor-status-updated', {
-          detail: { floorId, edgeId, status },
+          detail: { floorId, edgeId, status: updated.status },
         })
       );
     }
+    return updated;
   },
 
   /**

@@ -154,6 +154,10 @@ export const navigationApi = {
 
     // Try alternate prefix without /api/v1 if 404
     if (response && !response.ok && response.status === 404) {
+      const failure = await response.clone().json().catch(() => null);
+      if (failure?.error?.code === 'NO_ROUTE_AVAILABLE') {
+        throw new Error(failure.error.message || 'No route available. Corridors may be blocked.');
+      }
       try {
         const altResponse = await fetch(`${BASE_URL}/routes/search`, {
           method: 'POST',

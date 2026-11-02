@@ -167,6 +167,15 @@ def test_blocked_corridor_edge_takes_detour():
     assert path_nodes_rerouted == ["N1", "N4", "N3"]
     assert res_rerouted.summary.total_distance == pytest.approx(30.0)
 
+    # Reopening the stored edge restores the shortest path on the next search.
+    source.edges["E12"] = CorridorEdge(
+        id="E12", from_node_id="N1", to_node_id="N2",
+        distance_weight=10.0, status="ACTIVE", floor_id="f1",
+    )
+    reopened = svc.calculate_route("N1", "NODE", "N3", "NODE")
+    assert [n["node_id"] for n in reopened.svg_path["nodes"]] == ["N1", "N2", "N3"]
+    assert reopened.summary.total_distance == pytest.approx(20.0)
+
 
 @pytest.mark.unit
 def test_blocked_navigation_node_takes_detour():

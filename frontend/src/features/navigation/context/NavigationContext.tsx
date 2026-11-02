@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { navigationApi } from '../services/navigationApi';
@@ -34,6 +34,7 @@ interface NavigationContextType {
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const routeGeneration = useRef(0);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isDestinationModalOpen, setIsDestinationModalOpen] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -52,6 +53,32 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeRoute, setActiveRoute] = useState<RouteResult | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Discard displayed and in-flight routes when corridor availability changes.
+  useEffect(() => {
+    const invalidate = () => {
+      ++routeGeneration.current;
+      setActiveRoute(null);
+      setIsLoadingRoute(false);
+      setIsNavigating(false);
+      if (isNavigating) {
+        setNavigationError('Corridor availability changed. Calculate your route again.');
+        setIsDestinationModalOpen(true);
+      }
+    };
+    const onStatus = (event: Event) => {
+      if ((event as CustomEvent).detail?.edgeId) invalidate();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'ku_long_corridor_revision') invalidate();
+    };
+    window.addEventListener('floor-status-updated', onStatus);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('floor-status-updated', onStatus);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [isNavigating]);
 
   // Preload dynamic QR checkpoints from Backend on mount
   useEffect(() => {
@@ -129,6 +156,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const startNavigation = useCallback(
     async (destinationId: string, _destinationName: string, wheelchairAccessible: boolean = false) => {
       if (!activeCheckpoint) return;
+      const generation = ++routeGeneration.current;
+      setActiveRoute(null);
 
       setIsLoadingRoute(true);
       setIsDestinationModalOpen(false);
@@ -146,6 +175,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           },
         });
 
+        if (generation !== routeGeneration.current) return;
         // Ensure floorSvgUrl is preserved if route didn't populate it and it belongs to this room
         if (
           !result.svg_path.url &&
@@ -157,13 +187,14 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         setActiveRoute(result);
       } catch (err: any) {
+        if (generation !== routeGeneration.current) return;
         console.error('Failed to calculate route:', err);
         const msg = err?.message || 'Route not found or destination outside service area.';
         setNavigationError(msg);
         setIsNavigating(false);
         setIsDestinationModalOpen(true);
       } finally {
-        setIsLoadingRoute(false);
+        if (generation === routeGeneration.current) setIsLoadingRoute(false);
       }
     },
     [activeCheckpoint, prefilledMeta]
@@ -213,6 +244,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 
   const endNavigation = useCallback(() => {
+    ++routeGeneration.current;
     setIsNavigating(false);
     setActiveRoute(null);
     setPrefilledMeta(null);

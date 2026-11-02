@@ -41,6 +41,8 @@ def test_get_floor_status_overlay_success():
                 "PK": "FLOOR#FL_BR2_04",
                 "SK": "CORRIDOR_EDGE#EDGE_CORR_N4",
                 "id": "EDGE_CORR_N4",
+                "from_node_id": "NODE_ELEV_04",
+                "to_node_id": "NODE_END_04",
                 "status": "BLOCKED",
                 "status_note": "ปิดปรับปรุงพื้นทางเดินช่วง 13:00 - 17:00",
             },
@@ -48,6 +50,8 @@ def test_get_floor_status_overlay_success():
                 "PK": "FLOOR#FL_BR2_04",
                 "SK": "NAV_NODE#NODE_ELEV_04",
                 "id": "NODE_ELEV_04",
+                "svg_x": 0,
+                "svg_y": 125.5,
                 "status": "ACTIVE",
             },
         ]
@@ -55,6 +59,7 @@ def test_get_floor_status_overlay_success():
 
     repo = StatusRepository(table=table, reader=reader)
     overlay = repo.get_floor_status_overlay("FL_BR2_04")
+    assert table.query.call_args.kwargs["ConsistentRead"] is True
 
     assert overlay["floor_id"] == "FL_BR2_04"
     assert overlay["updated_at"] == "2026-10-27T15:30:00Z"
@@ -73,12 +78,16 @@ def test_get_floor_status_overlay_success():
     assert len(overlay["corridor_edges"]) == 1
     assert overlay["corridor_edges"][0]["edge_id"] == "EDGE_CORR_N4"
     assert overlay["corridor_edges"][0]["status"] == "BLOCKED"
+    assert overlay["corridor_edges"][0]["from_node_id"] == "NODE_ELEV_04"
+    assert overlay["corridor_edges"][0]["to_node_id"] == "NODE_END_04"
 
     # Navigation nodes
     assert len(overlay["navigation_nodes"]) == 1
     assert overlay["navigation_nodes"][0]["node_id"] == "NODE_ELEV_04"
     assert overlay["navigation_nodes"][0]["status"] == "ACTIVE"
     assert overlay["navigation_nodes"][0]["status_note"] is None
+    assert overlay["navigation_nodes"][0]["svg_x"] == 0
+    assert overlay["navigation_nodes"][0]["svg_y"] == 125.5
 
 
 @pytest.mark.unit

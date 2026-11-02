@@ -1,6 +1,8 @@
 import { useEffect, useRef, useMemo } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { appendCorridorOverlay } from '../../../../admin-status/components/corridorOverlay';
+import type { CorridorSegment } from '../../../../admin-status/components/corridorOverlay';
 
 interface InteractiveSvgMapProps {
   svgContent: string;
@@ -11,6 +13,9 @@ interface InteractiveSvgMapProps {
   minScale?: number;
   maxScale?: number;
   showControls?: boolean;
+  corridors?: CorridorSegment[];
+  selectedCorridorId?: string | null;
+  onCorridorClick?: (edgeId: string) => void;
 }
 
 function normalizeRoomId(id: string | null | undefined): string {
@@ -32,15 +37,33 @@ export function InteractiveSvgMap({
   minScale = 0.6,
   maxScale = 4,
   showControls = true,
+  corridors,
+  selectedCorridorId,
+  onCorridorClick,
 }: InteractiveSvgMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
+  useEffect(() => {
+    const svg = containerRef.current?.querySelector('svg');
+    if (!svg || !corridors) return;
+    const remove = appendCorridorOverlay(svg, corridors, selectedCorridorId);
+    const onKey = (event: KeyboardEvent) => {
+      const item = (event.target as Element).closest('[data-corridor-id]');
+      if (item && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onCorridorClick?.(item.getAttribute('data-corridor-id')!);
+      }
+    };
+    svg.addEventListener('keydown', onKey);
+    return () => { remove(); svg.removeEventListener('keydown', onKey); };
+  }, [svgContent, corridors, selectedCorridorId, onCorridorClick]);
+
   // Click handler on rooms and facilities with drag distinction
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !onRoomClick) return;
+    if (!container || (!onRoomClick && !onCorridorClick)) return;
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
@@ -72,6 +95,11 @@ export function InteractiveSvgMap({
 
       const target = e.target as HTMLElement | SVGElement | null;
       if (!target) return;
+      const corridor = target.closest('[data-corridor-id]');
+      if (corridor) {
+        onCorridorClick?.(corridor.getAttribute('data-corridor-id')!);
+        return;
+      }
 
       // Find closest interactable room or facility shape
       const interactable = target.closest(
@@ -82,7 +110,7 @@ export function InteractiveSvgMap({
         const rawId = interactable.id || interactable.getAttribute('data-room-id') || '';
         const cleanId = interactable.getAttribute('data-room-id') || rawId.replace(/^(room-|facility-)/, '');
         if (cleanId) {
-          onRoomClick(cleanId, rawId);
+          onRoomClick?.(cleanId, rawId);
         }
       }
     };
@@ -100,7 +128,7 @@ export function InteractiveSvgMap({
       container.removeEventListener("touchmove", handlePointerMove as EventListener);
       container.removeEventListener("click", handleClick);
     };
-  }, [onRoomClick, svgContent]);
+  }, [onRoomClick, onCorridorClick, svgContent]);
 
   // Exact element and text highlighting in SVG with statusOverlay support
   useEffect(() => {
