@@ -119,7 +119,7 @@ resource "aws_s3_object" "floor_plans" {
   etag = filemd5("${local.floor_plan_dir}/${each.value}")
 
   content_type  = "image/svg+xml"
-  cache_control = local.asset_cache_control
+  cache_control = "public, max-age=0, s-maxage=300, must-revalidate"
 }
 
 # ---------------------------------------------------------------------------
@@ -174,6 +174,53 @@ data "aws_cloudfront_response_headers_policy" "simple_cors" {
   name = "Managed-SimpleCORS"
 }
 
+# Public SVGs are fetched without credentials. Make the viewer CORS response
+# authoritative instead of depending on the headers of a cached origin variant.
+resource "aws_cloudfront_response_headers_policy" "floor_plan_cors" {
+  name = "${var.bucket_name}-floor-plan-cors"
+
+  cors_config {
+    access_control_allow_credentials = false
+    origin_override                  = true
+
+    access_control_allow_origins {
+      items = ["*"]
+    }
+    access_control_allow_methods {
+      items = ["GET", "HEAD"]
+    }
+    access_control_allow_headers {
+      items = ["*"]
+    }
+    access_control_expose_headers {
+      items = ["ETag"]
+    }
+  }
+}
+
+# Mutable floor-plan keys revalidate in browsers; shared caches stay fresh for at
+# most five minutes. Images retain Managed-CachingOptimized and their existing TTL.
+resource "aws_cloudfront_cache_policy" "floor_plans" {
+  name        = "${var.bucket_name}-floor-plans"
+  min_ttl     = 0
+  default_ttl = 300
+  max_ttl     = 300
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+    cookies_config {
+      cookie_behavior = "none"
+    }
+    headers_config {
+      header_behavior = "none"
+    }
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+  }
+}
+
 resource "aws_cloudfront_origin_access_control" "this" {
   name                              = "${var.bucket_name}-oac"
   origin_access_control_origin_type = "s3"
@@ -200,6 +247,17 @@ resource "aws_cloudfront_distribution" "assets" {
     compress                   = true
     cache_policy_id            = data.aws_cloudfront_cache_policy.caching_optimized.id
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.simple_cors.id
+  }
+
+  ordered_cache_behavior {
+    path_pattern               = "floor-plan/*"
+    target_origin_id           = "s3-assets"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = aws_cloudfront_cache_policy.floor_plans.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.floor_plan_cors.id
   }
 
   restrictions {

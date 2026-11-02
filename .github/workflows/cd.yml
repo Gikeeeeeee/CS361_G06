@@ -30,6 +30,10 @@ jobs:
     # Prevent Terraform from running forever
     timeout-minutes: 30
 
+    # Always use the team state; Terraform also validates workspace/bucket identity.
+    env:
+      TF_WORKSPACE: default
+
     defaults:
       run:
         working-directory: terraform/terraform-backend
