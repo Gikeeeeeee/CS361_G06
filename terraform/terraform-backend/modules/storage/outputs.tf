@@ -14,3 +14,8 @@ output "bucket_region" {
   description = "AWS region containing the bucket."
   value       = aws_s3_bucket.this.region
 }
+
+output "cdn_domain" {
+  description = "CloudFront domain serving floor plans and images."
+  value       = aws_cloudfront_distribution.assets.domain_name
+}

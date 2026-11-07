@@ -1,4 +1,4 @@
-# Deploy Flow (AWS Academy Learner Lab)
+# Deploy Flow
 
 ## Prerequisites
 1. [Git](https://git-scm.com/)
@@ -12,24 +12,28 @@ macOS can produce incompatible native binaries.
 
 ---
 
-## 1. Configure AWS Credentials (Learner Lab)
+## 1. Configure AWS Credentials
 
-In AWS Academy Learner Lab, click **AWS Details** -> **AWS CLI** -> **Show**, copy the credentials and set them in your terminal:
+Configure your AWS IAM credentials using the AWS CLI or set them as environment variables:
 
-### macOS / Linux / Git Bash:
+### Option 1: AWS CLI (Recommended)
+```bash
+aws configure
+```
+
+### Option 2: Environment Variables
+#### macOS / Linux / Git Bash:
 ```bash
 export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
 export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"
-export AWS_DEFAULT_REGION="us-east-1"
+export AWS_DEFAULT_REGION="ap-southeast-2"
 ```
 
-### Windows PowerShell:
+#### Windows PowerShell:
 ```powershell
 $env:AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
 $env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-$env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"
-$env:AWS_DEFAULT_REGION="us-east-1"
+$env:AWS_DEFAULT_REGION="ap-southeast-2"
 ```
 
 ### Verify Credentials:
@@ -115,6 +119,21 @@ terraform apply /tmp/cs361-lambda.plan
 
 Targeting is for recovery or a narrowly scoped Lambda update. Run a normal
 full plan afterward to review any remaining changes.
+
+### Automatic deploy (GitHub Actions CD)
+
+`.github/workflows/cd.yml` applies the `default` workspace on every push to
+`main`, and only `main`. It needs these repository secrets (team AWS account):
+
+| Secret | Value |
+|---|---|
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | team deploy credentials |
+| `AWS_SESSION_TOKEN` | only for temporary credentials; otherwise leave unset |
+| `TF_VARS_FILE` | the full contents of the team's `terraform.tfvars` |
+
+CD stops before applying if the plan deletes or replaces any AWS resource.
+That usually means wrong state or wrong variables. Review the plan locally
+and apply it by hand if the delete is intended.
 
 ---
 

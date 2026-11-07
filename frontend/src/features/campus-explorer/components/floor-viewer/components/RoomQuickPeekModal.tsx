@@ -1,4 +1,3 @@
-
 import { X } from "lucide-react";
 import type { Room } from "../types/floorViewer.types";
 
@@ -10,11 +9,16 @@ interface RoomQuickPeekModalProps {
 export function RoomQuickPeekModal({ room, onClose }: RoomQuickPeekModalProps) {
   if (!room) return null;
 
+  const roomTitle =
+    typeof room.name === "string"
+      ? room.name
+      : (room.name as any)?.th || (room.name as any)?.en || room.room_number || "Room";
+
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-11/12 max-w-sm bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-20 transition-all duration-300">
       <div className="p-4 flex justify-between items-start">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{room.name}</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{roomTitle}</h3>
           <p className="text-sm text-slate-500 capitalize">{room.type}</p>
         </div>
         <button

@@ -60,7 +60,6 @@ export function RoomAmenities({ room }: RoomAmenitiesProps) {
       {/* Section Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-blue-600 text-sm">☰</span>
           <h3 className="text-sm font-bold text-slate-900">Amenities & Facilities</h3>
         </div>
         <span className="text-xs font-medium text-slate-400">{amenities.length} items</span>

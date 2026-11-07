@@ -20,12 +20,15 @@ import response
 from auth import verify_token
 from errors import (
     AppError,
+    ForbiddenError,
     InvalidParameter,
     InvalidSchedule,
     MissingParameters,
     RouteNotFound,
     ValidationError,
 )
+from repositories.status_repository import StatusRepository
+from services.status_service import StatusService
 from repositories.building_repository import BuildingRepository
 from repositories.ScheduleRepo import ScheduleRepository
 from repositories.opensearch_repository import OpenSearchRepository
@@ -43,6 +46,8 @@ from repositories.supabase_user_repository import SupabaseUserRepository
 from repositories.supabase_bookmark_repository import SupabaseBookmarkRepository
 from services.user_service import UserService
 from services.bookmark_service import BookmarkService
+from repositories.navigation_repository import NavigationRepository
+from services.navigation_service import NavigationService
 from models.schedule import TYPES
 
 logger = logging.getLogger()
@@ -57,16 +62,17 @@ logger.setLevel(logging.INFO)
 class Dependencies:
     """Every use case the routes can call, built over data sources."""
 
-    def __init__(self, source=None, schedule_source=None, user_source=None, bookmark_source=None):
-        building_source = (
-            source if source is not None else BuildingRepository()
-        )
-        room_source = (
-            source if source is not None else RoomRepository()
-        )
-        facility_source = (
-            source if source is not None else FacilityRepository()
-        )
+    def __init__(
+        self,
+        source=None,
+        schedule_source=None,
+        user_source=None,
+        bookmark_source=None,
+        navigation_source=None,
+    ):
+        building_source = source if source is not None else BuildingRepository()
+        room_source = source if source is not None else RoomRepository()
+        facility_source = source if source is not None else FacilityRepository()
 
         self.buildings = BuildingService(building_source)
         self.floors = FloorService(building_source)
@@ -82,14 +88,42 @@ class Dependencies:
         self.search = None
 
         self._user_source = user_source
-        self._users = (
-            UserService(user_source)
-            if user_source is not None
-            else None
-        )
+        self._users = UserService(user_source) if user_source is not None else None
 
         self._bookmark_source = bookmark_source
         self._bookmarks = None
+
+        self._navigation_source = navigation_source
+        self._navigation = None
+
+        self._status_source = None
+        self._status = None
+
+    @property
+    def navigation(self) -> NavigationService:
+        if self._navigation is None:
+            source = (
+                self._navigation_source
+                if self._navigation_source is not None
+                else NavigationRepository()
+            )
+            self._navigation = NavigationService(source)
+        return self._navigation
+
+    @property
+    def status(self) -> StatusService:
+        if self._status is None:
+            source = (
+                self._status_source
+                if self._status_source is not None
+                else StatusRepository()
+            )
+            self._status = StatusService(source)
+        return self._status
+
+    @status.setter
+    def status(self, value: StatusService):
+        self._status = value
 
     @property
     def bookmarks(self) -> BookmarkService:
@@ -110,7 +144,6 @@ class Dependencies:
             self._users = UserService(source)
         return self._users
 
-
     @property
     def schedules(self) -> ScheduleService:
         if self._schedules is None:
@@ -125,16 +158,18 @@ class Dependencies:
     @schedules.setter
     def schedules(self, value: ScheduleService):
         self._schedules = value
-        if self._schedules is not None and getattr(self._schedules, "room_service", None) is None:
+        if (
+            self._schedules is not None
+            and getattr(self._schedules, "room_service", None) is None
+        ):
             self._schedules.room_service = self.rooms
 
     def ensure_schedules(self) -> ScheduleService:
         return self.schedules
+
     def ensure_search(self):
         if self.search is None:
-            self.search = SearchService(
-                OpenSearchRepository()
-            )
+            self.search = SearchService(OpenSearchRepository())
         return self.search
 
     @property
@@ -183,6 +218,85 @@ def _get_me(deps: Dependencies, p: dict) -> dict:
         "success": True,
         "data": user.to_dict(),
     }
+
+
+QR_LOCATIONS = "/api/v1/qr-locations"
+ROUTES_CHECKPOINTS = "/api/v1/routes/checkpoints"
+
+
+def _get_qr_locations(deps: Dependencies, p: dict) -> dict:
+    locations = deps.navigation.get_all_qr_locations()
+    return {
+        "success": True,
+        "data": locations,
+    }
+
+ROUTES_SEARCH = "/api/v1/routes/search"
+ROUTES_GET = "/api/v1/routes"
+
+
+def _search_routes(deps: Dependencies, p: dict) -> dict:
+    body = p.get("body")
+    if not isinstance(body, dict):
+        raise ValidationError("Request body must be a JSON object")
+
+    start_id = body.get("start_id")
+    start_type = body.get("start_type")
+    destination_id = body.get("destination_id")
+    destination_type = body.get("destination_type", "ROOM")
+    preferences = body.get("preferences")
+
+    if not start_id:
+        raise MissingParameters(["start_id"])
+    if not start_type:
+        raise MissingParameters(["start_type"])
+    if not destination_id:
+        raise MissingParameters(["destination_id"])
+
+    route_res = deps.navigation.calculate_route(
+        start_id=str(start_id),
+        start_type=str(start_type),
+        destination_id=str(destination_id),
+        destination_type=str(destination_type),
+        preferences=preferences,
+    )
+    return {
+        "success": True,
+        "data": route_res.to_dict(),
+    }
+
+
+def _get_routes(deps: Dependencies, p: dict) -> dict:
+    start_node = p.get("start_node")
+    destination_room = p.get("destination_room")
+
+    if not start_node:
+        raise MissingParameters(["start_node"])
+    if not destination_room:
+        raise MissingParameters(["destination_room"])
+
+    route_res = deps.navigation.calculate_route(
+        start_id=str(start_node),
+        start_type="NODE",
+        destination_id=str(destination_room),
+        destination_type="ROOM",
+    )
+    res_dict = route_res.to_dict()
+    path_nodes = [
+        pt["node_id"] for pt in res_dict["svg_path"]["nodes"] if pt.get("node_id")
+    ]
+    instructions = [step["instruction"] for step in res_dict["steps"]]
+    ret = {
+        "summary": res_dict["summary"],
+        "path_nodes": path_nodes,
+        "instructions": instructions,
+        "is_rerouted": res_dict["summary"]["is_rerouted"],
+        "svg_path": res_dict["svg_path"],
+        "steps": res_dict["steps"],
+    }
+    if "floor_segments" in res_dict:
+        ret["floor_segments"] = res_dict["floor_segments"]
+    return ret
 
 
 BOOKMARKS = "/api/v1/bookmarks"
@@ -260,6 +374,53 @@ def _dry_run(params: dict) -> bool:
 
 # V2 Schedule API
 SEARCH = "/api/v1/search"
+
+FLOOR_STATUS_OVERLAY = "/api/v1/floors/{floorId}/status-overlay"
+ROOM_STATUS = "/api/v1/locations/rooms/{roomId}/status"
+CORRIDOR_EDGE_STATUS = "/api/v1/routes/corridor-edges/{edgeId}/status"
+NAVIGATION_NODE_STATUS = "/api/v1/routes/navigation-nodes/{nodeId}/status"
+
+
+def _get_floor_status_overlay(deps: Dependencies, p: dict) -> dict:
+    floor_id = p.get("floor_id") or p.get("floorId")
+    data = deps.status.get_floor_status_overlay(floor_id)
+    return {"success": True, "data": data}
+
+
+def _update_room_status(deps: Dependencies, p: dict) -> dict:
+    room_id = p.get("room_id") or p.get("roomId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_room_status(
+        room_id=room_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
+
+
+def _update_corridor_edge_status(deps: Dependencies, p: dict) -> dict:
+    edge_id = p.get("edge_id") or p.get("edgeId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_corridor_edge_status(
+        edge_id=edge_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
+
+
+def _update_navigation_node_status(deps: Dependencies, p: dict) -> dict:
+    node_id = p.get("node_id") or p.get("nodeId")
+    body = p.get("body") or {}
+    auth_user = p.get("auth_user") or {}
+    data = deps.status.update_navigation_node_status(
+        node_id=node_id,
+        body=body,
+        updated_by=auth_user.get("user_id"),
+    )
+    return {"success": True, "data": data}
 
 
 ROUTES = {
@@ -340,13 +501,17 @@ ROUTES = {
     ),
     f"GET {SEARCH}": Route(
         (),
-        lambda deps, p: deps.ensure_search().search(
-            p["query"],
-            entity_type=p.get("type"),
-            building_id=p.get("buildingId"),
-            page=p.get("page", 1),
-            page_size=p.get("pageSize", 20),
-        ).to_dict(),
+        lambda deps, p: (
+            deps.ensure_search()
+            .search(
+                p["query"],
+                entity_type=p.get("type"),
+                building_id=p.get("buildingId"),
+                page=p.get("page", 1),
+                page_size=p.get("pageSize", 20),
+            )
+            .to_dict()
+        ),
     ),
     SCHEDULE_IMPORTS: Route(
         ("body",),
@@ -359,6 +524,46 @@ ROUTES = {
     f"GET {BOOKMARKS}": Route((), _list_bookmarks),
     f"POST {BOOKMARKS}": Route(("body",), _add_bookmark),
     f"DELETE {BOOKMARK}": Route(("entityId",), _remove_bookmark),
+    f"GET {QR_LOCATIONS}": Route((), _get_qr_locations),
+    "GET /qr-locations": Route((), _get_qr_locations),
+    f"GET {ROUTES_CHECKPOINTS}": Route((), _get_qr_locations),
+    "GET /routes/checkpoints": Route((), _get_qr_locations),
+    f"POST {ROUTES_SEARCH}": Route(("body",), _search_routes),
+    "POST /routes/search": Route(("body",), _search_routes),
+    f"GET {ROUTES_GET}": Route(("start_node", "destination_room"), _get_routes),
+    "GET /routes": Route(("start_node", "destination_room"), _get_routes),
+    f"GET {FLOOR_STATUS_OVERLAY}": Route(("floorId",), _get_floor_status_overlay),
+    "GET /api/v1/floors/{floor_id}/status-overlay": Route(
+        ("floor_id",), _get_floor_status_overlay
+    ),
+    "GET /floors/{floor_id}/status-overlay": Route(
+        ("floor_id",), _get_floor_status_overlay
+    ),
+    f"PATCH {ROOM_STATUS}": Route(("roomId", "body"), _update_room_status),
+    "PATCH /api/v1/locations/rooms/{room_id}/status": Route(
+        ("room_id", "body"), _update_room_status
+    ),
+    "PATCH /locations/rooms/{room_id}/status": Route(
+        ("room_id", "body"), _update_room_status
+    ),
+    f"PATCH {CORRIDOR_EDGE_STATUS}": Route(
+        ("edgeId", "body"), _update_corridor_edge_status
+    ),
+    "PATCH /api/v1/routes/corridor-edges/{edge_id}/status": Route(
+        ("edge_id", "body"), _update_corridor_edge_status
+    ),
+    "PATCH /routes/corridor-edges/{edge_id}/status": Route(
+        ("edge_id", "body"), _update_corridor_edge_status
+    ),
+    f"PATCH {NAVIGATION_NODE_STATUS}": Route(
+        ("nodeId", "body"), _update_navigation_node_status
+    ),
+    "PATCH /api/v1/routes/navigation-nodes/{node_id}/status": Route(
+        ("node_id", "body"), _update_navigation_node_status
+    ),
+    "PATCH /routes/navigation-nodes/{node_id}/status": Route(
+        ("node_id", "body"), _update_navigation_node_status
+    ),
 }
 
 # Routes any signed-in user may call (no STAFF role); verified per request.
@@ -369,6 +574,12 @@ USER_ROUTES = {
     f"DELETE {BOOKMARK}",
 }
 _USER_WRITE_PATH = re.compile(re.escape(BOOKMARKS) + r"(/[^/]+)?/?$")
+
+PUBLIC_WRITE_ROUTES = {
+    f"POST {ROUTES_SEARCH}",
+    "POST /routes/search",
+}
+_PUBLIC_WRITE_PATH = re.compile(r"^(/api/v1)?/routes/search/?$")
 
 
 def _compile(route_key: str) -> tuple[str, re.Pattern]:
@@ -392,11 +603,7 @@ _PATTERNS = [(*_compile(key), key) for key in ROUTES]
 def _method(event: dict) -> str:
     http_info = (event.get("requestContext") or {}).get("http") or {}
 
-    return (
-        http_info.get("method")
-        or event.get("httpMethod")
-        or ""
-    ).upper()
+    return (http_info.get("method") or event.get("httpMethod") or "").upper()
 
 
 def _path(event: dict) -> str:
@@ -407,7 +614,9 @@ def _raw_body(event: dict) -> bytes:
     """Body as bytes, base64-decoded when API Gateway encoded it."""
     body = event["body"]
 
-    return base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+    return (
+        base64.b64decode(body) if event.get("isBase64Encoded") else body.encode("utf-8")
+    )
 
 
 def _json_body(body) -> dict:
@@ -523,7 +732,12 @@ def lambda_handler(event, context):
             if event_key in ROUTES
             else bool(_USER_WRITE_PATH.search(path))
         )
-        if method in ("POST", "PUT", "DELETE") and not user_route:
+        public_write = (
+            event_key in PUBLIC_WRITE_ROUTES
+            if event_key in ROUTES
+            else bool(_PUBLIC_WRITE_PATH.search(path))
+        )
+        if method in ("POST", "PUT", "DELETE") and not user_route and not public_write:
             verify_token(event, required_role="STAFF")
 
         route_key, params = _resolve(event, method, path)
@@ -537,20 +751,35 @@ def lambda_handler(event, context):
         if route_key in USER_ROUTES:
             params["auth_user"] = verify_token(event)
 
+        if route_key and "status" in route_key and method == "PATCH":
+            auth_user = verify_token(event)
+            role = str(auth_user.get("role") or "").upper()
+            if role not in ("STAFF", "ADMIN"):
+                if "room" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update room status."
+                    )
+                elif "corridor-edge" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update corridor edge status."
+                    )
+                elif "navigation-node" in route_key.lower():
+                    raise ForbiddenError(
+                        "You do not have permission to update navigation node status."
+                    )
+                else:
+                    raise ForbiddenError("Operation requires STAFF or ADMIN role.")
+            params["auth_user"] = auth_user
+
         route = ROUTES[route_key]
 
-        missing = [
-            name for name in route.required_params if not params.get(name)
-        ]
+        missing = [name for name in route.required_params if not params.get(name)]
 
         if missing:
             raise MissingParameters(missing)
 
         if route_key == f"GET {SEARCH}":
-            query_params = (
-                event.get("queryStringParameters")
-                or {}
-            )
+            query_params = event.get("queryStringParameters") or {}
 
             params["query"] = query_params.get("q")
 
@@ -560,17 +789,12 @@ def lambda_handler(event, context):
             params["type"] = query_params.get("type")
             params["buildingId"] = query_params.get("buildingId")
             try:
-                params["page"] = int(
-                    query_params.get("page", 1)
-                )
+                params["page"] = int(query_params.get("page", 1))
 
-                params["pageSize"] = int(
-                    query_params.get("pageSize", 20)
-                )
+                params["pageSize"] = int(query_params.get("pageSize", 20))
             except ValueError as exc:
                 raise AppError(
-                    "INVALID_PARAMETER"
-                    "page and pageSize must be integers"
+                    "INVALID_PARAMETERpage and pageSize must be integers"
                 ) from exc
 
         if route_key == f"GET {SCHEDULES}":
@@ -582,7 +806,9 @@ def lambda_handler(event, context):
             try:
                 params["pageSize"] = int(params.get("pageSize", 20))
             except (TypeError, ValueError) as exc:
-                raise InvalidParameter("pageSize must be an integer between 1 and 100.") from exc
+                raise InvalidParameter(
+                    "pageSize must be an integer between 1 and 100."
+                ) from exc
 
             if not 1 <= params["pageSize"] <= 100:
                 raise InvalidParameter("pageSize must be an integer between 1 and 100.")
@@ -608,8 +834,10 @@ def lambda_handler(event, context):
 
         preview = route_key == SCHEDULE_IMPORTS and _dry_run(params)
 
+        is_search = route_key in PUBLIC_WRITE_ROUTES
         return response.ok(
-            route.action(DEPS, params), 201 if method == "POST" and not preview else 200
+            route.action(DEPS, params),
+            200 if (is_search or preview or method != "POST") else 201,
         )
 
     except AppError as exc:

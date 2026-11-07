@@ -10,12 +10,12 @@ output "bucket_arn" {
   value       = module.s3_website.bucket_arn
 }
 
-output "website_endpoint" {
-  description = "S3 static website endpoint."
-  value       = module.s3_website.website_endpoint
+output "cloudfront_domain" {
+  description = "CloudFront domain serving the frontend."
+  value       = module.s3_website.cloudfront_domain
 }
 
 output "website_url" {
-  description = "HTTP URL of the static frontend website."
+  description = "HTTPS URL of the frontend (CloudFront)."
   value       = module.s3_website.website_url
 }

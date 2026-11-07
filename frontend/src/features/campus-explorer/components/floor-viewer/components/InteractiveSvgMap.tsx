@@ -1,15 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { appendCorridorOverlay } from '../../../../admin-status/components/corridorOverlay';
+import type { CorridorSegment } from '../../../../admin-status/components/corridorOverlay';
 
 interface InteractiveSvgMapProps {
   svgContent: string;
   highlightedRoomId?: string | null;
+  statusOverlay?: Record<string, { status: string; note?: string | null }>;
   onRoomClick?: (roomId: string, rawElementId: string) => void;
   enableZoomPan?: boolean;
   minScale?: number;
   maxScale?: number;
   showControls?: boolean;
+  corridors?: CorridorSegment[];
+  selectedCorridorId?: string | null;
+  onCorridorClick?: (edgeId: string) => void;
 }
 
 function normalizeRoomId(id: string | null | undefined): string {
@@ -25,20 +31,39 @@ function normalizeRoomId(id: string | null | undefined): string {
 export function InteractiveSvgMap({
   svgContent,
   highlightedRoomId,
+  statusOverlay,
   onRoomClick,
   enableZoomPan = true,
   minScale = 0.6,
   maxScale = 4,
   showControls = true,
+  corridors,
+  selectedCorridorId,
+  onCorridorClick,
 }: InteractiveSvgMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
+  useEffect(() => {
+    const svg = containerRef.current?.querySelector('svg');
+    if (!svg || !corridors) return;
+    const remove = appendCorridorOverlay(svg, corridors, selectedCorridorId);
+    const onKey = (event: KeyboardEvent) => {
+      const item = (event.target as Element).closest('[data-corridor-id]');
+      if (item && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        onCorridorClick?.(item.getAttribute('data-corridor-id')!);
+      }
+    };
+    svg.addEventListener('keydown', onKey);
+    return () => { remove(); svg.removeEventListener('keydown', onKey); };
+  }, [svgContent, corridors, selectedCorridorId, onCorridorClick]);
+
   // Click handler on rooms and facilities with drag distinction
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || !onRoomClick) return;
+    if (!container || (!onRoomClick && !onCorridorClick)) return;
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
@@ -70,16 +95,23 @@ export function InteractiveSvgMap({
 
       const target = e.target as HTMLElement | SVGElement | null;
       if (!target) return;
+      const corridor = target.closest('[data-corridor-id]');
+      if (corridor) {
+        onCorridorClick?.(corridor.getAttribute('data-corridor-id')!);
+        return;
+      }
 
       // Find closest interactable room or facility shape
       const interactable = target.closest(
-        '.room-shape, .facility-shape, [id^="room-"], [id^="facility-"], g[id], rect[id], path[id], polygon[id]'
+        '[data-room-id], .room-shape, .facility-shape, [id^="room-"], [id^="facility-"], g[id], rect[id], path[id], polygon[id]'
       ) as Element | null;
 
-      if (interactable && interactable.id) {
-        const rawId = interactable.id;
-        const cleanId = rawId.replace(/^(room-|facility-)/, "");
-        onRoomClick(cleanId, rawId);
+      if (interactable) {
+        const rawId = interactable.id || interactable.getAttribute('data-room-id') || '';
+        const cleanId = interactable.getAttribute('data-room-id') || rawId.replace(/^(room-|facility-)/, '');
+        if (cleanId) {
+          onRoomClick?.(cleanId, rawId);
+        }
       }
     };
 
@@ -96,22 +128,38 @@ export function InteractiveSvgMap({
       container.removeEventListener("touchmove", handlePointerMove as EventListener);
       container.removeEventListener("click", handleClick);
     };
-  }, [onRoomClick, svgContent]);
+  }, [onRoomClick, onCorridorClick, svgContent]);
 
-  // Exact element and text highlighting in SVG
+  // Exact element and text highlighting in SVG with statusOverlay support
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // 1. Reset all previous highlights on shapes
+    // 1. Reset all previous highlights and set data-room-id attributes on shapes
     const allShapes = container.querySelectorAll(
-      ".room-shape, .facility-shape, [id^='room-'], [id^='facility-'], rect[id], polygon[id], path[id]"
+      ".room-shape, .facility-shape, [id^='room-'], [id^='facility-'], rect[id], polygon[id], path[id], g[id]"
     );
     allShapes.forEach((el) => {
-      el.classList.remove("highlight");
-      (el as HTMLElement).style.fill = "";
-      (el as HTMLElement).style.stroke = "";
-      (el as HTMLElement).style.strokeWidth = "";
+      const rawId = el.id || '';
+      const cleanId = rawId.replace(/^(room-|facility-)/, '');
+      if (cleanId) {
+        el.setAttribute('data-room-id', cleanId);
+      }
+
+      const elementsToReset =
+        el.tagName.toLowerCase() === "g"
+          ? [el, ...Array.from(el.querySelectorAll("rect, polygon, path"))]
+          : [el];
+
+      elementsToReset.forEach((t) => {
+        const htmlT = t as HTMLElement;
+        htmlT.classList.remove("highlight");
+        htmlT.style.fill = "";
+        htmlT.style.stroke = "";
+        htmlT.style.strokeWidth = "";
+        htmlT.style.strokeDasharray = "";
+        htmlT.removeAttribute("title");
+      });
     });
 
     // 2. Reset all text colors
@@ -121,12 +169,65 @@ export function InteractiveSvgMap({
       t.style.fontWeight = "";
     });
 
+    // 3. Apply statusOverlay styles if provided
+    if (statusOverlay && Object.keys(statusOverlay).length > 0) {
+      allShapes.forEach((el) => {
+        const rawId = el.id || "";
+        const cleanId = rawId.replace(/^(room-|facility-)/, "");
+        const normId = normalizeRoomId(cleanId);
+
+        // Find status entry matching rawId, cleanId, or normId
+        let entry = statusOverlay[rawId] || statusOverlay[cleanId] || statusOverlay[normId];
+        if (!entry) {
+          // Check case-insensitive / partial match in status keys
+          for (const [k, val] of Object.entries(statusOverlay)) {
+            if (normalizeRoomId(k) === normId || k.toLowerCase().endsWith(normId.toLowerCase())) {
+              entry = val;
+              break;
+            }
+          }
+        }
+
+        if (entry) {
+          const status = entry.status?.toUpperCase();
+          const note = entry.note ? ` (${entry.note})` : "";
+          const targets =
+            el.tagName.toLowerCase() === "g"
+              ? [el, ...Array.from(el.querySelectorAll("rect, polygon, path"))]
+              : [el];
+
+          targets.forEach((t) => {
+            const htmlEl = t as HTMLElement;
+            if (status === "MAINTENANCE") {
+              htmlEl.style.setProperty("fill", "#FEF08A", "important"); // amber/yellow-200
+              htmlEl.style.setProperty("stroke", "#CA8A04", "important"); // amber-600
+              htmlEl.style.setProperty("stroke-width", "1.8px", "important");
+              htmlEl.setAttribute("title", `Status: Under Maintenance${note}`);
+            } else if (status === "CLOSED" || status === "BLOCKED") {
+              htmlEl.style.setProperty("fill", "#FECACA", "important"); // red-200
+              htmlEl.style.setProperty("stroke", "#DC2626", "important"); // red-600
+              htmlEl.style.setProperty("stroke-width", "2px", "important");
+              if (status === "BLOCKED") {
+                htmlEl.style.setProperty("stroke-dasharray", "4 2", "important");
+              }
+              htmlEl.setAttribute("title", `Status: Closed${note}`);
+            } else if (status === "ACTIVE") {
+              htmlEl.style.setProperty("fill", "#BBF7D0", "important"); // emerald-200
+              htmlEl.style.setProperty("stroke", "#16A34A", "important"); // emerald-600
+              htmlEl.style.setProperty("stroke-width", "1.5px", "important");
+              htmlEl.setAttribute("title", "Status: Active / Available");
+            }
+          });
+        }
+      });
+    }
+
     if (!highlightedRoomId) return;
 
     const targetNorm = normalizeRoomId(highlightedRoomId); // e.g. "101" or "101-1"
     if (!targetNorm) return;
 
-    // 3. Find shape element with EXACT match (priority: #room-target, [id="room-target"], exact normalized match)
+    // 4. Find shape element with EXACT match (priority: #room-target, [id="room-target"], exact normalized match)
     let matchedShape: Element | null = null;
 
     // Direct selectors
@@ -156,11 +257,11 @@ export function InteractiveSvgMap({
         el.classList.add("highlight");
         (el as HTMLElement).style.setProperty("fill", "#2563EB", "important");
         (el as HTMLElement).style.setProperty("stroke", "#1D4ED8", "important");
-        (el as HTMLElement).style.setProperty("stroke-width", "2.5px", "important");
+        (el as HTMLElement).style.setProperty("stroke-width", "3px", "important");
       });
     }
 
-    // 4. Highlight matching text element with EXACT match
+    // 5. Highlight matching text element with EXACT match
     allText.forEach((t) => {
       const textContent = t.textContent?.trim() || "";
       const textNorm = normalizeRoomId(textContent);
@@ -175,7 +276,7 @@ export function InteractiveSvgMap({
         t.style.setProperty("font-weight", "bold", "important");
       }
     });
-  }, [highlightedRoomId, svgContent]);
+  }, [highlightedRoomId, statusOverlay, svgContent]);
 
   // Base styles for container and interactive shapes
   const dynamicStyles = `
@@ -248,6 +349,95 @@ export function InteractiveSvgMap({
     }
   `;
 
+  // Persistent declarative CSS overlay for 100% rock-solid styling across renders
+  const overlayStyles = useMemo(() => {
+    if (!svgContent) return "";
+
+    const regex = /<([a-z0-9]+)[^>]*id="([^"]+)"[^>]*>/gi;
+    let m;
+    const shapes: string[] = [];
+    while ((m = regex.exec(svgContent)) !== null) {
+      const rawId = m[2];
+      const fullTag = m[0];
+      if (rawId.startsWith('room-') || rawId.startsWith('facility-') || fullTag.includes('room-shape')) {
+        shapes.push(rawId);
+      }
+    }
+
+    const targetNorm = highlightedRoomId ? normalizeRoomId(highlightedRoomId) : null;
+    const rules: string[] = [];
+
+    shapes.forEach((rawId) => {
+      const cleanId = rawId.replace(/^(room-|facility-)/, "");
+      const normId = normalizeRoomId(cleanId);
+
+      const isHighlighted =
+        targetNorm &&
+        (normId === targetNorm ||
+          cleanId.toLowerCase() === targetNorm.toLowerCase() ||
+          rawId.toLowerCase() === targetNorm.toLowerCase());
+
+      if (isHighlighted) {
+        rules.push(`
+          .svg-map-container [id="${rawId}"],
+          .svg-map-container #${rawId} {
+            fill: #2563EB !important;
+            stroke: #1D4ED8 !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.45));
+          }
+        `);
+        return;
+      }
+
+      if (statusOverlay && Object.keys(statusOverlay).length > 0) {
+        let entry = statusOverlay[rawId] || statusOverlay[cleanId] || statusOverlay[normId];
+        if (!entry) {
+          for (const [k, val] of Object.entries(statusOverlay)) {
+            if (normalizeRoomId(k) === normId || k.toLowerCase().endsWith(normId.toLowerCase())) {
+              entry = val;
+              break;
+            }
+          }
+        }
+
+        if (entry) {
+          const status = entry.status?.toUpperCase();
+          if (status === "MAINTENANCE") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #FEF08A !important;
+                stroke: #CA8A04 !important;
+                stroke-width: 1.8px !important;
+              }
+            `);
+          } else if (status === "CLOSED" || status === "BLOCKED") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #FECACA !important;
+                stroke: #DC2626 !important;
+                stroke-width: 2px !important;
+              }
+            `);
+          } else if (status === "ACTIVE") {
+            rules.push(`
+              .svg-map-container [id="${rawId}"],
+              .svg-map-container #${rawId} {
+                fill: #BBF7D0 !important;
+                stroke: #16A34A !important;
+                stroke-width: 1.5px !important;
+              }
+            `);
+          }
+        }
+      }
+    });
+
+    return rules.join("\n");
+  }, [svgContent, statusOverlay, highlightedRoomId]);
+
   const mapSvgContent = (
     <div
       ref={containerRef}
@@ -259,7 +449,7 @@ export function InteractiveSvgMap({
   if (!enableZoomPan) {
     return (
       <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        <style>{dynamicStyles}</style>
+        <style>{dynamicStyles}{overlayStyles}</style>
         {mapSvgContent}
       </div>
     );
@@ -267,7 +457,7 @@ export function InteractiveSvgMap({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      <style>{dynamicStyles}</style>
+      <style>{dynamicStyles}{overlayStyles}</style>
       <TransformWrapper
         initialScale={1}
         minScale={minScale}

@@ -85,6 +85,28 @@ def test_api_get_building_summary_contract(api_base_url: str):
     assert isinstance(data["floors"], list)
 
 
+def test_api_get_buildings_warm_repeat_is_cached(api_base_url: str):
+    """Live API (#243): repeated GET /api/v1/buildings serves the same cached list."""
+    first = _request("GET", "/api/v1/buildings", api_base_url)
+    warm = [_request("GET", "/api/v1/buildings", api_base_url) for _ in range(5)]
+
+    assert all(r.status_code == 200 and r.json() == first.json() for r in warm)
+    best_ms = min(r.elapsed.total_seconds() for r in warm) * 1000
+    print(f"\nGET /buildings first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
+
+
+@pytest.mark.skipif(not os.getenv("STAFF_TOKEN"), reason="needs a Supabase token: export STAFF_TOKEN")
+def test_api_get_me_warm_repeat_reuses_supabase_connection(api_base_url: str):
+    """Live API (#245): repeated GET /api/v1/users/me stays 200 over the shared Supabase Session."""
+    auth = {"Authorization": f"Bearer {os.environ['STAFF_TOKEN']}"}
+    first = _request("GET", "/api/v1/users/me", api_base_url, headers=auth)
+    warm = [_request("GET", "/api/v1/users/me", api_base_url, headers=auth) for _ in range(5)]
+
+    assert all(r.status_code == 200 and r.json() == first.json() for r in [first, *warm])
+    best_ms = min(r.elapsed.total_seconds() for r in warm) * 1000
+    print(f"\nGET /users/me first={first.elapsed.total_seconds() * 1000:.0f}ms warm_best={best_ms:.0f}ms")
+
+
 def test_api_get_building_not_found_contract(api_base_url: str):
     """Live API contract: Non-existent building returns 404 with standard error body."""
     res = _request("GET", "/api/v1/buildings/NON_EXISTENT_BUILDING_XYZ", api_base_url)
@@ -93,6 +115,26 @@ def test_api_get_building_not_found_contract(api_base_url: str):
     data = res.json()
     assert "error" in data
     assert data["error"]["code"] == "BUILDING_NOT_FOUND"
+
+
+def test_api_floor_plan_served_from_cdn(api_base_url: str):
+    """Live: floor plan URL is a stable CloudFront URL, cached at the edge with CORS."""
+    floors = _request("GET", "/api/v1/buildings/LC3", api_base_url).json()["floors"]
+    floor = _request("GET", f"/api/v1/floors/{floors[0]['id']}", api_base_url).json()
+    url = floor["floor_plan"]["url"]
+
+    assert ".cloudfront.net/" in url
+    assert "X-Amz-Signature" not in url
+
+    headers = {"Origin": "https://example.com"}
+    requests.get(url, headers=headers, timeout=10)  # warm the edge
+    res = requests.get(url, headers=headers, timeout=10)
+
+    assert res.status_code == 200
+    assert res.headers["Content-Type"] == "image/svg+xml"
+    assert res.headers["Cache-Control"] == "public, max-age=86400"
+    assert res.headers["X-Cache"] == "Hit from cloudfront"
+    assert res.headers["Access-Control-Allow-Origin"] == "*"
 
 
 def test_api_cors_preflight_contract(api_base_url: str):
@@ -155,9 +197,9 @@ def throwaway_room(api_base_url: str):
         return
 
     table = boto3.resource("dynamodb").Table(table_name)
+    # Base-table partition: every schedule plus the room's SCHEDULE_VERSION item.
     written = table.query(
-        IndexName="GSI4",
-        KeyConditionExpression=Key("GSI4PK").eq(f"ROOM#{room_id}"),
+        KeyConditionExpression=Key("PK").eq(f"ROOM#{room_id}"),
     ).get("Items", [])
 
     with table.batch_writer() as batch:
@@ -220,6 +262,7 @@ def test_api_post_schedule_contract(api_base_url: str, throwaway_room: str):
     assert set(stored[0]) == {
         "id", "type", "title", "description", "course_code", "organizer",
         "start_at", "end_at", "time_zone", "recurrence_rule", "room_id", "status",
+        "visibility",
     }
 
 
@@ -240,10 +283,37 @@ def test_api_post_schedule_conflict_contract(api_base_url: str, throwaway_room: 
     assert res.json()["error"]["code"] == "SCHEDULE_CONFLICT"
 
 
+def test_api_concurrent_posts_on_the_same_slot_book_once(
+    api_base_url: str, throwaway_room: str
+):
+    """Live API contract (#238): two simultaneous POSTs, one 201 and one 409."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    path = f"/api/v1/rooms/{throwaway_room}/schedules"
+
+    with ThreadPoolExecutor(2) as pool:
+        responses = list(
+            pool.map(
+                lambda title: _request(
+                    "POST", path, api_base_url, json_body=_schedule(title=title)
+                ),
+                ["Race A", "Race B"],
+            )
+        )
+
+    assert sorted(res.status_code for res in responses) == [201, 409]
+    [lost] = [res for res in responses if res.status_code == 409]
+    assert lost.json()["error"]["code"] == "SCHEDULE_CONFLICT"
+    assert len(_schedules(api_base_url, throwaway_room).json()["data"]) == 1
+
+
 def test_api_post_schedule_stores_a_recurrence_rule_once(
     api_base_url: str, throwaway_room: str
 ):
-    """Live API contract: one POST with an RRULE is one item, rule attached."""
+    """Live API contract: one POST with an RRULE is one series, rule attached.
+
+    GET expands it into one row per occurrence (AP15); all rows share one id.
+    """
     res = _request(
         "POST",
         f"/api/v1/rooms/{throwaway_room}/schedules",
@@ -252,8 +322,10 @@ def test_api_post_schedule_stores_a_recurrence_rule_once(
     )
 
     assert res.status_code == 201
-    [stored] = _schedules(api_base_url, throwaway_room).json()["data"]
-    assert stored["recurrence_rule"] == "FREQ=WEEKLY;BYDAY=TU;COUNT=15"
+    rows = _schedules(api_base_url, throwaway_room).json()["data"]
+    assert len(rows) == 15
+    assert {row["id"] for row in rows} == {rows[0]["id"]}
+    assert {row["recurrence_rule"] for row in rows} == {"FREQ=WEEKLY;BYDAY=TU;COUNT=15"}
 
 
 @pytest.mark.parametrize(
