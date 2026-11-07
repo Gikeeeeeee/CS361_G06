@@ -14,7 +14,7 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-screen fixed left-0 top-0">
+    <aside className="w-full lg:w-64 bg-white border-r border-slate-200 flex flex-col lg:h-screen lg:fixed left-0 top-0">
       <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-200 shrink-0">
         <svg viewBox="0 0 400 300" className="w-8 h-8 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
           <polygon points="50,40 200,40 145,145 200,250 50,250" fill="#90132B" />
@@ -26,7 +26,7 @@ export function AdminSidebar() {
         </span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex lg:block gap-1 p-2 lg:p-4 lg:space-y-1 overflow-x-auto lg:overflow-y-auto lg:flex-1">
         {adminNavConfig.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -35,7 +35,7 @@ export function AdminSidebar() {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              className={`flex shrink-0 items-center gap-3 px-3 py-2.5 rounded-lg whitespace-nowrap transition-colors ${
                 isActive 
                   ? 'bg-blue-50 text-blue-700 font-medium' 
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -55,7 +55,7 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-200">
+      <div className="hidden lg:block p-4 border-t border-slate-200">
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 w-full text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium cursor-pointer"
