@@ -716,3 +716,73 @@ an owner-approved infrastructure/application ownership and artifact-management
 decision outside this audit's implementation scope. No feature integration,
 ignore_changes workaround, resource removal or automatic deployment is proposed
 as part of #284. No work on #281 was performed.
+
+## 6. V5 CI validation (#281)
+
+Work for [Issue #281](https://github.com/Gikeeeeeee/CS361_G06/issues/281)
+was performed separately on `feature/v5/ci-validation`, created from
+`feature/v5/terraform-state-audit` at `aec199c`. The #284 commits, documentation,
+Terraform version constraint and CI improvements are inherited. This section
+records local CI validation, not resolution of the infrastructure drift recorded
+above. No application, Terraform resource or CD workflow was changed for #281.
+
+### Implementation and reused work
+
+Only `.github/workflows/ci.yml` and this documentation changed relative to the
+audit branch. Reused from #284: PR targets `main`, `V4`, `V5`; Python 3.13 tests
+excluding the `api` marker; both Terraform roots in a matrix; recursive formatting,
+backend-disabled noninteractive initialization and validation with committed
+provider locks.
+
+Additional CI changes give each Terraform root a distinct check name, disable
+matrix fail-fast so both roots report results, restrict the workflow token to
+`contents: read`, and pin Terraform to the locally verified version 1.15.8.
+No step uses `continue-on-error`. No AWS credentials action, secrets reference,
+plan, apply, import, state operation or deployment command exists in CI.
+
+The expected check names are `Python Tests`,
+`Terraform Validate (terraform-backend)` and
+`Terraform Validate (terraform-frontend)`. Failing commands fail their jobs;
+requiring those jobs for merge depends on repository branch-protection settings.
+
+### Local evidence
+
+| Check | Result |
+|---|---|
+| Backend `python -m pytest -v -m "not api" -p no:cacheprovider` | **361 passed, 38 deselected** on Python 3.13, with AWS environment credentials removed and shared credential/config lookup disabled. The local cache-provider switch avoids an unrelated inaccessible pytest cache; CI retains its original pytest command. |
+| Both roots: `terraform fmt -check -recursive` | Pass. |
+| Both roots: `terraform init -backend=false -input=false -lockfile=readonly` | Pass using fresh isolated source/data directories without copied state, tfvars or `.terraform` caches. Public provider-registry downloads required network access outside the sandbox; AWS configuration and credentials remained disabled. |
+| Both roots: `terraform validate -no-color` | Pass on Terraform 1.15.8. Backend retains 14 DynamoDB deprecation warnings; frontend has no validation warning. |
+| Invalid Terraform negative control, each isolated root | A temporary output referring to an undeclared resource was rejected with exit 1 and `Reference to undeclared resource`. The temporary files were removed. No tracked Terraform file changed. |
+| `actionlint` 1.7.12 against `ci.yml` | Pass for workflow syntax, expressions, matrix context and action inputs. Official release SHA256 verified. ShellCheck/Pyflakes integration disabled because those optional tools were not part of this local check. |
+| YAML and configuration assertions | Pass: V5 PR target, both roots, read-only token, noninteractive backend-disabled init, no ignored failures, no secret references, pinned Terraform and correct ancestor branch. |
+| `git diff --check` and scope checks | Pass; backend/frontend, Terraform files and CD workflow unchanged from the audit branch. |
+
+No live remote backend was initialized. No AWS API, Terraform plan or
+state-changing command was run for #281. The validation snapshots did not
+create a backend metadata/state file. Committed provider locks remain unchanged.
+
+### Acceptance status and remaining verification
+
+V5 PR triggering and both-root execution are correctly configured and pass
+local static checks. Backend tests and credential-free Terraform checks pass;
+invalid Terraform fails validation. Existing V5 functionality and all production
+resources/data remain unchanged. Local implementation is **ready for review**.
+
+The issue additionally requires a workflow run URL. A published PR targeting
+V5 must confirm actual GitHub-hosted Ubuntu execution, action/dependency
+downloads, all three check results and attach its run URL. Local Windows checks
+do not establish a GitHub-hosted run. A GitHub read of V5 branch protection
+returned 403 (`Resource not accessible by integration`), so required-check merge
+enforcement is unverified. An administrator should verify the actual check names
+from that run are required; no branch-protection change was attempted.
+
+These are remote acceptance-evidence gaps, not failures of the local tests.
+Issue #281 should not be marked fully accepted until run evidence and merge-gate
+configuration are verified. No commit, push, PR creation, merge, deployment or
+work on another issue was performed.
+
+References: [GitHub workflow syntax and PR branch filters](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax),
+[matrix context availability](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts),
+[Terraform backend-disabled initialization](https://developer.hashicorp.com/terraform/cli/commands/init),
+[static Terraform validation](https://developer.hashicorp.com/terraform/cli/commands/validate).

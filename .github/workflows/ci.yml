@@ -10,6 +10,9 @@ on:
       - V4
       - V5
 
+permissions:
+  contents: read
+
 jobs:
   # --------------------------------------------------
   # Python Tests
@@ -51,9 +54,10 @@ jobs:
   # Validates the Terraform configuration without
   # connecting to or modifying AWS infrastructure.
   terraform:
-    name: Terraform Validate
+    name: Terraform Validate (${{ matrix.root }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         root: [terraform-backend, terraform-frontend]
 
@@ -69,6 +73,8 @@ jobs:
       # Install Terraform CLI
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
