@@ -63,7 +63,8 @@ an apply artifact. Without a lock, concurrent operations can invalidate it; no
 deployment/reproducibility claim follows from a passing snapshot.
 
 The guard rejects AWS creates/deletes/replacements, imports/moves/forget,
-identity/runtime/IAM/environment changes, unreviewed drift and incomplete or
+identity/runtime/IAM/environment changes, changed or deferred Lambda packages,
+unreviewed drift and incomplete or
 ambiguous evidence. #284's six deletes and Lambda/authentication concerns remain
 visible. One narrowly classified local change is reviewed separately: replacement
 of the **existing** `module.lambda.terraform_data.build` under the built-in
@@ -1728,3 +1729,155 @@ effective credential permissions and historical state-security/recovery gaps
 are not repaired by passing local tests. Frontend infrastructure deployment is
 explicitly **not covered by this Dry Run**, not an unfinished stage that will
 silently start after a backend plan succeeds.
+
+## 13. Remaining V5 implementation: offline completion and approval boundaries
+
+This update completes the remaining safe implementation work in two isolated
+branches. It does not certify a deployed V5 release or authorize execution.
+No GitHub Issue was modified. Application files, Terraform resources, frontend
+build configuration, existing SVGs and production infrastructure remain unchanged.
+
+### Separate manual dry-run branch targeting main
+
+`feature/v5/manual-backend-dry-run` is based on `origin/main` at `03ffff6`,
+prepared in an isolated worktree. Its new `backend-dry-run.yml` has only
+`workflow_dispatch`, read-only GitHub token permissions and a main-ref job guard.
+It includes exact copies of `deployment_guard.py`, `sandbox_validation.py` and
+the focused guard tests from this PR, plus workflow regressions and
+`ManualDryRun.md`. Runtime guard dependencies are Python stdlib only.
+
+The workflow reuses the existing backend, default workspace and credential
+references. It prepares the existing Linux Lambda package locally before AWS
+credentials so cold-checkout archive reads do not require a fictitious ZIP.
+It can only init/validate/plan/inspect, with lock-free snapshot semantics,
+sanitized reporting and private-file cleanup. It cannot apply/destroy, repair
+state, upload frontend files, invalidate caches, publish alerts or run the
+post-deployment verifier. Known drift/code mismatches can correctly fail its
+guard; readiness does not mean every actual plan will pass.
+
+The branch leaves main's production `cd.yml`, CI, application and Terraform
+files unchanged; tests check the production workflow's normalized checksum.
+Pushing the feature branch does not trigger production. No separate PR is
+created automatically; the branch is prepared for human review targeting main.
+
+**Installation requires an explicit owner decision:** GitHub needs the manual
+workflow on the default branch before dispatch is available. Existing main CD
+matches every main push and still applies. Therefore merging even this small
+branch could trigger production. No merge, skip/disable workaround, settings
+change or workflow execution is performed. Coordinate a separately approved
+installation that prevents production execution; do not claim that a manual-only
+new file disables the independent production workflow.
+
+### #284 minimum safe changes and remaining drift
+
+All six async-import deletion candidates remain unchanged in Terraform and
+state. Missing definitions cannot establish obsolescence. Offline reconciliation
+cannot decide which application/infrastructure release should own them. No
+feature restoration, imports, state removal/migration or targeted plan is added.
+The guard continues to report the known addresses and rejects their deletion.
+
+The additional safe fix is to reject Lambda package changes even when the
+function identity is unchanged. Changed/deferred `source_code_hash`, local ZIP,
+S3 package inputs or container-image URI now report
+`lambda_artifact_compatibility_unverified`. Code and authentication-environment
+risks are recorded together, without their values. A local packaging-helper
+replacement is still recognized separately, only with the existing builtin
+provider/address, exact prior-state binding, null input and known changed
+SHA-256 triggers. This never exempts an accompanying AWS replacement or grants
+apply permission.
+
+The packaging helper's archive data source needs local build output on a cold
+runner. The new manual workflow reuses the original builder; no Terraform block
+is changed. Unpinned transitive packages, Docker availability, archive metadata
+and source line endings can affect hashes. Building a package does not prove
+compatibility with the deployed async implementation. Actual current actions
+require a refreshed, explicitly authorized read-only plan and trusted deployed/
+proposed artifact evidence. No remote plan or deployed ZIP was retrieved here.
+
+### Frontend path: verified source facts, no speculative writer
+
+The configured hosting is a private S3 bucket behind CloudFront/OAC; Terraform
+source declares one managed object per `dist/` file. The operator confirmed no
+established frontend state is to be created or preserved this iteration. The
+actual operator/tool that uploaded the live site and the bucket/distribution
+ownership are not established by source or tfvars. Consequently neither an
+empty-state Terraform apply nor a parallel direct S3 sync is a safe inference.
+No frontend deployment writer is introduced.
+
+Existing locked CI build/integrity checks remain intact. The new non-destructive
+portion verifies the approved frontend's root HTML and every static file against
+the exact trusted manifest hashes/sizes and expected content types. It detects
+old HTML, stale JS/SVG and SPA 200 fallbacks; it never mixes these with backend
+floor-plan objects or overwrites any SVG. It checks served bytes, not S3
+VersionId history, cache age, browser execution or external Leaflet bodies.
+Live ownership/configuration and object-version provenance remain evidence gaps.
+
+### Prepared post-deployment verification contract
+
+`scripts/post_deployment_verify.py` coordinates the existing API/SVG checker and
+frontend integrity verification. It is not called from either dry-run workflow.
+Before **any HTTP request**, it requires an explicitly authorized successful
+deployment receipt, verified-target assertion, approval/run provenance, matching
+full commit in a clean frontend manifest, local artifact integrity and a clean,
+tracked backend asset checkout at that same commit. Missing/failed/dry-run
+receipts and dirty/mismatched baselines fail locally. There is no bypass option.
+
+The receipt is private, trusted operator/pipeline input, **not a cryptographic
+approval or independent AWS ownership attestation**. The verifier does not query
+GitHub to authenticate a supplied status or discover resource IDs. A future
+protected, explicitly approved post-apply process must produce it and the
+immutable release artifact. Never fabricate a receipt from CI success or accept
+one from an untrusted PR artifact. Required receipt fields:
+
+| Field | Required evidence |
+|---|---|
+| `mode`, `authorized`, `status`, `targets_verified` | Exactly `deployment`, true, `success`, true, from the approved deployment process. Dry runs cannot qualify. |
+| `commit` | Full lowercase 40-character deployment SHA; must equal manifest revision and backend asset checkout HEAD. |
+| `approval_reference`, `deployment_run_url` | Actual approval provenance and HTTPS run URL; no credentials or signed query values. |
+| `backend.api_base_url`, `backend.asset_base_url` | Approved existing endpoint/CDN bases from the deployed environment, never guesses. |
+| `frontend.base_url` | Approved existing root website origin after independent ownership verification. |
+
+Future post-deployment call interface (not executed here):
+
+```text
+python scripts/post_deployment_verify.py --receipt <private-approved-receipt.json> --artifact <approved-release-directory> --assets-dir <clean-release-checkout>/building-data
+```
+
+Only GET is used. It verifies the sampled public API/building/floor contract,
+backend SVG origin/path/XML/MIME/content, then frontend root and static assets.
+Redirects are refused by the reused HTTP client. Failed checks report the actual
+phase as failed and later phases as not run. Output contains only static status/
+failure categories, never targets, bodies, tokens or exception text. Exit 0 is
+sampled verification success, 1 a remote/content failure, 2 missing/untrusted
+prerequisites. No retry deployment, rollback, resource write or notification
+exists. A future job can append this sanitized JSON to its run summary; current
+dry-run summaries remain separate and do not claim post-deployment success.
+
+### Focused validation and consolidated blockers
+
+| Local validation | Result |
+|---|---|
+| PR #288: `test_deployment_guard.py` and `test_post_deployment_verify.py` | **74 passed**: 51 guard cases and 23 receipt/API/SVG/frontend verification cases. All HTTP is mocked; Git baseline cases use local metadata mocks. |
+| Main-based branch: guard and manual-workflow tests | **56 passed**. Production workflow checksum preserved, manual-only/main-ref gating, no write/live-verification path, cold package step before credentials and complete guard dependencies checked. |
+| New manual workflow actionlint 1.7.12 | Pass; optional external ShellCheck/Pyflakes disabled. |
+| Scope/diff | Both branches pass `git diff --check`. Main-based production CD/CI/application/Terraform match `origin/main`; PR #288 application/Terraform/build configuration and dry-run workflow are unchanged. Copied runtime guard files match PR #288 exactly. |
+
+No full 204-test
+automation run, 361-test backend suite or frontend build is repeated: only
+changed guard/coordinator/workflow cases are relevant. No Terraform configuration
+or frontend build configuration changed, so fmt/validate/build repetitions are
+unnecessary. Whitespace/scope checks cover both branches.
+
+| Pending item | Evidence/approval required |
+|---|---|
+| Manual workflow installation/run | Separate main-target review, an installation plan preventing the existing production push workflow, then explicit authorization for a manual read-only run. No merge/dispatch occurred. |
+| Backend drift and code baseline | Fresh authorized remote plan, caller/state/region evidence, decision on the six deployed async resources and trusted artifact/authentication compatibility review. No destructive reconciliation is implemented. |
+| Frontend release writer | Existing bucket/distribution/account/region ownership, current public build configuration, actual object writer/versions/cache behavior and owner approval of a non-conflicting release path. No state or infrastructure provisioning workaround. |
+| Actual deployment | Explicit reviewed human approval and production protections; dry-run code does not confer permission. Existing main security findings remain applicable. |
+| Live post-deployment evidence | Successful authorized deployment receipt/run, immutable frontend manifest, matching clean asset baseline and actual API/frontend/SVG results. Fixtures are not live evidence. |
+
+#278 is **not fully satisfied** by local code: CI/source implementation and
+offline protections are prepared, but live post-deployment evidence, an
+ownership-backed frontend release decision and approved production integration
+are outstanding. Sandbox recreation/repeat apply is not reintroduced as a
+closure requirement. Keep PR #288 Draft; no Issue status is changed.

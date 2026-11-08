@@ -50,15 +50,16 @@ def existing():
 def test_existing_noop_bound_to_state(existing):
     result, code = guard.inspect_plan(*existing)
     assert code == 0 and result["result"] == "existing_backend_plan_checked"
-    assert result["apply_permitted"] is False and result["frontend_scope"] == "ci_build_only"
+    assert result["apply_permitted"] is False and result["frontend_scope"] == "out_of_scope"
 
 
-def test_existing_lambda_code_update_not_recreation(existing):
+def test_existing_lambda_code_update_still_requires_artifact_review(existing):
     change = existing[0]["resource_changes"][0]["change"]
     change["actions"] = ["update"]
     change["after"]["source_code_hash"] = None
     change["after_unknown"] = {"source_code_hash": True}
-    assert guard.inspect_plan(*existing)[1] == 0
+    result, code = guard.inspect_plan(*existing)
+    assert code == 1 and result["failures"][0]["reason"] == "lambda_artifact_compatibility_unverified"
 
 
 @pytest.mark.parametrize("actions", [["create"], ["delete"], ["delete", "create"], ["create", "delete"], ["forget"], ["invoke"]])
@@ -125,7 +126,7 @@ def test_frontend_target_inputs_do_not_block_or_enable_backend_dry_run(existing,
     monkeypatch.setenv("FRONTEND_BUCKET", guessed)
     monkeypatch.setenv("FRONTEND_DISTRIBUTION_ID", guessed)
     data, code = guard.inspect_plan(*existing)
-    assert code == 0 and data["frontend_scope"] == "ci_build_only"
+    assert code == 0 and data["frontend_scope"] == "out_of_scope"
     assert data["apply_permitted"] is False
 
 
@@ -198,3 +199,23 @@ def test_local_helper_never_hides_aws_replacement(existing):
     result, code = guard.inspect_plan(*existing)
     assert code == 1 and len(result["local_build_helper_changes"]) == 1
     assert result["failures"][0]["address"] == guard.ANCHORS[0]
+
+
+@pytest.mark.parametrize("field", ["source_code_hash", "filename", "s3_key", "image_uri"])
+def test_package_changes_and_unknown_hashes_cannot_pass_as_identity_safe(existing, field):
+    change = existing[0]["resource_changes"][0]["change"]
+    change["actions"] = ["update"]
+    change["after_unknown"] = {field: True}
+    result, code = guard.inspect_plan(*existing)
+    assert code == 1 and result["failures"][0]["reason"] == "lambda_artifact_compatibility_unverified"
+
+
+def test_code_and_auth_risks_are_both_reported_without_values(existing):
+    change = existing[0]["resource_changes"][0]["change"]
+    change["actions"] = ["update"]
+    change["after"]["source_code_hash"] = "different"
+    change["after"]["environment"] = [{"variables": {"KEY": "PRIVATE_CHANGED_AUTH"}}]
+    result, code = guard.inspect_plan(*existing)
+    assert code == 1
+    assert set(result["failures"][0]["risks"]) == {"lambda_environment_change", "lambda_artifact_change_or_unknown_hash"}
+    assert "PRIVATE_CHANGED_AUTH" not in json.dumps(result)

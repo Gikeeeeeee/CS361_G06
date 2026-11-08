@@ -110,6 +110,7 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
         seen.add(address)
         actions = change["actions"]
         reason = None
+        risks = []
         if resource.get("mode") == "data":
             require(actions in (["read"], ["no-op"]))
             continue
@@ -139,8 +140,18 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
             if resource["type"] == "aws_lambda_function" and (
                     before.get("environment") != after.get("environment") or unknown(uncertain.get("environment"))):
                 reason = "lambda_environment_change_requires_review"
+                risks.append("lambda_environment_change")
+            if resource["type"] == "aws_lambda_function" and any(
+                    before.get(key) != after.get(key) or unknown(uncertain.get(key))
+                    for key in ("source_code_hash", "filename", "s3_bucket", "s3_key", "s3_object_version", "image_uri")):
+                # A preserved function ID does not establish code compatibility.
+                # In particular, a deferred ZIP hash cannot prove absence of rollback.
+                reason = "lambda_artifact_compatibility_unverified"
+                risks.append("lambda_artifact_change_or_unknown_hash")
         if reason:
             finding = {"address_sha256": hashlib.sha256(address.encode()).hexdigest(), "reason": reason}
+            if risks:
+                finding["risks"] = risks
             if address in ASYNC_RESOURCES or address in ANCHORS or address == "module.lambda.terraform_data.build":
                 finding["address"] = address  # Known source addresses only, never for_each keys.
             failures.append(finding)
@@ -150,7 +161,7 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
     if plan.get("resource_drift"):
         failures.append({"reason": "unreviewed_refresh_drift"})
     return {"result": "blocked" if failures else "existing_backend_plan_checked",
-            "scope": "backend_dry_run", "apply_permitted": False, "frontend_scope": "ci_build_only",
+            "scope": "backend_dry_run", "apply_permitted": False, "frontend_scope": "out_of_scope",
             "local_build_helper_changes": local_helpers, "failures": failures}, int(bool(failures))
 
 
