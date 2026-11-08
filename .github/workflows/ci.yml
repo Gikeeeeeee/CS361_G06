@@ -2,12 +2,13 @@
 # Runs automated tests and Terraform validation on Pull Requests
 name: CI
 
-# Trigger this workflow when a Pull Request targets main or the V4 integration branch
+# Validate pull requests to the deployment and integration branches.
 on:
   pull_request:
     branches:
       - main
       - V4
+      - V5
 
 jobs:
   # --------------------------------------------------
@@ -52,11 +53,14 @@ jobs:
   terraform:
     name: Terraform Validate
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        root: [terraform-backend, terraform-frontend]
 
-    # Run Terraform commands from the backend directory
+    # Validate each root without accessing remote state or AWS credentials.
     defaults:
       run: 
-        working-directory: terraform/terraform-backend
+        working-directory: terraform/${{ matrix.root }}
     steps:
       # Checkout the source code from the Pull Request
       - name: Checkout
@@ -66,10 +70,13 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+
       # Initialize Terraform without configuring
       # or connecting to a remote backend.
       - name: Terraform Init
-        run: terraform init -backend=false
+        run: terraform init -backend=false -input=false -lockfile=readonly
 
       # Check whether the Terraform configuration is valid
       - name: Terraform Validate
