@@ -13,7 +13,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_main_cd_has_no_write_or_live_verification_path():
     workflow = (ROOT / ".github/workflows/cd.yml").read_text()
-    assert "on:\n  push:\n    branches:\n      - main\n" in workflow
+    # Inspect the trigger block independently of event ordering, without adding
+    # a YAML dependency to the credential-free CI test environment.
+    triggers = re.search(r"(?m)^on:\n((?:[ \t]+[^\n]*\n)+)", workflow).group(1)
+    assert set(re.findall(r"(?m)^  ([\w_]+):", triggers)) == {"workflow_dispatch", "push"}
+    push = re.search(r"(?m)^  push:\n((?: {4,}[^\n]*\n)+)", triggers).group(1)
+    assert [line.strip() for line in push.splitlines()] == ["branches:", "- main"]
     assert "workflow_dispatch:" in workflow and "pull_request:" not in workflow
     assert "TF_WORKSPACE: default" in workflow
     assert not re.search(r"terraform\s+(apply|destroy|import|refresh|state|force-unlock)\b", workflow)
