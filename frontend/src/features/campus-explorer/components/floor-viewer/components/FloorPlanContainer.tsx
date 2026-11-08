@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Maximize2 } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Maximize2, RotateCcw } from "lucide-react";
 import { useFloorMetadata } from "../hooks/useFloorMetadata";
 import { RoomQuickPeekModal } from "./RoomQuickPeekModal";
 import { useSvgFloorPlan } from "../hooks/useSvgFloorPlan";
@@ -7,6 +7,7 @@ import { useRoomHighlight } from "../hooks/useRoomHighlight";
 import { InteractiveSvgMap } from "./InteractiveSvgMap";
 import { useFullscreenViewer } from "../hooks/useFullscreenViewer";
 import { FullscreenFloorModal } from "./FullscreenFloorModal";
+import { statusApi } from "../../../../admin-status/services/statusApi";
 
 interface FloorPlanContainerProps {
   buildingId: string;
@@ -14,22 +15,89 @@ interface FloorPlanContainerProps {
 }
 
 export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerProps) {
-  const { metadata: floorMetadata, loading: metaLoading, error: metaError } = useFloorMetadata(buildingId, floorId);
-  const { svgContent, loading: svgLoading, error: svgError } = useSvgFloorPlan(floorMetadata?.map?.url);
+  const {
+    metadata: floorMetadata,
+    loading: metaLoading,
+    error: metaError,
+    refetch: refetchMetadata,
+  } = useFloorMetadata(buildingId, floorId);
+
+  const svgUrl = floorMetadata?.floor_plan?.url || floorMetadata?.map?.url;
+  const {
+    svgContent,
+    loading: svgLoading,
+    error: svgError,
+    retry: retrySvg,
+  } = useSvgFloorPlan(svgUrl);
+
   const { highlightedRoomId, setHighlightedRoom } = useRoomHighlight();
   const { isFullscreen, openFullscreen, closeFullscreen } = useFullscreenViewer();
+  const [statusOverlay, setStatusOverlay] = useState<Record<string, { status: string; note?: string | null }>>({});
+
+  useEffect(() => {
+    if (!floorId) return;
+    let isMounted = true;
+
+    const loadStatus = () => {
+      statusApi
+        .getFloorStatusOverlay(floorId)
+        .then((data) => {
+          if (!isMounted) return;
+          const map: Record<string, { status: string; note?: string | null }> = {};
+          data.rooms?.forEach((r) => {
+            const entry = { status: r.status, note: r.status_note };
+            map[r.room_id] = entry;
+            if (r.room_code) {
+              map[r.room_code] = entry;
+              map[r.room_code.toLowerCase()] = entry;
+              map[`room-${r.room_code}`] = entry;
+              map[`room-${r.room_code}`.toLowerCase()] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`] = entry;
+              map[`room-${r.room_code.replace(/\//g, '-')}`.toLowerCase()] = entry;
+            }
+          });
+          setStatusOverlay(map);
+        })
+        .catch(() => {});
+    };
+
+    loadStatus();
+    const handleUpdate = () => loadStatus();
+    window.addEventListener('floor-status-updated', handleUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('floor-status-updated', handleUpdate);
+    };
+  }, [floorId]);
 
   const selectedRoom = useMemo(() => {
     if (!floorMetadata?.rooms) return null;
     return floorMetadata.rooms.find((r) => r.id === highlightedRoomId) || null;
-  }, [highlightedRoomId, floorMetadata?.rooms]);
+  }, [highlightedRoomId, floorMetadata]);
+
+  const handleRetryAll = useCallback(() => {
+    refetchMetadata();
+    retrySvg();
+  }, [refetchMetadata, retrySvg]);
 
   if (metaLoading) {
     return <div className="p-8 text-center text-slate-500">Loading location data...</div>;
   }
 
   if (metaError || !floorMetadata) {
-    return <div className="p-8 text-center text-red-500">Failed to load location data.</div>;
+    return (
+      <div className="p-8 text-center flex flex-col items-center justify-center gap-3">
+        <p className="text-red-500 font-medium">Failed to load location data.</p>
+        <button
+          onClick={handleRetryAll}
+          className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Retry</span>
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -48,11 +116,18 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
             </div>
           )}
           {svgError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500 p-4 text-center">
-              <p className="font-semibold">Failed to load map.</p>
-              <p className="text-xs mt-2 overflow-auto max-h-32 w-full break-words border border-red-200 p-2 rounded bg-red-50">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500 p-4 text-center z-10">
+              <p className="font-semibold text-sm">Failed to load floor plan map.</p>
+              <p className="text-xs mt-1 text-slate-500 max-w-sm">
                 {svgError.message || String(svgError)}
               </p>
+              <button
+                onClick={handleRetryAll}
+                className="mt-3 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Retry Loading Map</span>
+              </button>
             </div>
           )}
           {svgContent && (
@@ -68,27 +143,37 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
               </div>
               <InteractiveSvgMap
                 svgContent={svgContent}
+                statusOverlay={statusOverlay}
+                highlightedRoomId={highlightedRoomId}
               />
             </>
           )}
           
-          {/* Overlay Modal (for quick peek if we re-enable click, currently unused since click is disabled) */}
+          {/* Overlay Modal */}
           <RoomQuickPeekModal
             room={selectedRoom}
             onClose={() => setHighlightedRoom(null)}
           />
         </div>
         
-        <div className="w-full mt-3 flex justify-between items-center text-xs">
+        <div className="w-full mt-3 flex flex-wrap justify-between items-center text-xs gap-2">
           {/* Legend */}
-          <div className="flex gap-4 text-slate-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-600 rounded-sm"></div>
-              <span>{highlightedRoomId || "Selected"}</span>
+          <div className="flex flex-wrap items-center gap-3 text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Available</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-white border border-slate-300 rounded-sm"></div>
-              <span>Offices/Labs</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Maintenance</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-rose-500 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">Closed</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>
+              <span className="text-[11px] font-medium text-slate-600">{highlightedRoomId || "Selected"}</span>
             </div>
           </div>
           
@@ -106,6 +191,7 @@ export function FloorPlanContainer({ buildingId, floorId }: FloorPlanContainerPr
         onClose={closeFullscreen}
         svgContent={svgContent || ''}
         floorMetadata={floorMetadata}
+        statusOverlay={statusOverlay}
       />
     </section>
   );

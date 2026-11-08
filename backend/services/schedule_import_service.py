@@ -1,7 +1,7 @@
 """
 Schedule CSV import: every row is validated before anything is saved, or the
-whole file is rejected. The write itself is not transactional (see
-ScheduleRepository.save_schedules).
+whole file is rejected. Room versions guard against concurrent writes; the
+write itself is not transactional (see ScheduleRepository.save_schedules).
 - import_csv()  parse, validate, check rooms and overlaps, then preview or save
 """
 
@@ -85,6 +85,8 @@ class ScheduleImportService:
         for entry in entries:
             rooms[entry.room_id].append(entry)
 
+        # Read before checking: a write that lands after this makes the save fail.
+        versions = {room_id: self.schedules.get_room_version(room_id) for room_id in rooms}
         conflicts: dict[int, dict] = {}
 
         for room_id, group in rooms.items():
@@ -95,7 +97,8 @@ class ScheduleImportService:
 
         if not dry_run:
             self.schedules.save_schedules(
-                [new_item(entry.schedule, entry.room_id) for entry in entries]
+                [new_item(entry.schedule, entry.room_id) for entry in entries],
+                versions,
             )
             return {"created": len(entries)}
 

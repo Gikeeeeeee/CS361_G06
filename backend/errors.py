@@ -17,7 +17,9 @@ class AppError(Exception):
     status_code = 500
     code = "INTERNAL_ERROR"
 
-    def __init__(self, message: str = "Internal server error", details: list | None = None):
+    def __init__(
+        self, message: str = "Internal server error", details: list | None = None
+    ):
         super().__init__(message)
         self.message = message
         self.details = details
@@ -70,9 +72,7 @@ class MissingParameters(ValidationError):
 
     def __init__(self, names):
         self.names = list(names)
-        super().__init__(
-            "Missing required parameter(s): " + ", ".join(self.names)
-        )
+        super().__init__("Missing required parameter(s): " + ", ".join(self.names))
 
 
 class RouteNotFound(NotFoundError):
@@ -94,7 +94,12 @@ class BuildingNotFound(NotFoundError):
 class FloorNotFound(NotFoundError):
     code = "FLOOR_NOT_FOUND"
 
-    def __init__(self, floor_id: str, building_id: str | None = None):
+    def __init__(
+        self,
+        floor_id: str,
+        building_id: str | None = None,
+        message: str | None = None,
+    ):
         """
         `building_id` is optional: `GET /api/v1/floors/{floorId}` has no
         building in its path, so naming one in the message would be inventing
@@ -102,19 +107,25 @@ class FloorNotFound(NotFoundError):
         """
         self.building_id = building_id
         self.floor_id = floor_id
-        super().__init__(
-            f"Floor '{floor_id}' in building '{building_id}' not found"
-            if building_id is not None
-            else f"Floor '{floor_id}' not found"
-        )
+        if message is not None:
+            msg = message
+        else:
+            msg = (
+                f"Floor '{floor_id}' in building '{building_id}' not found"
+                if building_id is not None
+                else f"Floor '{floor_id}' not found"
+            )
+        super().__init__(msg)
 
 
 class RoomNotFound(NotFoundError):
     code = "ROOM_NOT_FOUND"
 
-    def __init__(self, room_id: str):
+    def __init__(self, room_id: str, message: str | None = None):
         self.room_id = room_id
-        super().__init__(f"Room '{room_id}' not found")
+        super().__init__(
+            message if message is not None else f"Room '{room_id}' not found"
+        )
 
 
 class ScheduleConflict(AppError):
@@ -135,26 +146,31 @@ class ScheduleConflict(AppError):
         )
 
 
-class FacilityNotFound(NotFoundError):
+class ScheduleWriteRace(ScheduleConflict):
+    """Another write to the same room landed between our check and our save."""
 
+    def __init__(self):
+        AppError.__init__(
+            self,
+            "Another booking for this room was saved at the same time. Please try again.",
+        )
+
+
+class FacilityNotFound(NotFoundError):
     code = "FACILITY_NOT_FOUND"
 
     def __init__(self, facility_id: str):
 
         self.facility_id = facility_id
 
-        super().__init__(
-            f"Facility '{facility_id}' not found"
-        )
+        super().__init__(f"Facility '{facility_id}' not found")
 
 
 class ScheduleNotFound(NotFoundError):
     code = "SCHEDULE_NOT_FOUND"
 
     def __init__(self, schedule_id: str):
-        super().__init__(
-            f"Schedule not found: {schedule_id}"
-        )
+        super().__init__(f"Schedule not found: {schedule_id}")
 
 
 class InvalidSchedule(ValidationError):
@@ -162,6 +178,7 @@ class InvalidSchedule(ValidationError):
 
     def __init__(self, message: str):
         super().__init__(message)
+
 
 class SearchServiceUnavailable(AppError):
     status_code = 503
@@ -173,15 +190,19 @@ class SearchServiceUnavailable(AppError):
     ):
         super().__init__(message)
 
+
 """
     ERROR FOR SERACH PARAMETER
 """
+
+
 class InvalidParameter(AppError):
     status_code = 400
     code = "INVALID_PARAMETER"
 
     def __init__(self, message: str):
         super().__init__(message)
+
 
 # ---------------------------------------------------------------------------
 # CSV schedule import
@@ -238,7 +259,9 @@ class CsvTooManyOccurrences(ValidationError):
 class RoomTypeNotAllowed(ValidationError):
     def __init__(self, room: str, room_type, allowed):
         rule = (
-            f"only allows {', '.join(sorted(allowed))}" if allowed else "cannot be booked"
+            f"only allows {', '.join(sorted(allowed))}"
+            if allowed
+            else "cannot be booked"
         )
         super().__init__(f"Room '{room}' ({room_type}) {rule}.")
 
@@ -272,12 +295,15 @@ class ImportConflict(AppError):
             details,
         )
 
+
 # ---------------------------------------------------------------------------
 # Auth & User
-# ---------------------------------------------------------------------------       
+# ---------------------------------------------------------------------------
+
 
 class UnauthorizedError(AppError):
     """Missing or invalid token."""
+
     status_code = 401
     code = "UNAUTHORIZED"
 
@@ -288,8 +314,10 @@ class UnauthorizedError(AppError):
     ):
         super().__init__(message, details)
 
+
 class ForbiddenError(AppError):
     """Insufficient privileges (e.g. requires STAFF)."""
+
     status_code = 403
     code = "FORBIDDEN"
 
@@ -299,6 +327,7 @@ class ForbiddenError(AppError):
         details: list | None = None,
     ):
         super().__init__(message, details)
+
 
 class UserNotFound(NotFoundError):
     code = "USER_NOT_FOUND"
@@ -340,3 +369,95 @@ class BookmarkNotFound(NotFoundError):
         self.entity_id = entity_id
         super().__init__("Bookmark not found.")
 
+
+# ---------------------------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------------------------
+
+
+class LocationNotFound(NotFoundError):
+    code = "LOCATION_NOT_FOUND"
+
+    def __init__(self, location_id: str, location_type: str = "location"):
+        self.location_id = location_id
+        self.location_type = location_type
+        super().__init__(f"{location_type.capitalize()} '{location_id}' not found")
+
+
+class NoRouteAvailable(NotFoundError):
+    code = "NO_ROUTE_AVAILABLE"
+
+    def __init__(self, start_id: str, destination_id: str):
+        self.start_id = start_id
+        self.destination_id = destination_id
+        super().__init__(
+            f"No navigable route found from '{start_id}' to '{destination_id}'"
+        )
+
+
+class UnsupportedCrossFloorRoute(ValidationError):
+    code = "CROSS_FLOOR_NOT_SUPPORTED"
+
+    def __init__(
+        self,
+        start_floor_id: str,
+        destination_floor_id: str,
+        message: str | None = None,
+    ):
+        self.start_floor_id = start_floor_id
+        self.destination_floor_id = destination_floor_id
+        msg = (
+            message
+            or f"Cross-floor navigation is currently unsupported: start floor '{start_floor_id}' does not match destination floor '{destination_floor_id}'"
+        )
+        super().__init__(msg)
+
+
+class BlockedLocationError(AppError):
+    status_code = 409
+    code = "LOCATION_BLOCKED"
+
+    def __init__(self, location_id: str, location_type: str = "Location"):
+        self.location_id = location_id
+        self.location_type = location_type
+        super().__init__(
+            f"{location_type.capitalize()} '{location_id}' is currently blocked or unavailable"
+        )
+
+
+class InvalidNavigationInput(ValidationError):
+    code = "INVALID_NAVIGATION_INPUT"
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class MissingCorridorAttachment(ValidationError):
+    code = "MISSING_CORRIDOR_ATTACHMENT"
+
+    def __init__(self, room_id: str):
+        self.room_id = room_id
+        super().__init__(f"Room '{room_id}' is not attached to any corridor edge")
+
+
+class InvalidStatusValue(ValidationError):
+    code = "INVALID_STATUS_VALUE"
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+class CorridorEdgeNotFound(NotFoundError):
+    code = "EDGE_NOT_FOUND"
+
+    def __init__(self, edge_id: str):
+        self.edge_id = edge_id
+        super().__init__(f"Corridor edge with ID {edge_id} does not exist.")
+
+
+class NavigationNodeNotFound(NotFoundError):
+    code = "NODE_NOT_FOUND"
+
+    def __init__(self, node_id: str):
+        self.node_id = node_id
+        super().__init__(f"Navigation node with ID {node_id} does not exist.")

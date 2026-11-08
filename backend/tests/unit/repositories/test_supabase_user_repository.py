@@ -3,7 +3,7 @@ import pytest
 import requests
 
 from errors import UpstreamError
-from repositories.supabase_user_repository import SupabaseUserRepository
+from repositories.supabase_user_repository import SESSION, SupabaseUserRepository
 
 
 @pytest.mark.unit
@@ -26,7 +26,7 @@ def test_supabase_repo_returns_user():
         }
     ]
 
-    with patch("requests.get", return_value=mock_resp) as mock_get:
+    with patch.object(SESSION, "get", return_value=mock_resp) as mock_get:
         user = repo.get_user_by_id("u-123", auth_token="user-jwt")
 
         assert user is not None
@@ -49,7 +49,7 @@ def test_supabase_repo_empty_records_returns_none():
     mock_resp.status_code = 200
     mock_resp.json.return_value = []
 
-    with patch("requests.get", return_value=mock_resp):
+    with patch.object(SESSION, "get", return_value=mock_resp):
         user = repo.get_user_by_id("u-missing")
         assert user is None
 
@@ -64,7 +64,7 @@ def test_supabase_repo_404_returns_none():
     mock_resp = MagicMock()
     mock_resp.status_code = 404
 
-    with patch("requests.get", return_value=mock_resp):
+    with patch.object(SESSION, "get", return_value=mock_resp):
         user = repo.get_user_by_id("u-missing")
         assert user is None
 
@@ -80,7 +80,7 @@ def test_supabase_repo_500_raises_upstream_error():
     mock_resp.status_code = 500
     mock_resp.text = "Internal error"
 
-    with patch("requests.get", return_value=mock_resp):
+    with patch.object(SESSION, "get", return_value=mock_resp):
         with pytest.raises(UpstreamError):
             repo.get_user_by_id("u-123")
 
@@ -92,6 +92,6 @@ def test_supabase_repo_connection_failure_raises_upstream_error():
         api_key="test-key",
     )
 
-    with patch("requests.get", side_effect=requests.RequestException("Timeout")):
+    with patch.object(SESSION, "get", side_effect=requests.RequestException("Timeout")):
         with pytest.raises(UpstreamError):
             repo.get_user_by_id("u-123")

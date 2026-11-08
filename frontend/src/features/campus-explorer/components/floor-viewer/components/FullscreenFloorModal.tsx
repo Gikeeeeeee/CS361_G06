@@ -7,9 +7,16 @@ interface FullscreenFloorModalProps {
   onClose: () => void;
   svgContent: string;
   floorMetadata?: FloorMetadata | null;
+  statusOverlay?: Record<string, { status: string; note?: string | null }>;
 }
 
-export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadata }: FullscreenFloorModalProps) {
+export function FullscreenFloorModal({
+  isOpen,
+  onClose,
+  svgContent,
+  floorMetadata,
+  statusOverlay,
+}: FullscreenFloorModalProps) {
   if (!isOpen || !svgContent) return null;
 
   return (
@@ -34,6 +41,7 @@ export function FullscreenFloorModal({ isOpen, onClose, svgContent, floorMetadat
         <div className="w-[90vw] h-[80vh] flex items-center justify-center">
           <InteractiveSvgMap
             svgContent={svgContent}
+            statusOverlay={statusOverlay}
             minScale={0.3}
             maxScale={5}
             showControls={true}

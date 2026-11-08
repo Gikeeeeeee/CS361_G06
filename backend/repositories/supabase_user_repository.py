@@ -23,6 +23,9 @@ DEFAULT_ANON_KEY = (
     "OTgsImV4cCI6MjEwNzQ4MzA5OH0.0rFbYoq15FfUUNZgN_RYy1NTqpgoRMd0V2do5jhQ5Ug"
 )
 
+# One keep-alive pool per Lambda container, shared by every Supabase repository.
+SESSION = requests.Session()
+
 
 class SupabaseUserRepository(UserSource):
     """Fetches user records from Supabase public.User table via PostgREST."""
@@ -63,7 +66,7 @@ class SupabaseUserRepository(UserSource):
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         try:
-            response = requests.get(
+            response = SESSION.get(
                 url,
                 params=params,
                 headers=headers,

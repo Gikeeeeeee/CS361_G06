@@ -1,25 +1,30 @@
 export interface FloorMetadata {
-  id: string;
+  id: string; // UUID
   name?: string;
   level?: number;
   floor_number?: number;
   buildingName?: string;
-  map: {
-    type: "svg";
-    url: string;
+  floor_plan?: {
+    type?: string;
+    url?: string;
+  };
+  map?: {
+    type?: string;
+    url?: string;
   };
   rooms: Room[];
   facilities: Facility[];
 }
 
 export interface Room {
-  id: string; // Should match SVG path/g ID
-  name: string;
+  id: string; // Matches SVG path/g ID
+  name: string | { th?: string; en?: string };
   type: string;
+  room_number?: string | null;
 }
 
 export interface Facility {
   id: string;
   type: string;
-  name: string;
+  name: string | { th?: string; en?: string };
 }

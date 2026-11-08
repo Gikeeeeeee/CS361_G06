@@ -26,12 +26,24 @@ class ScheduleSource(Protocol):
         """Fetch a single schedule across all rooms by schedule id."""
         ...
 
-    def save_schedule(self, schedule: dict[str, Any]) -> None:
-        """Create or fully replace one schedule (a series is one item)."""
+    def get_room_version(self, room_id: str) -> int:
+        """Read the room's write counter (0 if never written)."""
         ...
 
-    def save_schedules(self, schedules: list[dict[str, Any]]) -> None:
-        """Create many schedules in bulk (CSV import)."""
+    def save_schedule(
+        self,
+        schedule: dict[str, Any],
+        version: int,
+        delete_from: str | None = None,
+    ) -> None:
+        """Create or replace one schedule; raise ScheduleWriteRace if the room
+        version moved since `version` was read."""
+        ...
+
+    def save_schedules(
+        self, schedules: list[dict[str, Any]], versions: dict[str, int]
+    ) -> None:
+        """Create many schedules (CSV import), same race rule per room."""
         ...
 
     def delete_schedule(
