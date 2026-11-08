@@ -994,4 +994,175 @@ Deployment data must have a corresponding trusted release baseline, and sampled
 coverage cannot establish correctness of every floor or historical cache age.
 
 Stopped after local implementation and validation: no commit, push, PR creation,
-merge or deployment. Draft PR #288 is unchanged. No work on #283 was performed.
+merge or deployment. Draft PR #288 is unchanged. No work on #283 was performed
+in that #282 task.
+
+## 8. Frontend build and deployment preparation (#283)
+
+Work is on the existing `feature/v5/frontend-deploy-automation` branch fetched
+from origin, based on the committed #282 smoke-test branch. The initial worktree
+was clean. This section records local automation preparation only; it does not
+establish live frontend ownership or authorize deployment. No application,
+Terraform resource, backend CD or repository-secret changes are included.
+
+### Architecture and ownership evidence
+
+Inspected `frontend/package.json`, `package-lock.json`, `vite.config.ts`,
+`index.html`, `.env.example`, runtime environment consumers, both workflows,
+the frontend Terraform root/module/outputs and backend storage module.
+The existing build is `tsc -b && vite build`, with `dist/`, root asset paths
+and no source maps. `frontend/package-lock.json` is the dependency authority.
+
+The **configured** frontend hosting architecture is a private, encrypted S3
+bucket, public-access blocking, CloudFront OAC and a bucket policy scoped to the
+distribution. Terraform manages each `dist/` file as an S3 object. CloudFront
+uses Managed-CachingOptimized, redirects HTTP to HTTPS and serves `index.html`
+for S3 403/404 responses to support SPA routing. HTML objects have `no-cache`;
+other files use default cache behavior. Cache policy minimum TTL can still
+affect HTML freshness. No frontend bucket versioning resource is declared.
+These are configuration findings, **not verification of actual production
+hosting, ownership, live cache settings or object versions**.
+
+Frontend authoritative state remains unavailable/unverified, as established
+by #284. The root has no remote backend declaration. Existing instructions
+and the module require a manual build before Terraform can upload its files;
+the backend CD workflow does not build/deploy the frontend. There is no verified
+current manual operator process or authoritative frontend deployment history.
+Do not initialize a new state, run apply, or add direct S3 uploads: uploads could
+conflict with the Terraform-managed object ownership model.
+
+### Automation and required configuration
+
+`scripts/frontend_release.py build --output <new-directory>` validates explicit
+process environment inputs, copies frontend sources into an isolated temporary
+directory excluding `.env*`, local overrides, node_modules and generated output,
+runs `npm ci --include=dev --no-audit --no-fund`, then the existing build script.
+No application build script, component or service is changed. Unknown inherited
+`VITE_*` inputs are discarded. Output must not already exist; existing releases
+are not overwritten. Source files and local environment files are preserved.
+
+Required public browser inputs are `VITE_API_BASE_URL`, `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY`. Base URLs must be HTTPS origins without credentials,
+query strings or fragments; API version defaults to the application's existing
+`/api/v1` contract and alternate versions are rejected. The key must be a
+publishable key or legacy JWT with an anon role; service keys are rejected.
+This is syntactic validation, not verification of key authenticity or endpoint
+ownership. Never put a private secret into any `VITE_*` value: Vite embeds these
+in browser assets. Configuration values are not printed or stored in metadata;
+their combined SHA-256 fingerprint is recorded. Prepared browser bundles still
+contain the public configuration, as expected.
+
+The manifest is outside `dist/` and records revision, frontend dirty flag, Node
+and npm versions, lockfile/config hashes and SHA-256/size of every generated
+file. Node 22.17.0 is selected in workflows (local minimum 22.12); npm is bundled
+with that Node release. Locked installation provides dependency reproducibility;
+cross-platform byte-identical builds and signed release provenance are not
+claimed. Local dirty builds are labelled, not silently represented as committed.
+
+CI adds an independent frontend job on the existing PR triggers. It uses
+reserved `.invalid` endpoints and a public test-key fixture, never repository
+production configuration or AWS credentials. Its artifact is named
+`frontend-verification-<sha>` and **must not be deployed**. The existing Python
+job also runs preparation tests through its existing `scripts/tests` command.
+Existing Terraform CI and backend CD behavior remain unchanged.
+
+`frontend-build.yml` is a separate **manual build-only** workflow using public
+repository variables of the same names; missing configuration fails before
+installation. It retains `frontend-prepared-<sha>` for seven days. No variables
+or secrets were created/changed for this task. Neither workflow has deployment,
+AWS credential setup, S3 writes or CloudFront invalidation steps. Manual dispatch
+availability on GitHub depends on the workflow reaching the default branch;
+no workflow was dispatched here.
+
+### Integrity, SVG delivery and preparation guards
+
+`python scripts/frontend_release.py verify --artifact <prepared-directory>`
+checks the entire file inventory against its trusted manifest, including every
+static SVG, HTML and hashed JS/CSS. Missing, extra or altered bodies fail; an
+HTML 200 fallback would not prove that a requested asset is correct. Local
+HTML script/link paths must resolve to manifest files without traversal or
+query strings. Symlinks, hidden files and backend-owned asset prefixes are
+rejected. The existing source HTML references external Leaflet JS/CSS; these
+references are recorded and checked for preservation, **not downloaded or
+hash-certified**. Their upstream availability/content remains a dependency.
+The initial strict check rejected these references after a successful build;
+the checker was corrected and tested without editing the application HTML.
+
+The manifest must itself come from a trusted build/artifact channel; replacing
+both manifest and files defeats a plain checksum comparison. This tool performs
+offline integrity checks, not a live CDN freshness check or cryptographic
+attestation. An approved future deployment must compare delivered bodies against
+the approved manifest rather than HTTP status or multipart S3 ETags alone.
+
+Floor-plan SVGs are **not frontend build artifacts**. Backend Terraform owns
+the separate versioned asset bucket, `floor-plan/*` objects and CDN. Backend
+services return their asset URLs (CDN or signed S3 URLs). The configured
+floor-plan cache policy has a 300-second maximum TTL and ignores query strings;
+changing a query parameter alone is not evidence of cache bypass. S3 versions
+and CloudFront cache entries are distinct. Nothing here uploads SVGs, changes
+versions or invalidates caches. The existing #282 `smoke_test.py` compares a
+discovered API floor SVG with trusted building metadata and local SVG content;
+it remains the separate read-only verifier for that path. Neither verifier
+establishes historical freshness without a corresponding release baseline.
+
+`verify_target()` is an injectable preparation guard, deliberately not connected
+to AWS credentials, a CLI command or a deployment job. Mocked read-only calls
+cover caller account, expected bucket account/canonical owner/region and
+distribution ARN/account/ID, single default S3 origin, OAC, absence of an origin
+prefix and unexpected cache behaviors. Permission errors or mismatches stop
+verification. Even a match returns `state_ownership_verified: false` and
+`deployment_enabled: false`; identity matching does not prove Terraform ownership.
+Real identifiers must eventually come from reviewed authoritative state and
+operator configuration, never guessed names. No live identity check was run.
+
+### Validation and remaining acceptance gates
+
+Local checks use reserved test configuration only. Commands:
+
+```text
+python scripts/frontend_release.py build --output scratch/issue283-build
+python scripts/frontend_release.py verify --artifact scratch/issue283-build
+python -m pytest -q scripts/tests -p no:cacheprovider
+actionlint -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/cd.yml .github/workflows/frontend-build.yml
+git diff --check
+```
+
+| Local check | Result |
+|---|---|
+| Isolated `npm ci` using existing frontend lock | Pass: 146 packages installed; Node 22.17.0 / npm 11.4.2; lock unchanged. |
+| Existing `npm run build` | Pass: TypeScript and Vite production build; existing large-chunk advisory remains. Reserved test configuration only. |
+| Prepared artifact re-verification | Pass: generated files, hashes and entry point references match. |
+| `python -m pytest -q scripts/tests -p no:cacheprovider` | **90 passed**: 33 preparation tests plus 57 existing smoke tests. Includes missing/invalid configuration, public-key restriction, wrong/missing/extra/stale JS/SVG/HTML, unsafe references, isolated locked build, no output overwrite, mocked identity mismatches and denied permission. |
+| Workflow YAML and actionlint 1.7.12 | Pass for CI, backend CD and frontend build preparation. Optional external ShellCheck/Pyflakes disabled. Structured YAML comparison confirms all pre-existing CI jobs/triggers/permissions are unchanged. |
+| Scope and whitespace | `git diff --check` passes; backend, frontend, Terraform and backend CD match `feature/v5/post-deploy-smoke-tests`. |
+
+The only changed tracked paths are `.github/workflows/ci.yml`, new
+`.github/workflows/frontend-build.yml`, new `scripts/frontend_release.py`, new
+`scripts/tests/test_frontend_release.py`, and this report. Build output and
+local check helpers remain ignored under `scratch/`. No live API/AWS calls,
+Terraform initialization/plan/apply/destroy/state changes, S3 writes, cache
+invalidations, deployment, commit, push, PR modification or merge were performed.
+
+Before any deployment: locate authoritative frontend state and owner; verify
+live production hosting/resource identity and permissions; approve non-production
+configuration and target; resolve whether Terraform remains the sole object
+writer; review cache/rollback/versioning behavior; explicitly approve deployment.
+The #284 unsafe sandbox plan remains unresolved and must not be used to exercise
+this automation. Actual non-production deployment, delivered-content checks and
+GitHub-run evidence remain **unverified**. Local preparation can be reviewed;
+full #283 deployment acceptance is blocked. No work on #285 was performed.
+
+| #283 acceptance item | Status |
+|---|---|
+| Build process documented; locked build and traceable artifacts implemented | Pass locally. |
+| Safe deployment process prepared | Preparation only; all deployment operations absent/disabled. |
+| Identity and ownership safeguards | Mocked identity checks pass and cannot enable deployment; authoritative state/live ownership unverified. |
+| Frontend SVG/asset integrity and floor-plan distinction | Pass locally; trusted manifest required; external Leaflet bodies and live CDN content not verified. |
+| No environment-specific hardcoding, feature changes or AWS/state mutations | Pass; reserved fixtures only in tests/PR verification. |
+| Local validation | Pass; actual GitHub workflow execution remains unverified. |
+| Actual non-production deployment | **Blocked/unverified** until ownership, configuration and explicit deployment approval are established. |
+
+References: [npm ci lockfile behavior](https://docs.npmjs.com/cli/commands/npm-ci/)
+and [Vite environment loading and browser exposure](https://vite.dev/guide/env-and-mode.html)
+support the isolated-install and public-configuration approach. These references
+do not establish ownership or actual settings of the deployed frontend.

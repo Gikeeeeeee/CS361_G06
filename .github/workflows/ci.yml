@@ -14,6 +14,38 @@ permissions:
   contents: read
 
 jobs:
+  frontend:
+    name: Frontend Build (verification only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # Reserved .invalid domains: these artifacts cannot target a deployment.
+      # PR checks never consume production configuration or AWS credentials.
+      - name: Build isolated frontend with locked dependencies
+        env:
+          VITE_API_BASE_URL: https://api.invalid
+          VITE_SUPABASE_URL: https://auth.invalid
+          VITE_SUPABASE_ANON_KEY: sb_publishable_ci_verification_only
+        run: python scripts/frontend_release.py build --output scratch/frontend-ci
+      - name: Verify artifact integrity
+        run: python scripts/frontend_release.py verify --artifact scratch/frontend-ci
+      - name: Retain verification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-verification-${{ github.sha }}
+          path: scratch/frontend-ci/
+          if-no-files-found: error
+          retention-days: 7
+
   # --------------------------------------------------
   # Python Tests
   # --------------------------------------------------
