@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_main_cd_has_no_write_or_live_verification_path():
     workflow = (ROOT / ".github/workflows/cd.yml").read_text()
     assert "on:\n  push:\n    branches:\n      - main\n" in workflow
-    assert "workflow_dispatch:" not in workflow and "pull_request:" not in workflow
+    assert "workflow_dispatch:" in workflow and "pull_request:" not in workflow
     assert "TF_WORKSPACE: default" in workflow
     assert not re.search(r"terraform\s+(apply|destroy|import|refresh|state|force-unlock)\b", workflow)
     assert "scripts/smoke_test.py" not in workflow

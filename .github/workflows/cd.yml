@@ -4,8 +4,9 @@
 
 name: CD
 
-# Keep the existing main-only trigger. This iteration never applies a plan.
+# Main pushes and manual runs are dry-run only; neither applies a plan.
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
