@@ -1166,3 +1166,225 @@ References: [npm ci lockfile behavior](https://docs.npmjs.com/cli/commands/npm-c
 and [Vite environment loading and browser exposure](https://vite.dev/guide/env-and-mode.html)
 support the isolated-install and public-configuration approach. These references
 do not establish ownership or actual settings of the deployed frontend.
+
+## 9. Sandbox reproducibility and recovery preparation (#285)
+
+This work uses the existing `feature/v5/sandbox-reproducibility` branch based on
+the committed #283 branch. The initial worktree was clean. This is an offline
+validation and recovery design, **not evidence that sandbox can be recreated**.
+No AWS/state access or refreshed plan was requested or executed for #285.
+
+### Relevant baseline and unresolved drift
+
+The focused review covered both Terraform roots, backend configuration and
+deployment identity guard, provider locks, workflows, #284 findings, and existing
+smoke/artifact validation scripts. Application features were not audited again
+or changed. Backend state ownership remains the S3 backend declared in
+`backend.tf`: `default` uses its base key; `sandbox` uses
+`<workspace_key_prefix>/sandbox/<key>` (S3 default prefix `env:`). Native S3
+lockfiles are configured. Existing guard checks workspace/bucket/environment,
+but does not independently enforce the AWS account or provider region. The new
+offline checks supplement evidence review; they do not change Terraform guards.
+
+CI selects Terraform **1.15.8**; backend minimum is **1.10.0**, frontend minimum
+**1.5.0**. Both roots lock AWS **6.63.0**; backend also locks archive **2.8.0**.
+Readonly lockfile initialization must preserve the committed platform checksums.
+Backend CD still does not select an exact Terraform version; no CD edit was
+made here. Reproduction requires recording its actual tool version rather than
+assuming it equals the local/CI tool version.
+
+All six #284 async-import resources remain unresolved sandbox deletion
+candidates. They exist in the historical state/AWS evidence and are not
+established as obsolete. The current V5 baseline must not be applied to remove
+them. Their exact addresses and dependencies remain documented in section 5.
+The final #284 audit-only plan also proposed a local build-helper replacement,
+API/indexer code updates, removal of `IMPORT_WORKER_NAME`, and S3 object updates.
+Those are historical findings, not a freshly refreshed #285 plan. Local
+Supabase inputs previously differed from deployed values. A zero-delete plan
+would still require reviewing Lambda code/environment and every in-place change.
+
+Other recovery dependencies remain: authoritative frontend state/ownership is
+unverified; state-bucket versioning was not enabled in the audit snapshot;
+state recovery cannot assume historical versions exist. The previously denied
+bucket-location check was resolved in the final #284 scope-correction evidence,
+not freshly repeated here. Lambda packaging requires Docker/Linux Python 3.12,
+and dependencies are not all pinned. Artifact determinism, credentials/config
+provenance, application/data compatibility and backup availability need separate
+review. Do not integrate async-import code as a recovery shortcut.
+
+### Repeatable offline gate
+
+`scripts/sandbox_validation.py` has two commands and no live collection or
+deployment mode. `local` runs only `terraform fmt -check -recursive` and
+`terraform validate -json`, using an **already initialized** provider/module
+cache. It clears inherited Terraform options and AWS environment inputs,
+disables metadata/Checkpoint access and points credential/config lookups at
+unused cache paths. Terraform diagnostics are reduced to pass/fail and warning
+counts. A missing cache/provider fails; the script never falls back to init or
+remote access. Validation does not establish runtime input correctness.
+
+```text
+python scripts/sandbox_validation.py local --root terraform/terraform-backend --data-dir <backend-offline-cache>
+python scripts/sandbox_validation.py local --root terraform/terraform-frontend --data-dir <frontend-offline-cache>
+python scripts/sandbox_validation.py inspect --expected <approved-config.json> --observed <private-observations.json> --plan <private-plan.json>
+```
+
+`inspect` reads existing `terraform show -json` plan output and separately
+reviewed expected/observed JSON. **It does not run Terraform plan or AWS.** It
+checks sandbox selection, caller account, state-scoped AWS ARN accounts/regions,
+the root AWS provider's `var.aws_region` reference, plan variables, backend
+bucket/key/region/prefix/locking, effective workspace key and tool versions.
+AWS-managed global IAM policy references are distinguished from customer-owned
+resources. Multiple/aliased AWS provider configurations are rejected for review;
+the current repository uses one root provider. Empty prior state is rejected:
+this gate is for the existing sandbox, not authorization to create a replacement.
+
+Prepare private input files from authoritative sources **only after separate
+authorization for their live collection**. Do not copy secrets or real IDs into
+this repository. Required schemas:
+
+| Input | Required fields and source |
+|---|---|
+| Expected | `workspace` must be `sandbox`; `account_id`, `region`, `terraform_version` from operator-approved environment/tool configuration. |
+| Expected `backend` | `type` = `s3`, `bucket`, `key`, `region`, `workspace_key_prefix`, `use_lockfile` = true. Review against committed `backend.tf` and any approved overrides; normalize an omitted S3 workspace prefix to Terraform's documented `env:` default. |
+| Expected `variables` | Map of approved nonsecret string inputs; requires `aws_region`, `bucket_name`, `environment`. Include reviewed resource naming inputs such as project/table/collection/index where applicable. Never use current defaults or local tfvars as proof of deployed ownership. |
+| Observed | `workspace` from process-effective `terraform workspace show`, `caller_account_id` from STS, `terraform_version` from the CLI, `validation_passed` from successful validation of that checkout. |
+| Observed `backend` | Same normalized fields, from resolved cached backend metadata in the authorized working directory; compare to independently reviewed expected configuration. Do not expose cached credentials. |
+| Observed | `effective_state_key` = `<prefix>/<workspace>/<key>`; confirm that exact remote object exists/owns sandbox in the approved collection step. `plan_sha256` = SHA-256 of the exact JSON file bytes. |
+| Plan | Unmodified private `terraform show -json` output, JSON format major 1, matching Terraform version, complete and non-errored, boolean `applyable`, prior state, configuration, variables and explicit `resource_changes` array. |
+
+Captured JSON is evidence supplied by an operator, not an attestation. The gate
+cannot detect fabricated observations or prove the snapshot is still current.
+The JSON hash binds an observed record to the inspected bytes, not to a trusted
+deployment. Retain provenance/time/revision with the private collection record.
+Backend state serial/lineage and lock/provider/config hashes belong there too.
+
+Exit **0** means offline checks passed with no changes; **1** means changes need
+review; **2** means missing, malformed, incompatible or mismatched evidence.
+Every create/update/delete/replacement/read/import/move/forget, nonempty drift
+or changed output blocks the offline gate. No action allowlist, `--force` or
+auto-approval exists. Local `terraform_data` replacements are reported rather
+than suppressed. Lambda code/runtime/hash and environment changes, S3 object
+changes and the six known async addresses are flagged. Deferred/incomplete
+plans, unknown actions/checks and inconsistent no-op entries fail closed.
+Provider action invocations (including deferred invocations) are rejected too;
+an applyable plan without explained changes cannot be accepted as a no-op.
+Thus a legitimate non-destructive update is visible but **not authorized**.
+
+The summary contains action counts, fixed risk flags, hashed resource addresses
+and a plan hash. Arbitrary addresses can contain private `for_each` keys, so raw
+addresses, account/resource identifiers, plan values, outputs, exception text
+and CLI inputs are never echoed. Detailed per-attribute review still uses the
+private plan. All summaries explicitly set `deployment_authorized: false` and
+`live_identity_verified: false`, including no-op results. Do not publish raw
+plan JSON or saved plans: sensitive marking does not redact their contents.
+
+### Future authorized reproducibility sequence (not executed)
+
+1. Obtain approval for read-only AWS/backend/plan collection, a named sandbox
+   owner and reviewed account/region/resource configuration. Stop if any is
+   missing. Freeze concurrent deployments and record checkout revision,
+   dependency/provider locks, tool/Docker versions and UTC capture times.
+2. Use an isolated clean checkout and fresh data directory. Run formatting and
+   backend-disabled readonly initialization/validation for both roots with no
+   AWS credentials. Offline use requires an approved cached provider mirror;
+   do not silently download or reconfigure a backend during an offline check.
+3. Independently compare backend configuration to the approved identity. Only
+   in the authorized backend working directory, set process-scoped
+   `TF_WORKSPACE=sandbox` **before** backend initialization. Initialize with
+   `-input=false -lockfile=readonly`; an existing incompatible cache must be
+   inspected before any reviewed `-reconfigure`. Never use migration/force-copy
+   flags or create a missing workspace/state. Confirm effective workspace/key,
+   state ownership, caller and provider region with read-only permissions.
+4. Review nonsecret naming inputs and secure configuration provenance, including
+   deployed authentication settings. Capture state lineage/serial privately.
+   Generate a full normal refreshed plan with `-input=false -detailed-exitcode`
+   and a private `-out` file; do not target/exclude resources. For strictly
+   read-only audit collection, `-lock=false` avoids lock writes but requires a
+   quiet deployment window and comparison of state serial before/after. Changed
+   serial invalidates evidence. Terraform exit 2 means a changed plan, not an
+   execution failure; exit 1 is a failed plan. Convert the saved plan to private
+   JSON, bind observations to its hash and run the offline inspection gate.
+5. Stop on drift, incomplete evidence or any proposed action. Resolve ownership
+   and architecture outside this task, then obtain a newly reviewed plan. The
+   gate never approves changes; exceptional reviewed changes need a separate
+   explicit owner approval with exact actions, backup/data impact and artifact
+   compatibility recorded. No suppressions or automatic reconciliation.
+6. **Separate approval is required for apply.** Only after all blockers are
+   resolved may an authorized operator apply the exact reviewed saved plan in
+   the verified environment with normal locking. No apply command is provided
+   or executed by this tooling. Expired/stale plans require a new review.
+7. Following an approved successful deployment, run the existing #282 smoke
+   verifier using `api_endpoint` and `cdn_url` outputs from that verified state.
+   Compare against the release's trusted building-data baseline. Existing
+   backend CD does this only after successful main/default apply; #285 does not
+   change it or repurpose it for sandbox. Do not deploy to trigger a smoke test.
+8. Generate/review a second full plan with identical approved variables and
+   tool versions; explain every residual action, including code/dependency and
+   local-path noise. Record pre/post serial, plan hashes/exit codes, sanitized
+   gate evidence, UTC start/end timestamps, logs/run URLs, artifact/code hashes,
+   smoke results and manual approvals. Repeat-plan convergence plus actual
+   deployment evidence is required; an offline or no-op plan alone is insufficient.
+
+### Operational recovery (manual approval points)
+
+| Failure | Safe response and approval boundary |
+|---|---|
+| Failed plan | Stop; inspect private diagnostics for inputs/provider/backend/IAM errors. Correct only reviewed configuration and rerun the full read-only plan after access authorization. Do not apply a partial/errored plan or treat exit 2 as failure. |
+| Failed apply | Stop further deployments; preserve logs and available state/backend evidence. Determine which resources/data changed with authorized read-only inspection. Do not rerun blindly, restore old state, force-unlock or destroy. A recovery plan, state/backup owner and explicit approval are required before writes. |
+| Wrong workspace/environment | Stop immediately. Preserve evidence, clear accidental process overrides and confirm expected caller/backend/key before a new read-only session. Never create a workspace or migrate/copy state to make a mismatch disappear. |
+| Lambda failure | Compare approved artifact/hash, handler/runtime, layers, role and environment against actual deployment. A previous ZIP may be incompatible with current routes/data. Owner approval and a reviewed full plan are required for any redeploy/rollback; never deploy V5 code to the async worker as a repair. |
+| API/SVG smoke failure | Stop promotion; distinguish API contract, access, wrong key/body and cache problems using trusted release metadata and hashes. HTTP 200 or a query change is insufficient. Read-only diagnostics need authorization; object writes or invalidations require separate approval. No automatic rollback/reapply. |
+| Unexpected drift | Preserve private plan/state snapshot and sanitized summary. Establish owner/operator intent and dependencies, including six async resources. No imports, state removal/migration, targeting or feature rewrite to silence it. Resolve and explicitly approve a new plan. |
+| Frontend artifact mismatch | Quarantine the artifact; verify trusted manifest, revision, public build configuration and lock/tool versions. Rebuild into a new local directory if needed. External Leaflet bodies are not certified by the manifest. Deployment stays disabled until frontend state/ownership and a safe release process are verified. |
+
+Backups are dependencies to verify, not guarantees: state-bucket versioning,
+application table backups/PITR, retained S3 versions and exact prior Lambda
+packages were not reverified here. State restoration cannot restore application
+data by itself. Never assume rollback reverses partial imports or expired files.
+
+### Local evidence and acceptance status
+
+Executed on Terraform 1.15.8 using the prior #281 caches at
+`scratch/issue281-ci-validation/data-terraform-backend` and
+`data-terraform-frontend`. No backend initialization or provider download was
+performed. Both **current** roots passed fmt and validate through the new local
+command: backend **14 existing deprecation warnings**, frontend **0 warnings**.
+This is cache-backed local validation, not a fresh clean-provider installation.
+
+| Local check | Final result |
+|---|---|
+| `python -m pytest -q scripts/tests -p no:cacheprovider` | **151 passed**: 61 new sandbox-gate cases plus 90 existing smoke/frontend-preparation cases. |
+| Backend `local` command using the cache above | fmt/validate pass; 14 existing DynamoDB deprecation warnings. |
+| Frontend `local` command using the cache above | fmt/validate pass; zero warnings. |
+| actionlint 1.7.12 on all three existing workflows | Pass; optional external ShellCheck/Pyflakes disabled. No workflow changed. |
+| `git diff --check` and scope comparison against `feature/v5/frontend-deploy-automation` | Pass; application, Terraform, workflows and prior validation scripts unchanged. |
+
+Tests cover correct/incorrect workspace, missing configuration/files, account/
+region/backend/key/locking mismatches, empty/no-op plans, creates/updates/deletes,
+replacement in either order, six known deletion candidates, local helper
+replacement, import/move/forget, drift/outputs, deferred actions/unknown checks,
+Lambda code/environment flags, invalid/duplicate-key/nonfinite JSON, plan-hash
+binding, secret/address redaction, exit codes 0/1/2 and only fmt/validate local
+execution. All AWS identities in fixtures are synthetic. Tests do not establish
+live permissions, current remote state or deployment convergence.
+
+Existing CI already runs `python -m pytest -v scripts/tests`, so it automatically
+includes the new tests without workflow changes. New files are
+`scripts/sandbox_validation.py` and `scripts/tests/test_sandbox_validation.py`;
+only this existing report is otherwise modified. Existing application,
+Terraform resources/configuration, workflows and smoke/build scripts remain
+unchanged from the #283 branch. No live plan, AWS/API call, state operation,
+apply/destroy, deployment, commit, push, PR change or issue comment occurred.
+
+Local preparation acceptance covers the repeatable validation gate, workspace/
+environment evidence checks, destructive/ambiguous action rejection, tests,
+recovery/evidence procedures and visible drift blockers. **Closing #285 remains
+blocked** on verified live ownership/configuration, resolution of #284's unsafe
+plan, explicit deployment approval, an actual sandbox apply, post-deployment
+smoke results and a reviewed repeat plan. Reproducibility is not proven. No work
+on #286 was performed.
+
+Plan field semantics and private-plan handling follow HashiCorp's
+[JSON output specification](https://developer.hashicorp.com/terraform/internals/json-format)
+and [plan command reference](https://developer.hashicorp.com/terraform/cli/commands/plan).
