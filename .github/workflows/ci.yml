@@ -48,6 +48,9 @@ jobs:
           cd backend
           pytest -v -m "not api"
 
+      - name: Smoke test script unit tests
+        run: python -m pytest -v scripts/tests
+
   # --------------------------------------------------
   # Terraform Validation
   # --------------------------------------------------

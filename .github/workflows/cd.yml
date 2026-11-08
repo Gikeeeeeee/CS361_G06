@@ -131,3 +131,17 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -input=false tfplan
+
+      # Verification runs only after a successful apply. A failure stops CD;
+      # it never applies again, rolls back, or destroys infrastructure.
+      - name: Setup Python for smoke tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Verify deployed API and SVG assets
+        run: |
+          API_BASE_URL="$(terraform output -raw api_endpoint)"
+          ASSET_BASE_URL="$(terraform output -raw cdn_url)"
+          export API_BASE_URL ASSET_BASE_URL
+          python ../../scripts/smoke_test.py

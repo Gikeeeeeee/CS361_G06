@@ -847,3 +847,151 @@ existing `feature/v5/ci-validation` branch, allowing Draft PR
 No new PR, merge, deployment or automatic issue closure is authorized. The
 new GitHub Actions run must confirm all three jobs before the checksum-fix
 acceptance criterion is considered verified remotely.
+
+## 7. Post-deployment API smoke verification (#282)
+
+Implemented locally on `feature/v5/post-deploy-smoke-tests`, branched from
+`feature/v5/ci-validation` at `aef2058`. The #284 audit and #281 CI/checksum
+work are preserved. This work changes automation only, with no application
+service, API contract, Terraform resource, state or deployed data changes.
+
+### Verified architecture and contracts
+
+`scripts/smoke_test.py` uses only Python's standard library. It performs GET
+requests against the existing public read endpoints; no Supabase token, IAM
+signing, AWS SDK or additional AWS permission is required. Routes and response
+fields were checked against `backend/handler.py`, the building/floor models and
+services, `BuildingRepository.presigned_url`, existing contract tests and
+`docs/contract/floor.json`. It does not reuse the live API suite, which also
+contains writes and deployment-specific IDs.
+
+| Check | Verified contract |
+|---|---|
+| `GET /api/v1/buildings` | HTTP 200, JSON object, nonempty `buildings` list with nonempty building `id` and `code`. Error envelopes fail even with HTTP 200. |
+| `GET /api/v1/buildings/{code}` | `id` and `code` match discovery; `floors` is an array of unique floor IDs/numbers. Buildings without floors can be skipped during discovery. |
+| `GET /api/v1/floors/{floorId}` | Floor `id` and integer `floor_number` match the chosen building's summary; `rooms` and `facilities` arrays and their required pin fields/types are checked. `floor_plan.type` must be `svg` and its URL nonempty. |
+| SVG GET | Exact trusted asset origin/path, HTTP 200, `image/svg+xml`, valid XML with an SVG namespace/root, no DTD/entities, and content matching the checkout baseline after XML line-ending normalization. |
+
+Default coverage is **one representative building/floor pair**, discovered by
+building-code order, then the lowest available floor number. No deployment ID
+is embedded in the script. Optional `--building-code` and `--floor-number`
+selection must match discovery; a floor selection requires a building code.
+This is a focused smoke check, not exhaustive campus or browser-rendering coverage.
+
+The floor response does not contain a building ID or raw S3 key. Association
+therefore follows the building summary's floor ID and number, then the matching
+building-code/floor-number entry in checkout `building-data/building/*.json`.
+Its `floor_plan_key` supplies the expected path and local SVG file; UUIDs in the
+source metadata need not equal deployment UUIDs. This avoids guessing filenames
+or trusting an arbitrary SVG URL merely because it returns 200.
+
+The trusted checkout is the deployment baseline: its SVG SHA256 is compared
+with the retrieved content after CRLF/CR-to-LF normalization. A mismatch fails
+as wrong or potentially stale content; it does not prove how old the content
+is or which historical version it came from. Missing/ambiguous metadata or a
+missing baseline file fails as unverifiable. Even a matching digest does not
+prove cache age, physical-map correctness or historical freshness. A reviewed
+baseline must not be replaced with a failing remote response simply to pass.
+
+### CD and CI integration
+
+The existing CD trigger remains **push to main only**, with `TF_WORKSPACE=default`,
+the existing AWS credential setup, concurrency and destructive-plan rejection
+unchanged. All pre-existing steps through `Terraform Apply` are preserved.
+Two steps are appended: setup Python 3.13, then smoke verification. GitHub's
+normal success condition ensures neither runs after a failed apply.
+
+The verification step obtains existing Terraform outputs, without adding any
+new Terraform configuration or permission:
+
+```bash
+API_BASE_URL="$(terraform output -raw api_endpoint)"
+ASSET_BASE_URL="$(terraform output -raw cdn_url)"
+export API_BASE_URL ASSET_BASE_URL
+python ../../scripts/smoke_test.py
+```
+
+These commands run from the existing backend Terraform working directory only
+after a future approved deployment. The script resolves its baseline relative
+to its own file, so working-directory differences do not change the data source.
+`api_endpoint` is the API Gateway base without `/api/v1`; `cdn_url` is the
+trusted CloudFront base. Existing repository behavior serves CDN asset URLs
+when `ASSET_BASE_URL` is set and can generate signed S3 URLs otherwise. This
+CD check expects the configured CDN origin; an unexpected fallback origin fails.
+
+A smoke failure marks **deployment verification failed**, with no automatic
+destroy, rollback, repeat apply or state manipulation. It does not undo the
+already-completed deployment. CI's existing Python job also runs
+`python -m pytest -v scripts/tests`, using dependencies already installed for
+backend tests; the smoke script itself needs no dependency installation in CD.
+Existing CI triggers, permissions and Terraform matrix are unchanged.
+
+### Local execution and result handling
+
+Offline tests, requiring no endpoint or credentials:
+
+```bash
+python -m pytest -v scripts/tests -p no:cacheprovider
+```
+
+For an explicitly approved read-only target, configure the verified outputs as
+`API_BASE_URL` and `ASSET_BASE_URL`, then run:
+
+```bash
+python scripts/smoke_test.py
+# Equivalent explicit configuration; shell variables must be set first:
+python scripts/smoke_test.py --api-base-url "$API_BASE_URL" --asset-base-url "$ASSET_BASE_URL"
+```
+
+Use `--help` for optional discovery-validated selection, `--timeout` (positive,
+finite seconds per request; default 10) and `--assets-dir` for a trusted release's
+asset directory. Base URLs must be HTTPS with no userinfo, query or fragment.
+No retries or live test calls are performed by the offline test suite.
+
+Exit 0 means the sampled API chain and SVG baseline passed. Exit 1 indicates
+verification failure; exit 2 indicates invalid/missing configuration. Logs name
+the failed operation/category without dumping URL values or server bodies:
+
+| Failure category | Meaning |
+|---|---|
+| `API_UNAVAILABLE` | Non-200 API status, timeout, connection or transfer failure. |
+| `API_CONTRACT` | Invalid JSON/content type, missing fields, error envelope or inconsistent building/floor/pin data. |
+| `INCORRECT_REFERENCE` | Missing/invalid SVG reference, unexpected origin or wrong building/floor asset path. |
+| `ASSET_INACCESSIBLE` | SVG retrieval failed or returned non-200. |
+| `MALFORMED_ASSET` | Wrong MIME type, oversized asset, malformed/non-SVG XML, or DTD/entity declaration. |
+| `ASSET_MISMATCH` | Structurally valid SVG differs from the trusted baseline; potentially stale or wrong, with historical age unknown. |
+| `BASELINE_UNAVAILABLE` | Trusted metadata/content is missing, ambiguous or invalid; association/freshness cannot be established. |
+
+Security: only GET requests; no Authorization headers or token inputs; no URL
+or raw exception/body logging; signed URL queries are preserved for retrieval
+but never printed. HTTPS origins/paths are validated and redirects are refused
+instead of forwarding signed queries to another target. Responses are capped
+at 8 MiB. The checker does not execute SVG scripts or fetch embedded subresources.
+
+### Local validation and acceptance status
+
+| Check | Result |
+|---|---|
+| Smoke implementation tests | **57 passed**. Fake HTTP opener and temporary asset metadata/SVG fixtures; external socket connections blocked in unit tests. |
+| Failure scenarios | Non-200, invalid JSON/JSON MIME, missing fields, mismatched building/floor, bad/missing SVG URL, wrong origin/path, invalid XML/MIME/encoding, content mismatch, missing baseline, bad pins, duplicate floors, oversize responses, connection/timeout failures, redirect refusal and signed-query redaction. Success/failure/configuration exit codes and CD-style environment inputs covered. |
+| Existing backend tests | **361 passed, 38 live-API tests deselected**, with AWS credentials/config lookup disabled. |
+| Workflow validation | CI/CD YAML parsing and actionlint 1.7.12 pass. Optional ShellCheck/Pyflakes integration was disabled for the local actionlint invocation. |
+| Safeguard assertions | Existing CD prefix through apply is identical; main trigger, default workspace, credentials, concurrency and deletion guard preserved. CI's Terraform job is identical; only the script-test step was added. |
+| Scope and diff checks | `git diff --check` passes; no backend/frontend application or Terraform file changes. |
+
+Local implementation criteria are satisfied: reusable script, verified contracts,
+invalid-response failures, SVG baseline/reference checks, redacted logs, automated
+post-apply wiring, safeguards and passing tests. New/modified files are
+`scripts/smoke_test.py`, `scripts/tests/test_smoke_test.py`,
+`.github/workflows/cd.yml`, `.github/workflows/ci.yml` and `DeployFlow.md`.
+
+**Live post-deployment execution and a CD run URL remain unverified.** No live
+API or AWS request, Terraform plan/apply/destroy/state operation, resource/data
+mutation or Lambda update was executed for this task. The #284 sandbox plan
+remains unsafe; do not deploy this branch to exercise the checker. A later
+approved, independently safe deployment is required for end-to-end evidence.
+Deployment data must have a corresponding trusted release baseline, and sampled
+coverage cannot establish correctness of every floor or historical cache age.
+
+Stopped after local implementation and validation: no commit, push, PR creation,
+merge or deployment. Draft PR #288 is unchanged. No work on #283 was performed.
