@@ -786,3 +786,64 @@ References: [GitHub workflow syntax and PR branch filters](https://docs.github.c
 [matrix context availability](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts),
 [Terraform backend-disabled initialization](https://developer.hashicorp.com/terraform/cli/commands/init),
 [static Terraform validation](https://developer.hashicorp.com/terraform/cli/commands/validate).
+
+### Frontend provider checksum follow-up (Draft PR #288)
+
+Failure reference: [CI run 42498929018](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42498929018).
+Its Python and backend Terraform jobs passed. Frontend Terraform 1.15.8 on
+Linux AMD64 installed the signed AWS 6.63.0 package, warned `Provider lock file
+not updated` under readonly initialization, then failed validation because the
+unpacked provider did not match the recorded content hashes.
+
+The frontend lock contained two `h1` content hashes and sixteen `zh` ZIP
+hashes; the backend AWS entry contained one additional `h1`. Every existing
+AWS ZIP hash in both locks was checked against the official release manifest,
+including the Linux AMD64 ZIP hash: none mismatched. This was missing Linux
+content-hash coverage, not evidence of an unsigned or corrupted release.
+A fresh Linux AMD64 container using Terraform 1.15.8 reproduced the original
+warning and validation error with the old frontend lock. The previous local
+Windows validation did not exercise this Linux-specific failure.
+
+The fix was generated directly from the official provider registry:
+
+```powershell
+terraform -chdir=terraform/terraform-frontend providers lock -platform=linux_amd64 -platform=windows_amd64
+```
+
+Terraform reported signed HashiCorp packages for both platforms, added Linux
+coverage and confirmed Windows coverage was already recorded. Only one Linux
+`h1` was added to `terraform/terraform-frontend/.terraform.lock.hcl`; both existing
+`h1` values and all sixteen `zh` values were retained. No hashes were invented
+or copied from the backend lock. AWS stays at 6.63.0 with constraint `~> 6.0`;
+the unchanged backend also retains archive 2.8.0 with constraint `~> 2.4`.
+
+Only the frontend lock file and this Issue #281 documentation are modified.
+The workflow, provider constraints, resource definitions and application code
+are unchanged. In particular, CI retains `-lockfile=readonly`, Terraform
+1.15.8, backend-disabled initialization and all existing PR/matrix/permissions
+controls. No AWS credentials, Terraform state operations, plan or deployment
+are involved.
+
+Post-fix local validation used fresh source/provider directories, with no reused
+`.terraform` binaries or global provider caches and no AWS credentials:
+
+| Platform / root | Formatting, readonly backend-disabled init, validate |
+|---|---|
+| Linux AMD64 / frontend (Terraform 1.15.8 container) | All pass; original checksum error and lock-update warning absent. |
+| Linux AMD64 / backend (separate Terraform 1.15.8 container) | All pass; existing 14 DynamoDB deprecation warnings remain. |
+| Windows AMD64 / frontend | All pass; existing Windows checksum coverage preserved. |
+| Windows AMD64 / backend | All pass; existing deprecation warnings remain. |
+
+All four snapshots retained byte-identical lock files under readonly init;
+none created backend metadata or state. The original lock failed the clean
+Linux reproduction as expected, before the one-hash fix. Backend tests still
+pass: 361 passed, 38 live-API tests deselected. `actionlint` 1.7.12 and
+`git diff --check` pass. No workflow, application or infrastructure behavior
+change is needed.
+
+After local validation, this fix is to be committed and pushed only to the
+existing `feature/v5/ci-validation` branch, allowing Draft PR
+[#288](https://github.com/Gikeeeeeee/CS361_G06/pull/288/checks) to rerun CI.
+No new PR, merge, deployment or automatic issue closure is authorized. The
+new GitHub Actions run must confirm all three jobs before the checksum-fix
+acceptance criterion is considered verified remotely.
