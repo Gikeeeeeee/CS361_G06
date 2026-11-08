@@ -1388,3 +1388,290 @@ on #286 was performed.
 Plan field semantics and private-plan handling follow HashiCorp's
 [JSON output specification](https://developer.hashicorp.com/terraform/internals/json-format)
 and [plan command reference](https://developer.hashicorp.com/terraform/cli/commands/plan).
+
+## 10. Deployment security, credentials and monitoring audit (#286)
+
+This is a repository/configuration review on the existing
+`feature/v5/security-monitoring-audit` branch, based on the committed #285 work.
+The initial worktree was clean. Only this report is modified. No credentials,
+raw state, AWS policies/settings, monitoring configuration, application or
+workflow behavior were changed. No AWS call, state access, subscription,
+notification, credential rotation, repository-setting change or deployment was
+performed. Historical #284 AWS observations are explicitly separated from
+current configuration evidence; they were not refreshed here.
+
+Reviewed the three workflow files, both Terraform roots and locks, backend
+IAM/Lambda, storage, DynamoDB, OpenSearch and API Gateway modules, monitoring in
+backend `main.tf`, variable sensitivity and outputs, and #284/#285 evidence.
+The scope excludes application feature review and secret/state contents.
+
+### Evidence classification and prioritized findings
+
+**Verified** means the stated source/metadata fact was inspected; it does not
+mean the declaration exists or is effective in AWS. **Unverified** identifies
+missing live evidence. **Remediation recommended** records a proposed change;
+**Requires approval** means it is not authorized by this audit. No confirmed
+credential disclosure or exploitable AWS permission is asserted without evidence.
+
+| ID / severity | Evidence and finding | Recommendation / approval boundary |
+|---|---|---|
+| SEC-01 / High | **Verified (Git metadata):** `terraform/terraform-backend/state-backup-20261002-192144.json` is tracked in HEAD, 493,650 bytes, first added in available history by `9423cc0` on 2026-10-02. **Unverified:** contents, whether it actually contains state/secrets and exposure history. The file was not opened. | **Remediation recommended:** owner-controlled confidential triage and repository exposure assessment. **Requires approval:** any content inspection, removal, history cleanup or credential response. Removing the current file alone cannot erase prior Git copies; do not rewrite history or rotate credentials automatically. |
+| SEC-02 / High | **Verified (CD source):** AWS key/secret/session-token inputs come from GitHub Secrets, with no `role-to-assume`. **Unverified:** whether credentials are long-lived IAM keys or temporary credentials, expiry, rotation, owner and effective IAM/SCP/session permissions. Secret names alone cannot establish these facts. | Inventory credential metadata and access scope with separate authorization. Propose OIDC and short-lived environment-specific roles; do not claim the current principal is administrator or rotate it without owner approval. |
+| SEC-03 / High | **Verified (workflow):** main pushes can reach apply without a declared GitHub job environment/manual approval gate. CD has no explicit `permissions` map; actual token permissions and branch/ruleset protections are **Unverified**. Delete guard does not review in-place IAM/environment/code changes and exempts `terraform_data`. | Explicit read-only GitHub token scope and protected deployment environment/branch review are recommended. Retain full action review and existing main/default boundary. Workflow/repository protection changes **Require approval**; no bypass or behavior change here. |
+| SEC-04 / High | **Verified (historical #284 evidence):** state-bucket versioning was not enabled; frontend authoritative state ownership was unavailable. **Unverified:** current policies, versions, readers/writers and recovery readiness. The shared state bucket is not managed in these roots. | Authoritative bucket/state owner must review least privilege, backups and versioning separately. Enabling versioning protects future versions, not previously overwritten state. Shared-infrastructure changes **Require approval**. |
+| SEC-05 / High | **Verified (source):** public OpenSearch network access is configured for collection/dashboard. API and indexer share index permissions including Create/Delete/UpdateIndex, Read/WriteDocument; a fixed deployer-user path is an additional principal. **Unverified:** effective live network/data/IAM access. Public network reachability is not proof of anonymous data access. | Review API read versus indexer write/admin needs and deployer access. Stage role/principal/network changes with compatibility evidence; narrowing access can break queries/indexing or deployment and **Requires approval**. |
+| SEC-06 / High | **Verified (source):** three alarms route to one SNS topic; no subscription is declared. **Unverified:** live topic/policy/subscriptions, confirmation, recipient ownership and end-to-end delivery. | Assign an alert owner and obtain authorized metadata-only verification. A confirmed receiver and separately approved delivery exercise are needed before declaring operational alerting. No subscription or test message was created. |
+| SEC-07 / Medium | **Verified (source):** API role reads every object in its asset bucket and can scan/read/write/delete its configured DynamoDB table and indexes. Both Lambda roles attach the basic-execution managed policy. **Unverified:** effective role policies and whether all grants are needed. | Map grants to actual runtime operations; assess prefix/action scoping and function-log permissions. Do not remove CRUD grants merely because this audit does not inspect business logic. Runtime IAM changes **Require approval**. |
+| SEC-08 / Medium | **Verified (source):** credentials and tfvars are available to later CD tools; plaintext tfvars/plan are created on the runner, with no explicit cleanup step. CD references mutable action tags and an unpinned Terraform CLI; backend Python dependencies are not fully pinned. Actual logs/artifact retention are **Unverified**. | Restrict privileged step exposure, pin reviewed action/tool/dependency versions, review cleanup and prevent private plan/tfvars artifact uploads. Do not change packaging or deployment during this audit. |
+| SEC-09 / Medium | **Verified (source):** API access logs have configured retention; explicit Lambda log-group retention, delivery-failure alarms, continuous endpoint/SVG checks and deployed import-worker alarms are not declared here. SNS customer-managed encryption is not declared. **Unverified:** live logging, encryption and out-of-band monitoring. | Review retention/privacy, notification failures and health coverage with the owner. Adding alarms, canaries, keys or subscriptions **Requires approval** and a cost/permission review. |
+
+SEC-01 is a potential exposure, not a claim that any secret has been found.
+No raw state backup or secret value was retrieved, printed, exported or stored
+for this audit. The six async-import deletion candidates, Lambda rollback and
+environment changes remain unresolved #284 deployment blockers; this security
+review does not resolve or authorize them.
+
+### Credentials, PR isolation and log exposure
+
+CI and frontend preparation explicitly use `contents: read`. PR CI has no AWS
+authentication action or Secret references; it excludes live API tests and
+initializes both Terraform roots with `-backend=false -input=false
+-lockfile=readonly`. Frontend PR builds use reserved test configuration. Manual
+frontend preparation consumes public `VITE_*` Variables, validates the key type
+and keeps deployment disabled. Browser configuration is intentionally present
+in its bundle; a Supabase service key must never be supplied. Neither workflow
+grants OIDC token issuance in its current source.
+
+CD is restricted to `push` on `main`, sets `TF_WORKSPACE=default` and keeps
+concurrency cancellation disabled. It authenticates through three Secret
+references using `configure-aws-credentials@v4`. The session-token reference is
+configured, but existence, validity and consistency with the key pair are not
+verified. Temporary credentials need a matching valid session token and may
+expire during a job; no expiry/refresh evidence was collected. Secret placement
+at repository versus organization scope, access policies and inventory metadata
+were not queried. GitHub Secret references are not proof of least privilege.
+
+The tfvars-writing command redirects the variable to a file rather than
+printing its contents. The JSON-plan command pipes to jq and prints selected
+actions/addresses, not raw JSON. No deliberate raw-state dump or direct secret
+stdout command was found in the reviewed workflows. This is source evidence,
+not a guarantee about provider diagnostics or runtime logs. GitHub masking of
+a multiline tfvars Secret must not be assumed to protect every derived value.
+Resource addresses/outputs can expose infrastructure metadata; arbitrary
+`for_each` keys can include user data. Restrict log access and use sanitized
+summaries. Do not enable shell tracing or Terraform debug logs in privileged
+jobs without a reviewed redaction plan.
+
+A bounded offline pattern check of **29 tracked workflow/Terraform source
+files** found no AWS access-key candidates, private-key headers or JWT-like
+literals. Results contained categories/path counts only, never matched values.
+It excluded state/backups, private tfvars, `.env`, credential files and history
+blob contents. Available-ref filename history showed the tracked backup above,
+but no `.env`, private tfvars, conventional tfstate, credential or PEM paths
+matching the reviewed patterns. This is **not a complete historical secret scan
+or evidence that the repository is secret-free**. Renamed/encoded secrets and
+other file types are outside this check. Git ignores do not untrack files, and
+the conventional tfstate patterns do not cover this backup's JSON filename.
+No secret-scanner service, upload or GitHub secret inventory was invoked.
+
+### IAM scope and state security assessment
+
+The Terraform-managed Lambda roles trust the Lambda service, not GitHub. The
+deployment principal is a separate identity and its effective IAM policies are
+not defined here. It is therefore **Unverified** whether its deployment grants
+are broader than required. Review role/user attachments, inline/session
+policies, permission boundaries and SCPs using authorized metadata before making
+that determination. The named deployer-user principal in OpenSearch is a
+configuration dependency, not proof of the current credential owner.
+
+Runtime source scopes S3 reads/listing to the asset bucket, DynamoDB CRUD/scans
+to one table and its indexes, indexer stream reads to the configured stream,
+and `aoss:APIAccessAll` to the collection. The collection/index data policy is a
+second authorization layer and currently grants the same data operations to API,
+indexer and deployer principals. Separate query, indexing and schema-management
+responsibilities before proposing narrower grants. The attached
+[AWSLambdaBasicExecutionRole](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSLambdaBasicExecutionRole.html)
+allows log creation/writes with wildcard resource scope; precreated function
+log groups and scoped custom grants merit review, not immediate replacement.
+
+| State control | Evidence status / limitation |
+|---|---|
+| Remote backend and locking | **Verified (source):** S3 backend and `use_lockfile=true`; backend requires Terraform 1.10+. **Unverified:** successful current lock acquisition and IAM enforcement. No lock was taken here. |
+| Workspace isolation | **Verified (source):** default key versus `env:/sandbox/<key>` and bucket/environment guard. **Unverified:** key-specific IAM isolation and caller account/region enforcement in the actual deployment. Workspaces are not separate security principals/accounts. |
+| Encryption and public blocking | **Verified (historical #284 evidence):** AES256 default encryption and all four public-block flags. **Unverified now:** effective bucket policy/ACL/TLS-only enforcement, access auditing, key controls and current settings. `backend.tf` itself does not declare the bucket or explicit backend `encrypt`; that alone does not establish unencrypted state. |
+| Versioning/backups | **Verified (historical):** versioning not enabled. **Unverified now:** approved backup copies/restoration evidence. Local Git backups are not an acceptable substitute for controlled encrypted recovery storage. |
+| Sensitive fields | **Verified (source):** Supabase JWT secret/anon-key variables are sensitive in root and Lambda module, and passed into Lambda environment attributes. State/plan representations can retain such values; no values were inspected. `sensitive` is display protection, not at-rest omission. |
+| Authoritative access and frontend | **Unverified:** state bucket owner policy, reader/writer list, recovery-role permissions and frontend authoritative state. No replacement backend, migration or empty state was initialized. |
+
+Use separate audit/deploy/recovery roles. An audit role should not have state
+write or lock-delete access. An approved deploy role needs bucket listing
+restricted to its state prefix, Get/Put for its exact state object and
+Get/Put/Delete for its matching `.tflock`; deleting the state object is not a
+normal backend requirement. Default CD and sandbox should not share unrestricted
+state-prefix access. Recovery/version reads and destructive recovery rights
+belong to a separately controlled role. If SSE-KMS is approved, review both IAM
+and KMS key permissions and failure recovery before changing encryption.
+See [S3 backend permissions and recovery guidance](https://developer.hashicorp.com/terraform/language/backend/s3)
+and [Terraform sensitive-data semantics](https://developer.hashicorp.com/terraform/language/manage-sensitive-data).
+Ephemeral flags cannot simply be added to values persisted in ordinary Lambda
+environment attributes; secret storage/retrieval redesign requires its own plan.
+
+### OIDC recommendation and scoped implementation proposal
+
+OIDC is feasible with the existing AWS credential action, but **not ready to
+activate without approved identity/trust/role configuration**. There is no OIDC
+provider resource in these roots; whether one already exists in the AWS account
+is **Unverified**. Do not create a duplicate provider or manage an existing one
+from an unowned state.
+
+Proposed trust requirements: the approved account's IAM provider for
+`https://token.actions.githubusercontent.com`, `sts:AssumeRoleWithWebIdentity`,
+exact audience `sts.amazonaws.com` for the existing AWS partition and exact
+repository/subject conditions. Do not use a wildcard repository/branch subject.
+Verify this repository's actual subject format first: GitHub documents both
+legacy name-based subjects and immutable owner/repository-ID subjects. Do not
+retrieve or log a full token to establish its format. If legacy format is
+confirmed, the branch-scoped subject would identify
+`Gikeeeeeee/CS361_G06` and `refs/heads/main`. No feature/PR/fork subject should
+match the deploy trust.
+
+The recommended protected-environment option uses the exact approved environment
+subject instead. That default subject does **not also encode the branch**;
+restrict deployments to main through environment deployment-branch rules,
+required reviewers and reviewed bypass/self-review settings. Those settings
+and availability are currently **Unverified**. Scope `id-token: write` to the
+approved deploy job, retain `contents: read`, and grant neither AWS credentials
+nor token issuance to PR validation. These conditions follow
+[GitHub's AWS OIDC guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws).
+
+The deployment role must be separate from runtime roles, with approved
+account/region/resource and state-prefix scope. Build its policy from this
+stack's required operations and reviewed usage evidence, not AdministratorAccess.
+Restrict `iam:PassRole` to the exact Lambda execution roles and Lambda service;
+review IAM role/policy management against privilege escalation and permission
+boundaries. Some APIs require wildcard resources: document each necessary
+exception with supported conditions. Do not invent a complete least-privilege
+policy without actual permission evidence. The OpenSearch policy's fixed
+deployer-user principal must be evaluated for the new role, including any
+data-plane deployment operation. Preserve operational access until verified.
+
+Scoped migration sequence, **all implementation Requires approval**:
+
+1. Approve the target account/environment, authoritative IAM/provider ownership,
+   trusted subject format, branch/environment protections, policy scope and
+   short session duration. Obtain metadata-only access evidence; do not inspect
+   or export Secret values. Keep sandbox and main/default scopes separate.
+2. Prepare a separately reviewed IAM/provider/role change in its authoritative
+   infrastructure location, with exact audience/subject restrictions, scoped
+   permissions, audit/session attribution and a reviewed break-glass procedure.
+   Check OpenSearch principal compatibility and state-lock access explicitly.
+3. Prepare a reviewed workflow/settings change using the approved role reference,
+   job-scoped token permission, protected environment and permitted-account
+   verification. Retain triggers, workspace, concurrency, destructive guard and
+   post-apply smoke behavior. Do not add a static-key fallback or widen trust.
+4. With separate execution approval, perform an identity/read-only-plan pilot in
+   an approved environment; prove untrusted subjects cannot assume the role.
+   The unresolved sandbox plan is not a pilot deployment candidate. Record
+   session/CloudTrail evidence without credentials/tokens; no apply is implied.
+5. After owner acceptance of successful authorized runs, remove the workflow's
+   key inputs and separately approve revocation of old credentials. Preserve
+   evidence and a controlled recovery path; do not retain permanent keys as an
+   invisible automated fallback. A failed migration stops deployment.
+
+OIDC removes the need for stored long-lived AWS keys and provides expiring role
+sessions; it does not fix excessive role permissions or compromised trusted
+workflow code. Trade-offs include trust/configuration errors, token/STS service
+dependencies, session expiry and environment-approval availability. Pin reviewed
+action revisions and use an attributable session name. The action's supported
+role/token settings are documented in its
+[v4 credential-action guidance](https://github.com/aws-actions/configure-aws-credentials/blob/v4/README.md).
+No role, provider, workflow input, permission or repository setting was changed.
+Please approve a separate scoped implementation before any migration work.
+
+### CloudWatch/SNS coverage and delivery status
+
+Backend monitoring is declared directly in `terraform/terraform-backend/main.tf`,
+not a separate monitoring module. All three alarms configure both ALARM and OK
+actions to `aws_sns_topic.alerts` and use `treat_missing_data=notBreaching`.
+
+| Alarm address | Configured signal / condition | Evidence status |
+|---|---|---|
+| `aws_cloudwatch_metric_alarm.api_5xx_rate` | API Gateway `5xx` / `Count`, sums over 300 seconds; `IF(requests > 0, 100 * errors / requests, 0)` > 1%, one evaluation period; selected API ID. | **Verified (source)**; live metrics/evaluation/notification **Unverified**. |
+| `aws_cloudwatch_metric_alarm.dynamodb_throttles` | Metrics Insights sums `ThrottledRequests` across Operation/TableName for the configured table; 60-second period, > 0, one evaluation period. | **Verified (source)**; query results and alarm state **Unverified**. |
+| `aws_cloudwatch_metric_alarm.indexer_iterator_age` | Indexer Lambda `IteratorAge`, Maximum > 60,000 ms, three 60-second periods. | **Verified (source)**; active stream mapping/metrics and delivery **Unverified**. |
+
+There is one SNS topic declaration and zero `aws_sns_topic_subscription`
+declarations. The source comment explicitly says no subscriber yet; that does
+not prove there are no manually created live subscriptions. Topic existence,
+CloudWatch publish permissions, any SNS encryption/KMS grants, confirmed
+subscription, recipient consent and end-to-end receipt all remain **Unverified**.
+A topic output is not proof of delivery. Email subscriptions require recipient
+confirmation; see [CloudWatch notification delivery guidance](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Notify_Users_Alarm_Changes.html).
+No recipient details were retrieved and no publish/subscribe/test was executed.
+
+API Gateway access logs are declared with default retention of **14 days** and
+detailed metrics/throttling. The format includes source IP and integration error
+messages, but does not explicitly include request bodies or Authorization
+headers. Review IP/privacy retention and error-message redaction separately;
+source formatting cannot guarantee actual messages contain no sensitive data.
+Explicit function log-group retention/KMS configuration is not declared here;
+actual Lambda log retention is **Unverified**, not assumed unlimited.
+
+Coverage gaps in source include continuous API/SVG correctness checks, Lambda
+errors/throttles/duration, import-worker/async queue health, notification failures
+and frontend/CloudFront health. Existing #282 smoke tests run after successful
+backend CD and #283 artifact checks are offline/build-time, not continuous
+monitoring or proof of recipient delivery. Missing-data-as-not-breaching can
+leave telemetry loss silent; review a separate heartbeat strategy. The API 5xx
+alarm is intended to catch HTTP failures even when handled application errors
+do not increment Lambda Errors. Metric availability, thresholds, workload
+coverage and ownership must be verified before relying on any of these alarms.
+
+### Security review checklist and approval queue
+
+| Review area | Evidence status | Disposition |
+|---|---|---|
+| AWS deployment identity / least privilege | **Unverified** effective principal/policies; runtime declarations **Verified**. | **Remediation recommended**: authorized IAM/usage review; policy changes **Require approval**. |
+| GitHub Actions permissions | CI/frontend read-only **Verified**; CD defaults **Unverified**. | Explicit CD scope **Remediation recommended**, change **Requires approval**. |
+| Secrets handling / Git exposure | Secret references/sensitivity and tracked backup metadata **Verified**; backup contents, credential lifetime and comprehensive history exposure **Unverified**. | Confidential triage **Requires approval**; no secret-value retrieval. |
+| Terraform State access | Backend/key/lock source **Verified**; effective bucket IAM/TLS/audit controls **Unverified**. | Owner evidence and scoped roles **Remediation recommended**. |
+| Encryption / backups | Asset encryption declarations and historical state AES256 **Verified** at their stated evidence level; current recovery evidence **Unverified**. | State versioning/backup work **Requires approval**. |
+| Locking / workspace isolation | Source controls **Verified**; actual acquisition and IAM separation **Unverified**. | Retain #285 gate and complete authorized identity/lock review. |
+| Deployment approval boundaries | main/default and delete guard **Verified**; environment gate absent in source, external protections **Unverified**. | Protected deployment review **Remediation recommended**; changes **Require approval**. |
+| CI/CD supply-chain exposure | PR/deploy separation **Verified**; mutable tags/tool/dependency gaps **Verified**. | Reviewed pinning and privileged-step isolation **Remediation recommended**. |
+| OIDC readiness | Proposed design documented; actual provider/subject/role ownership **Unverified**. | Migration **Requires approval**; do not activate automatically. |
+| CloudWatch/SNS delivery | Alarm/topic declarations **Verified**; subscriber/receipt and live settings **Unverified**. | Recipient ownership, confirmation and separately approved test **Require approval**. |
+| Logging / redaction | Access-log schema and automation redaction tests **Verified**; actual runtime/log access **Unverified**. | Retention/privacy/diagnostic review **Remediation recommended**. |
+| Recovery / incident response | #285 procedures and offline gate **Verified**; backups and exercises **Unverified**. | Resolve drift and obtain separate execution approval; no automatic rollback. |
+
+Priority order: owner-controlled SEC-01 exposure triage; verify credential/state
+owners and effective access; establish deployment/alert ownership; then review
+OIDC, scoped IAM, recovery/versioning, protected approvals and monitoring changes.
+Do not use this queue to bypass #284 drift or #283 frontend state ownership.
+Authorization is still needed for any AWS-side metadata collection, confidential
+backup inspection, credential action, policy/settings change or alert exercise.
+No implementation approval is inferred from this audit request.
+
+### Local validation, scope and completion limits
+
+| Executed check | Result |
+|---|---|
+| `python -m pytest -q scripts/tests -p no:cacheprovider` | **151 passed**; existing smoke, frontend-preparation and sandbox-gate tests. |
+| Backend offline suite, `pytest -v -m "not api" -p no:cacheprovider` | **361 passed, 38 deselected**; AWS environment/config inputs disabled by the existing local helper; live API tests excluded. |
+| Both roots through `sandbox_validation.py local` with prior #281 provider/module caches | fmt/validate pass on Terraform 1.15.8; backend 14 existing DynamoDB deprecation warnings, frontend zero. No init, AWS access or state read. |
+| actionlint 1.7.12: CI, CD and frontend preparation | Pass; optional external ShellCheck/Pyflakes disabled. |
+| Bounded current-source pattern/structure review | 29 files, no listed credential-pattern candidates; CI/frontend permissions and CD trigger/auth structure confirmed; one topic, three alarms, no declared subscription/OIDC provider. Not a comprehensive historical scan. |
+| Git metadata-only review | Tracked backup and available-ref filename history confirmed; no backup/state/credential contents read. |
+| Diff/scope | `git diff --check` passes; application, Terraform, IAM, workflows and scripts match `feature/v5/sandbox-reproducibility`. Only this report changes. |
+
+No permanent security scanner or new behavior/tests were added: the focused
+inspection plus existing redaction/automation tests provide evidence without
+introducing an unvalidated broad scanner. Local review helpers remain ignored
+under `scratch/`. The checklist and source-backed assessment are complete for
+review, **not a security certification or closure of live evidence gaps**.
+Effective deployment/state permissions, current backup/encryption controls,
+GitHub protections, credential metadata, actual monitoring and alert receipt
+remain blocked on separately authorized evidence. OIDC/remediation deployment
+is not part of acceptance for this audit-only change. No commit, push, PR,
+merge, issue comment, notification or deployment was made for #286. No work on
+another issue was performed.
