@@ -1,0 +1,186 @@
+# --------------------------------------------------
+# CD dry run: backend plan inspection only; frontend build verification is in CI.
+# --------------------------------------------------
+
+name: Manual Backend Terraform Dry Run
+
+# Explicit manual invocation only. Never triggered by a branch push.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Prevent multiple Terraform deployments on the same branch
+# from running at the same time.
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+
+  # --------------------------------------------------
+  # Terraform Deployment
+  # --------------------------------------------------
+
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    name: Backend Terraform Dry Run
+    runs-on: ubuntu-latest
+
+    # Prevent Terraform from running forever
+    timeout-minutes: 30
+
+    # Always use the team state; Terraform also validates workspace/bucket identity.
+    env:
+      TF_WORKSPACE: default
+
+    defaults:
+      run:
+        working-directory: terraform/terraform-backend
+
+    steps:
+
+      # --------------------------------------------------
+      # Checkout Source Code
+      # --------------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python for deployment validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # Cold-checkout archive preparation is local only, before AWS credentials.
+      # Reuse the existing Linux packager; no fake ZIP or cached fallback is added.
+      - name: Prepare local Lambda package for read-only planning
+        run: |
+          command -v docker >/dev/null
+          python modules/lambda/build.py
+
+      # --------------------------------------------------
+      # Setup Terraform
+      # --------------------------------------------------
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+          terraform_wrapper: false
+
+      # --------------------------------------------------
+      # Configure AWS Credentials
+      # --------------------------------------------------
+
+      - name: Configure AWS Credentials
+        id: aws_credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          # Must match the state bucket region in backend.tf
+          aws-region: ap-southeast-2
+
+      # --------------------------------------------------
+      # Write terraform.tfvars
+      # --------------------------------------------------
+      # The TF_VARS_FILE secret holds the exact contents of the
+      # team's existing backend variables. The plan guard independently checks
+      # their identity against existing state; file presence is not ownership.
+      # TF_VARS_FRONTEND is intentionally unused: no frontend state/plan/apply.
+
+      - name: Write terraform.tfvars
+        env:
+          TF_VARS_FILE: ${{ secrets.TF_VARS_FILE }}
+        run: |
+          if [ -z "$TF_VARS_FILE" ]; then
+            echo "::error::TF_VARS_FILE secret is not set"
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$TF_VARS_FILE" > terraform.tfvars
+
+      # --------------------------------------------------
+      # Terraform Init
+      # --------------------------------------------------
+
+      - name: Terraform Init
+        run: terraform init -input=false -lockfile=readonly
+
+      # --------------------------------------------------
+      # Terraform Validate
+      # --------------------------------------------------
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      # --------------------------------------------------
+      # Terraform Plan
+      # --------------------------------------------------
+
+      - name: Terraform Plan
+        id: plan
+        shell: bash
+        run: |
+          # No remote lock writes. This is a snapshot, never an apply artifact.
+          umask 077
+          set +e
+          terraform plan -input=false -lock=false -detailed-exitcode -out=tfplan
+          plan_exit=$?
+          set -e
+          printf 'exit_code=%s\n' "$plan_exit" >> "$GITHUB_OUTPUT"
+          if [ "$plan_exit" -ne 0 ] && [ "$plan_exit" -ne 2 ]; then
+            exit "$plan_exit"
+          fi
+
+      # --------------------------------------------------
+      # Refuse Destructive Plans
+      # --------------------------------------------------
+      # Bind the plan to the existing state, caller and configured region.
+      # Creates, deletes, replacements, identity/IAM/environment changes and
+      # ambiguous evidence are refused. The existing local packaging helper is
+      # classified separately; it is not an AWS infrastructure replacement.
+
+      - name: Refuse destructive plan
+        id: plan_safety
+        shell: bash
+        env:
+          DEPLOY_ACCOUNT_ID: ${{ steps.aws_credentials.outputs.aws-account-id }}
+        run: |
+          DEPLOY_WORKSPACE="$(terraform workspace show)"
+          export DEPLOY_WORKSPACE
+          terraform show -json tfplan | python ../../scripts/deployment_guard.py backend-plan \
+            --plan - --backend-metadata .terraform/terraform.tfstate --backend-source backend.tf
+
+      # No apply or live smoke step: dry-run success is not deployment evidence.
+      - name: Record deployment verification evidence
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        env:
+          PLAN_STATUS: ${{ steps.plan.outcome }}
+          PLAN_EXIT: ${{ steps.plan.outputs.exit_code }}
+          SAFETY_STATUS: ${{ steps.plan_safety.outcome }}
+        run: |
+          {
+            echo '## Existing backend CD dry run'
+            printf 'UTC: %s\n\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'Commit: `%s`\n\n' "$GITHUB_SHA"
+            printf 'Run: %s/%s/actions/runs/%s\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf '| Check | Outcome |\n|---|---|\n'
+            printf '| Backend plan | %s |\n| Plan exit code | %s |\n| Existing-resource safety | %s |\n' "$PLAN_STATUS" "$PLAN_EXIT" "$SAFETY_STATUS"
+            echo '| Frontend | Not run: outside this manual backend dry run |'
+            echo '| Apply / post-deployment verification | Not run: dry-run scope |'
+            echo
+            echo 'Frontend infrastructure deployment is not covered. No frontend state, plan, apply, S3 upload or invalidation.'
+            echo 'Lock-free plan snapshots can become stale. No plan is uploaded or approved for apply; no deployment occurred.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove private dry-run files
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          rm -f -- "$GITHUB_WORKSPACE/terraform/terraform-backend/tfplan" \
+            "$GITHUB_WORKSPACE/terraform/terraform-backend/terraform.tfvars"
