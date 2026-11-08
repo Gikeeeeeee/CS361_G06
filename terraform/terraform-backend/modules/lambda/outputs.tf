@@ -32,3 +32,8 @@ output "indexer_role_arn" {
   description = "Indexer Lambda execution role ARN."
   value       = aws_iam_role.indexer.arn
 }
+
+output "import_worker_function_name" {
+  description = "CSV Import Worker Lambda function name."
+  value       = aws_lambda_function.import_worker.function_name
+}

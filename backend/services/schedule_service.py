@@ -27,13 +27,15 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def new_item(schedule: dict[str, Any], room_id: str) -> dict[str, Any]:
+def new_item(
+    schedule: dict[str, Any], room_id: str, schedule_id: str | None = None
+) -> dict[str, Any]:
     """A validated schedule -> a new stored item."""
     now = _now()
 
     return {
         **schedule,
-        "id": str(uuid4()),
+        "id": schedule_id or str(uuid4()),
         "room_id": room_id,
         "created_at": now,
         "updated_at": now,

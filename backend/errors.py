@@ -296,6 +296,34 @@ class ImportConflict(AppError):
         )
 
 
+class CsvTooLarge(ValidationError):
+    def __init__(self, size: int, limit: int):
+        super().__init__(
+            f"File is {size // 1024} KB; the limit is {limit // 1024} KB. "
+            "Split it into smaller files."
+        )
+
+
+class ImportJobNotFound(NotFoundError):
+    code = "IMPORT_JOB_NOT_FOUND"
+
+    def __init__(self, job_id: str):
+        self.job_id = job_id
+        super().__init__(f"Import job '{job_id}' not found")
+
+
+class ImportJobStalled(AppError):
+    def __init__(self):
+        super().__init__(
+            "The import stopped before finishing. Please upload the file again."
+        )
+
+
+class ImportUpstreamError(UpstreamError):
+    def __init__(self, service: str, error_code: str | None, action: str):
+        super().__init__(f"AWS {service} client error [{error_code}] {action} import job.")
+
+
 # ---------------------------------------------------------------------------
 # Auth & User
 # ---------------------------------------------------------------------------

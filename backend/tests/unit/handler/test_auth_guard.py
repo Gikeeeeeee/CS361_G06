@@ -73,3 +73,35 @@ def test_staff_in_app_metadata_passes_guard(invoke_handler):
 def test_reads_stay_public(invoke_handler):
     event = make_apigw_event(method="GET", path="/api/v1/buildings")
     assert invoke_handler(event)["statusCode"] == 200
+
+
+# -- CSV import jobs (#241): reading a job is STAFF-only too --------------------
+
+JOB_KEY = "GET /api/v1/schedules/imports/{jobId}"
+
+
+def _get_job(token=None):
+    headers = {"authorization": f"Bearer {token}"} if token else {}
+    return make_apigw_event(method="GET", path="/api/v1/schedules/imports/j1", route_key=JOB_KEY,
+                            path_parameters={"jobId": "j1"}, headers=headers)
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+@pytest.mark.parametrize("role, status", [(None, 401), ("STUDENT", 403), ("STAFF", 404)])
+def test_import_job_status_needs_staff(invoke_handler, role, status):
+    assert invoke_handler(_get_job(role and _token(role)))["statusCode"] == status
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_import_records_who_submitted(invoke_handler, schedule_source):
+    csv = ("building,room,type,title,start_at,end_at,course_code,organizer,recurrence_rule\n"
+           "LC4,201,COURSE,CS361,2026-10-05T09:00:00+07:00,2026-10-05T12:00:00+07:00,CS361,Dr. A,\n")
+    event = make_apigw_event(method="POST", path="/api/v1/schedules/imports",
+                             route_key="POST /api/v1/schedules/imports", body=csv,
+                             headers={"authorization": f"Bearer {_token('STAFF')}"})
+
+    assert invoke_handler(event)["statusCode"] == 202
+    (job,) = schedule_source.jobs.values()
+    assert job["created_by"] == "u1"

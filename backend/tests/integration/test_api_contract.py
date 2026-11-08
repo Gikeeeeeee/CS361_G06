@@ -370,3 +370,146 @@ def test_api_put_and_delete_schedule_contract(api_base_url: str, throwaway_room:
     assert res.status_code == 200
     assert res.json() == "deleted"
     assert _schedules(api_base_url, throwaway_room).json()["data"] == []
+
+
+# ---------------------------------------------------------------------------
+# CSV import jobs (#241): POST answers 202 at once, the worker imports in the
+# background, GET /imports/{jobId} reports the outcome. Imports need a real
+# bookable room (default LC3 103); rows are far-future and removed afterwards.
+# ---------------------------------------------------------------------------
+
+IMPORT_BUILDING = os.getenv("IMPORT_BUILDING", "LC3")
+IMPORT_ROOM = os.getenv("IMPORT_ROOM", "103")
+CSV_HEADER = "building,room,type,title,start_at,end_at,course_code,organizer,recurrence_rule"
+
+needs_staff = pytest.mark.skipif(
+    not os.getenv("STAFF_TOKEN"), reason="needs a Supabase token: export STAFF_TOKEN"
+)
+
+
+def _staff() -> dict[str, str]:
+    return {"Authorization": f"Bearer {os.environ['STAFF_TOKEN']}"}
+
+
+def _csv_row(day: str, rule: str = "") -> str:
+    return (f"{IMPORT_BUILDING},{IMPORT_ROOM},ACTIVITY,Import smoke {uuid.uuid4().hex[:6]},"
+            f"{day}T09:00:00+07:00,{day}T10:00:00+07:00,,Smoke,{rule}")
+
+
+@pytest.fixture
+def import_jobs():
+    """Collects job ids; deletes every schedule those jobs wrote afterwards."""
+    job_ids: list[str] = []
+
+    yield job_ids
+
+    table_name = os.getenv("DYNAMODB_TABLE_NAME")
+    if not table_name:
+        return
+
+    table = boto3.resource("dynamodb").Table(table_name)
+    for job_id in job_ids:
+        written = table.query(
+            IndexName="GSI0",
+            KeyConditionExpression=Key("GSI0PK").eq("SCHEDULE")
+            & Key("GSI0SK").begins_with(f"imp-{job_id}-"),
+        ).get("Items", [])
+        with table.batch_writer() as batch:
+            for item in written:
+                batch.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+
+
+def _post_import(base_url: str, csv: str, dry_run: bool = False) -> requests.Response:
+    query = "?dry_run=true" if dry_run else ""
+    return requests.post(
+        f"{base_url}/api/v1/schedules/imports{query}",
+        data=f"{CSV_HEADER}\n{csv}\n".encode("utf-8"),
+        headers={"Content-Type": "text/csv", **_staff()},
+        timeout=10,
+    )
+
+
+def _await_job(base_url: str, job_id: str, timeout: float = 90) -> dict[str, Any]:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while True:
+        res = _request("GET", f"/api/v1/schedules/imports/{job_id}", base_url, headers=_staff())
+        assert res.status_code == 200
+        job = res.json()["data"]
+        if job["status"] in ("COMPLETED", "FAILED") or time.monotonic() > deadline:
+            return job
+        time.sleep(2)
+
+
+def _submit(base_url: str, import_jobs: list[str], csv: str, dry_run: bool = False) -> str:
+    import time
+
+    started = time.monotonic()
+    res = _post_import(base_url, csv, dry_run)
+    elapsed = time.monotonic() - started
+
+    assert res.status_code == 202, res.text
+    body = res.json()
+    assert body["success"] is True and body["data"]["status"] == "PENDING"
+    assert elapsed < 3, f"POST took {elapsed:.1f}s"  # AC: never blocks > 3 s
+    import_jobs.append(body["data"]["job_id"])
+    return body["data"]["job_id"]
+
+
+@needs_staff
+def test_api_import_job_completes_in_the_background(api_base_url: str, import_jobs):
+    job_id = _submit(api_base_url, import_jobs, _csv_row("2031-03-03"))
+
+    job = _await_job(api_base_url, job_id)
+
+    assert job["status"] == "COMPLETED", job
+    assert job["result"] == {"created": 1} and job["error"] is None
+
+
+@needs_staff
+def test_api_import_dry_run_job_previews_and_saves_nothing(api_base_url: str, import_jobs):
+    job_id = _submit(api_base_url, import_jobs,
+                     _csv_row("2031-03-10", "FREQ=WEEKLY;COUNT=3"), dry_run=True)
+
+    job = _await_job(api_base_url, job_id)
+
+    assert job["status"] == "COMPLETED", job
+    assert job["dry_run"] is True and len(job["result"]["rows"]) == 3
+
+
+@needs_staff
+def test_api_import_conflict_fails_the_job_with_row_details(api_base_url: str, import_jobs):
+    row = _csv_row("2031-03-17")
+    first = _submit(api_base_url, import_jobs, row)
+    assert _await_job(api_base_url, first)["status"] == "COMPLETED"
+
+    job = _await_job(api_base_url, _submit(api_base_url, import_jobs, row))
+
+    assert job["status"] == "FAILED", job
+    assert job["error"]["code"] == "SCHEDULE_CONFLICT"
+    assert job["error"]["details"][0]["row"] == 2
+
+
+@needs_staff
+def test_api_import_bad_file_is_rejected_without_a_job(api_base_url: str):
+    res = requests.post(f"{api_base_url}/api/v1/schedules/imports", data=b"building,room\n",
+                        headers={"Content-Type": "text/csv", **_staff()}, timeout=10)
+
+    assert res.status_code == 400
+    assert res.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+@needs_staff
+def test_api_unknown_import_job_is_404(api_base_url: str):
+    res = _request("GET", f"/api/v1/schedules/imports/{uuid.uuid4()}", api_base_url,
+                   headers=_staff())
+
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "IMPORT_JOB_NOT_FOUND"
+
+
+def test_api_import_job_status_needs_a_token(api_base_url: str):
+    res = _request("GET", f"/api/v1/schedules/imports/{uuid.uuid4()}", api_base_url)
+
+    assert res.status_code == 401

@@ -63,3 +63,40 @@ class ScheduleSource(Protocol):
     ) -> list[dict[str, Any]]:
         """Check schedule overlap."""
         ...
+
+    # -- CSV import jobs (#241) --------------------------------------------
+
+    def create_job(self, job: dict[str, Any]) -> None:
+        """Store a new import job (status PENDING)."""
+        ...
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        """Fetch an import job, or None."""
+        ...
+
+    def claim_job(
+        self, job_id: str, token: str, now: int, lease_until: int, max_attempts: int
+    ) -> dict[str, Any] | None:
+        """PENDING (or PROCESSING with an expired lease, under max_attempts) ->
+        PROCESSING owned by `token`; return the job, or None if someone else has it."""
+        ...
+
+    def finish_job(self, job_id: str, token: str, status: str, now: int) -> None:
+        """Set the final status, only while `token` still owns the job."""
+        ...
+
+    def put_import_object(self, name: str, body: bytes) -> None:
+        """Store a job file (the CSV or its result)."""
+        ...
+
+    def get_import_object(self, name: str) -> bytes | None:
+        """Read a job file, or None."""
+        ...
+
+    def dispatch_import(self, job_id: str) -> None:
+        """Hand the job to the background worker."""
+        ...
+
+    def delete_import_schedules(self, id_prefix: str) -> None:
+        """Delete every schedule whose id starts with `id_prefix`."""
+        ...

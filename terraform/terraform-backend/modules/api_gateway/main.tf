@@ -188,6 +188,14 @@ resource "aws_apigatewayv2_route" "post_schedule_imports" {
   target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_schedule_import_job" {
+  api_id = aws_apigatewayv2_api.this.id
+
+  route_key = "GET /api/v1/schedules/imports/{jobId}"
+
+  target = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "get_users_me" {
   api_id = aws_apigatewayv2_api.this.id
 

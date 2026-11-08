@@ -165,6 +165,10 @@ class FakeScheduleSource:
         # Set to a threading.Barrier to hold every overlap check until all
         # racing requests have done theirs (simulates concurrent requests).
         self.check_barrier = None
+        # CSV import jobs (#241)
+        self.jobs: dict[str, dict[str, Any]] = {}
+        self.objects: dict[str, bytes] = {}
+        self.dispatched: list[str] = []
 
     def list_schedules(
         self,
@@ -255,7 +259,53 @@ class FakeScheduleSource:
         with self.lock:
             for room_id, version in versions.items():
                 self._bump(room_id, version)
-            self.schedules.extend(schedules)
+            # A put with an existing key overwrites it, as in DynamoDB.
+            keys = {(s["room_id"], s["id"]) for s in schedules}
+            self.schedules = [
+                s for s in self.schedules if (s.get("room_id"), s.get("id")) not in keys
+            ] + list(schedules)
+
+    def create_job(self, job: dict[str, Any]) -> None:
+        self.jobs[job["job_id"]] = dict(job)
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        job = self.jobs.get(job_id)
+        return dict(job) if job else None
+
+    def claim_job(self, job_id, token, now, lease_until, max_attempts):
+        with self.lock:
+            job = self.jobs.get(job_id)
+            if job is None or job["attempts"] >= max_attempts:
+                return None
+            if not (
+                job["status"] == "PENDING"
+                or (job["status"] == "PROCESSING" and job["lease_until"] < now)
+            ):
+                return None
+            job.update(
+                status="PROCESSING", claim_token=token, lease_until=lease_until,
+                updated_at=now, attempts=job["attempts"] + 1,
+            )
+            return dict(job)
+
+    def finish_job(self, job_id, token, status, now) -> None:
+        job = self.jobs[job_id]
+        if job.get("claim_token") == token:
+            job.update(status=status, updated_at=now)
+
+    def put_import_object(self, name: str, body: bytes) -> None:
+        self.objects[name] = body
+
+    def get_import_object(self, name: str) -> bytes | None:
+        return self.objects.get(name)
+
+    def dispatch_import(self, job_id: str) -> None:
+        self.dispatched.append(job_id)
+
+    def delete_import_schedules(self, id_prefix: str) -> None:
+        self.schedules = [
+            s for s in self.schedules if not str(s.get("id", "")).startswith(id_prefix)
+        ]
 
     def get_schedule(
         self,

@@ -13,6 +13,12 @@ resource "aws_dynamodb_table" "this" {
   stream_enabled   = true
   stream_view_type = "NEW_IMAGE"
 
+  # CSV import job items (#241) expire a day after they are created.
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+
   deletion_protection_enabled = true
 
   lifecycle {

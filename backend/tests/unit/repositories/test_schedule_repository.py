@@ -251,3 +251,84 @@ def test_get_schedule_by_id_queries_gsi0():
     assert item == {"id": "s1", "room_id": "r1"}
     assert table.queries[0]["IndexName"] == "GSI0"
     assert table.queries[0]["Limit"] == 1
+
+
+# -- CSV import jobs (#241) ------------------------------------------------------
+
+
+class _JobTable(_PagedTable):
+    def __init__(self, attributes=None, fail=None, **kwargs):
+        super().__init__(**kwargs)
+        self.updates = []
+        self.attributes = attributes or {}
+        self.fail = fail
+
+    def update_item(self, **kwargs):
+        self.updates.append(kwargs)
+        if self.fail:
+            raise ClientError({"Error": {"Code": self.fail}}, "UpdateItem")
+        return {"Attributes": self.attributes}
+
+
+@pytest.mark.unit
+def test_claim_job_is_conditional_and_returns_plain_ints():
+    from decimal import Decimal
+
+    table = _JobTable({"PK": "IMPORT_JOB#j1", "SK": "JOB", "job_id": "j1", "attempts": Decimal(1)})
+    job = ScheduleRepository(table=table).claim_job("j1", "t", 100, 430, 3)
+
+    assert job == {"job_id": "j1", "attempts": 1}
+    update = table.updates[0]
+    assert update["Key"] == {"PK": "IMPORT_JOB#j1", "SK": "JOB"}
+    assert "attempts < :max" in update["ConditionExpression"]
+    assert update["ExpressionAttributeValues"][":token"] == "t"
+
+
+@pytest.mark.unit
+def test_claim_job_lost_returns_none_and_finish_job_lost_is_ignored():
+    repo = ScheduleRepository(table=_JobTable(fail="ConditionalCheckFailedException"))
+
+    assert repo.claim_job("j1", "t", 100, 430, 3) is None
+    repo.finish_job("j1", "t", "COMPLETED", 200)  # no raise
+
+
+@pytest.mark.unit
+def test_delete_import_schedules_deletes_by_id_prefix_on_gsi0():
+    table = _PagedTable([{"Items": [{"PK": "ROOM#r1", "SK": "SCHEDULE#imp-j1-2"}]}])
+    ScheduleRepository(table=table).delete_import_schedules("imp-j1-")
+
+    assert table.queries[0]["IndexName"] == "GSI0"
+    assert table.deletes == [{"PK": "ROOM#r1", "SK": "SCHEDULE#imp-j1-2"}]
+
+
+@pytest.mark.unit
+def test_import_objects_live_under_imports_prefix(monkeypatch):
+    monkeypatch.setenv("BUCKET_NAME", "bucket")
+    calls = []
+
+    class S3:
+        def put_object(self, **kwargs):
+            calls.append(kwargs)
+
+        def get_object(self, **kwargs):
+            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+
+    repo = ScheduleRepository(table=_PagedTable())
+    repo._s3 = S3()
+    repo.put_import_object("j1.csv", b"data")
+
+    assert calls == [{"Bucket": "bucket", "Key": "imports/j1.csv", "Body": b"data"}]
+    assert repo.get_import_object("j1.result.json") is None
+
+
+@pytest.mark.unit
+def test_dispatch_import_invokes_the_worker_asynchronously(monkeypatch):
+    monkeypatch.setenv("IMPORT_WORKER_NAME", "worker")
+    calls = []
+    repo = ScheduleRepository(table=_PagedTable())
+    repo._lambda = SimpleNamespace(invoke=lambda **kwargs: calls.append(kwargs))
+
+    repo.dispatch_import("j1")
+
+    assert calls == [{"FunctionName": "worker", "InvocationType": "Event",
+                      "Payload": b'{"import_job_id": "j1"}'}]

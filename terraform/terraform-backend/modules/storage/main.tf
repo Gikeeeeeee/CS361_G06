@@ -45,6 +45,31 @@ resource "aws_s3_bucket_versioning" "this" {
   }
 }
 
+# CSV import job files (#241) are only needed while the job is polled.
+resource "aws_s3_bucket_lifecycle_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  rule {
+    id     = "expire-import-jobs"
+    status = "Enabled"
+
+    filter {
+      prefix = "imports/"
+    }
+
+    expiration {
+      days = 1
+    }
+
+    # The bucket is versioned: also drop the old versions expiry leaves behind.
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.this]
+}
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 

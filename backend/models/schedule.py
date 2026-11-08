@@ -77,6 +77,7 @@ CSV_HEADER = (
 )
 MAX_IMPORT_ROWS = 300
 MAX_IMPORT_OCCURRENCES = 2000
+MAX_IMPORT_BYTES = 256 * 1024
 
 # Room type -> schedule types it may hold. Any other room type cannot be booked.
 ROOM_TYPE_RULES = {

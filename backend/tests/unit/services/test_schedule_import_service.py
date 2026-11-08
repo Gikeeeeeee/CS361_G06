@@ -9,8 +9,10 @@ from errors import (
     CsvMissingColumns,
     CsvNotUtf8,
     CsvTooManyOccurrences,
+    CsvTooLarge,
     CsvTooManyRows,
     ImportConflict,
+    ImportJobNotFound,
     ImportRejected,
     ScheduleWriteRace,
 )
@@ -289,3 +291,166 @@ def test_import_racing_a_single_booking_saves_only_one(service, store):
 
     assert sum(isinstance(r, ScheduleWriteRace) for r in results) == 1
     assert len(store.schedules) == 1
+
+
+# -- background jobs (#241) ----------------------------------------------------
+
+NOW = 1_800_000_000
+
+
+@pytest.fixture
+def jobs(campus_source, store):
+    """Service with a fixed clock; `jobs.clock = ...` moves time."""
+    return ScheduleImportService(campus_source, store, clock=lambda: NOW)
+
+
+def _submit_and_run(jobs, data, dry_run=False):
+    job_id = jobs.submit(data, dry_run, created_by="staff-1")["job_id"]
+    jobs.run_job(job_id)
+    return job_id, jobs.get_job(job_id)
+
+
+def test_submit_stores_the_file_and_queues_a_job(jobs, store):
+    data = _csv(_row())
+    submitted = jobs.submit(data, dry_run=False, created_by="staff-1")
+
+    job_id = submitted["job_id"]
+    assert submitted == {"job_id": job_id, "status": "PENDING"}
+    assert store.objects[f"{job_id}.csv"] == data
+    assert store.dispatched == [job_id]
+    assert store.jobs[job_id]["created_by"] == "staff-1"
+    assert store.jobs[job_id]["expires_at"] == NOW + 24 * 3600
+    assert store.schedules == []  # nothing is imported until the worker runs
+
+
+@pytest.mark.parametrize(
+    "data, error",
+    [(b"x" * (256 * 1024 + 1), CsvTooLarge), (b"building,room\nLC4,201", CsvMissingColumns)],
+    ids=["too-large", "missing-columns"],
+)
+def test_bad_files_are_rejected_before_queueing(jobs, store, data, error):
+    with pytest.raises(error):
+        jobs.submit(data, dry_run=False)
+
+    assert store.jobs == {} and store.objects == {} and store.dispatched == []
+
+
+def test_job_completes_with_stable_ids(jobs, store):
+    job_id, job = _submit_and_run(jobs, _csv(_row(), _row(room="205", type="ACTIVITY")))
+
+    assert job["status"] == "COMPLETED"
+    assert job["result"] == {"created": 2} and job["error"] is None
+    assert sorted(s["id"] for s in store.schedules) == [f"imp-{job_id}-2", f"imp-{job_id}-3"]
+
+
+def test_dry_run_job_returns_the_preview_and_writes_nothing(jobs, store):
+    _, job = _submit_and_run(jobs, _csv(_row(rule="FREQ=WEEKLY;COUNT=3")), dry_run=True)
+
+    assert job["status"] == "COMPLETED" and job["dry_run"] is True
+    assert len(job["result"]["rows"]) == 3
+    assert store.schedules == []
+
+
+def test_failed_job_keeps_the_row_details(jobs, store):
+    _book(store)
+    _, job = _submit_and_run(jobs, _csv(_row()))
+
+    assert job["status"] == "FAILED"
+    assert job["error"]["code"] == "SCHEDULE_CONFLICT"
+    assert job["error"]["details"][0]["row"] == 2
+    assert [s["title"] for s in store.schedules] == ["Existing"]
+
+
+def test_duplicate_delivery_runs_the_job_once(jobs, store, monkeypatch):
+    job_id, _ = _submit_and_run(jobs, _csv(_row()))
+    monkeypatch.setattr(jobs, "import_csv", lambda *a: pytest.fail("ran twice"))
+
+    jobs.run_job(job_id)  # the same async event delivered again
+
+    assert jobs.get_job(job_id)["status"] == "COMPLETED"
+
+
+def test_rerun_after_a_crash_does_not_conflict_with_its_own_rows(jobs, store):
+    job_id, _ = _submit_and_run(jobs, _csv(_row(), _row(room="205", type="ACTIVITY")))
+    # Crash after the rows were written, before the job was marked done.
+    store.jobs[job_id].update(status="PROCESSING", lease_until=NOW - 1)
+
+    jobs.run_job(job_id)  # Lambda's retry
+
+    job = jobs.get_job(job_id)
+    assert job["status"] == "COMPLETED" and job["result"] == {"created": 2}
+    assert len(store.schedules) == 2  # overwritten, not duplicated
+    assert store.jobs[job_id]["attempts"] == 2
+
+
+def test_a_live_lease_blocks_a_second_worker(jobs, store, monkeypatch):
+    job_id = jobs.submit(_csv(_row()), dry_run=False)["job_id"]
+    store.jobs[job_id].update(status="PROCESSING", lease_until=NOW + 100, attempts=1)
+    monkeypatch.setattr(jobs, "import_csv", lambda *a: pytest.fail("lease ignored"))
+
+    jobs.run_job(job_id)
+
+    assert jobs.get_job(job_id)["status"] == "PROCESSING"
+
+
+def test_write_race_is_retried(jobs, store, monkeypatch):
+    save = store.save_schedules
+    calls = []
+
+    def flaky(schedules, versions):
+        calls.append(1)
+        if len(calls) == 1:
+            raise ScheduleWriteRace()
+        save(schedules, versions)
+
+    monkeypatch.setattr(store, "save_schedules", flaky)
+    _, job = _submit_and_run(jobs, _csv(_row()))
+
+    assert job["status"] == "COMPLETED" and len(calls) == 2
+
+
+def test_write_race_gives_up_after_three_tries(jobs, store, monkeypatch):
+    def always(schedules, versions):
+        raise ScheduleWriteRace()
+
+    monkeypatch.setattr(store, "save_schedules", always)
+    _, job = _submit_and_run(jobs, _csv(_row()))
+
+    assert job["status"] == "FAILED" and job["error"]["code"] == "SCHEDULE_CONFLICT"
+
+
+def test_unexpected_error_fails_the_job_and_removes_its_rows(jobs, store, monkeypatch):
+    job_id = jobs.submit(_csv(_row()), dry_run=False)["job_id"]
+    store.schedules.append({"id": f"imp-{job_id}-2", "room_id": LAB})  # left by a crash
+    other = {"id": "imp-another-job-2", "room_id": LAB}
+    store.schedules.append(other)
+
+    def boom(*a, **k):
+        raise RuntimeError("bug")
+
+    monkeypatch.setattr(store, "find_overlapping", boom)
+    jobs.run_job(job_id)
+
+    job = jobs.get_job(job_id)
+    assert job["status"] == "FAILED"
+    assert job["error"] == {"code": "INTERNAL_ERROR", "message": "Internal server error"}
+    assert store.schedules == [other]
+
+
+def test_stalled_job_is_reported_failed(jobs, store):
+    job_id = jobs.submit(_csv(_row()), dry_run=False)["job_id"]
+    store.jobs[job_id].update(status="PROCESSING", lease_until=NOW, attempts=3)
+
+    assert jobs.get_job(job_id)["status"] == "PROCESSING"  # retries may still come
+
+    jobs.clock = lambda: NOW + 331
+    job = jobs.get_job(job_id)
+    assert job["status"] == "FAILED" and job["error"]["code"] == "INTERNAL_ERROR"
+
+    jobs.run_job(job_id)  # attempts used up: no further claim
+    assert store.jobs[job_id]["status"] == "PROCESSING"
+
+
+def test_unknown_job_is_not_found(jobs):
+    with pytest.raises(ImportJobNotFound):
+        jobs.get_job("nope")

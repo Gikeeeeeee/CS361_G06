@@ -2,13 +2,14 @@ import base64
 import binascii
 import json
 import os
+from decimal import Decimal
 from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
-from errors import InvalidParameter, ScheduleWriteRace, UpstreamError
+from errors import ImportUpstreamError, InvalidParameter, ScheduleWriteRace, UpstreamError
 from models.schedule import to_utc
 from ports.schedule_source import ScheduleSource
 
@@ -22,6 +23,10 @@ _KEY_ATTRS = {"PK", "SK"} | {
 _RACE_CODES = {"ConditionalCheckFailed", "TransactionConflict"}
 _TRANSACT_LIMIT = 100
 
+# CSV import job files live in the building-data bucket under this prefix
+# (expired by an S3 lifecycle rule after a day).
+_IMPORT_PREFIX = "imports/"
+
 
 class ScheduleRepository(ScheduleSource):
     """DynamoDB-backed implementation of the ScheduleSource port."""
@@ -33,6 +38,8 @@ class ScheduleRepository(ScheduleSource):
             else os.environ.get("DYNAMODB_TABLE_NAME", "")
         )
         self._table = table
+        self._s3 = None
+        self._lambda = None
 
     @property
     def table(self):
@@ -40,6 +47,18 @@ class ScheduleRepository(ScheduleSource):
         if self._table is None:
             self._table = boto3.resource("dynamodb").Table(self.table_name)
         return self._table
+
+    @property
+    def s3(self):
+        if self._s3 is None:
+            self._s3 = boto3.client("s3")
+        return self._s3
+
+    @property
+    def lambda_client(self):
+        if self._lambda is None:
+            self._lambda = boto3.client("lambda")
+        return self._lambda
 
     @staticmethod
     def _key(room_id: str, schedule_id: str) -> dict[str, str]:
@@ -236,6 +255,134 @@ class ScheduleRepository(ScheduleSource):
 
         except ClientError as exc:
             raise self._upstream(exc, "deleting from") from exc
+
+    # -- CSV import jobs (#241) --------------------------------------------
+
+    def create_job(self, job: dict[str, Any]) -> None:
+        try:
+            self.table.put_item(Item={**job, **self._job_key(job["job_id"])})
+        except ClientError as exc:
+            raise self._upstream(exc, "writing to") from exc
+
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
+        try:
+            item = self.table.get_item(Key=self._job_key(job_id)).get("Item")
+        except ClientError as exc:
+            raise self._upstream(exc, "reading from") from exc
+
+        return self._plain(item) if item else None
+
+    def claim_job(
+        self, job_id: str, token: str, now: int, lease_until: int, max_attempts: int
+    ) -> dict[str, Any] | None:
+        try:
+            out = self.table.update_item(
+                Key=self._job_key(job_id),
+                UpdateExpression=(
+                    "SET #s = :processing, claim_token = :token, lease_until = :lease, "
+                    "updated_at = :now ADD attempts :one"
+                ),
+                # A missing job fails `attempts < :max`, so it is never created here.
+                ConditionExpression=(
+                    "attempts < :max AND "
+                    "(#s = :pending OR (#s = :processing AND lease_until < :now))"
+                ),
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={
+                    ":pending": "PENDING",
+                    ":processing": "PROCESSING",
+                    ":token": token,
+                    ":lease": lease_until,
+                    ":now": now,
+                    ":one": 1,
+                    ":max": max_attempts,
+                },
+                ReturnValues="ALL_NEW",
+            )
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                return None
+            raise self._upstream(exc, "writing to") from exc
+
+        return self._plain(out["Attributes"])
+
+    def finish_job(self, job_id: str, token: str, status: str, now: int) -> None:
+        try:
+            self.table.update_item(
+                Key=self._job_key(job_id),
+                UpdateExpression="SET #s = :status, updated_at = :now",
+                ConditionExpression="claim_token = :token",
+                ExpressionAttributeNames={"#s": "status"},
+                ExpressionAttributeValues={":status": status, ":now": now, ":token": token},
+            )
+        except ClientError as exc:
+            # Another run reclaimed the job after our lease ran out; its result wins.
+            if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+                return
+            raise self._upstream(exc, "writing to") from exc
+
+    def put_import_object(self, name: str, body: bytes) -> None:
+        try:
+            self.s3.put_object(Bucket=self._import_bucket(), Key=_IMPORT_PREFIX + name, Body=body)
+        except ClientError as exc:
+            raise ImportUpstreamError("S3", self._code(exc), "storing a file for") from exc
+
+    def get_import_object(self, name: str) -> bytes | None:
+        try:
+            out = self.s3.get_object(Bucket=self._import_bucket(), Key=_IMPORT_PREFIX + name)
+        except ClientError as exc:
+            if self._code(exc) in ("NoSuchKey", "404"):
+                return None
+            raise ImportUpstreamError("S3", self._code(exc), "reading a file of") from exc
+
+        return out["Body"].read()
+
+    def dispatch_import(self, job_id: str) -> None:
+        try:
+            self.lambda_client.invoke(
+                FunctionName=os.environ.get("IMPORT_WORKER_NAME", ""),
+                InvocationType="Event",
+                Payload=json.dumps({"import_job_id": job_id}).encode("utf-8"),
+            )
+        except ClientError as exc:
+            raise ImportUpstreamError("Lambda", self._code(exc), "starting") from exc
+
+    def delete_import_schedules(self, id_prefix: str) -> None:
+        keys = self._run(
+            {
+                "IndexName": "GSI0",
+                "KeyConditionExpression": Key("GSI0PK").eq("SCHEDULE")
+                & Key("GSI0SK").begins_with(id_prefix),
+                "ProjectionExpression": "PK, SK",
+            }
+        )
+        try:
+            with self.table.batch_writer() as batch:
+                for key in keys:
+                    batch.delete_item(Key={"PK": key["PK"], "SK": key["SK"]})
+        except ClientError as exc:
+            raise self._upstream(exc, "deleting from") from exc
+
+    @staticmethod
+    def _job_key(job_id: str) -> dict[str, str]:
+        return {"PK": f"IMPORT_JOB#{job_id}", "SK": "JOB"}
+
+    @staticmethod
+    def _import_bucket() -> str:
+        return os.environ.get("BUCKET_NAME", "")
+
+    @staticmethod
+    def _code(exc: ClientError) -> str | None:
+        return exc.response.get("Error", {}).get("Code")
+
+    @staticmethod
+    def _plain(item: dict[str, Any]) -> dict[str, Any]:
+        """Job item -> dict: drop PK/SK, DynamoDB numbers back to int."""
+        return {
+            name: int(value) if isinstance(value, Decimal) else value
+            for name, value in item.items()
+            if name not in ("PK", "SK")
+        }
 
     # -- internals ---------------------------------------------------------
 

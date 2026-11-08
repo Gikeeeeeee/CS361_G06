@@ -203,6 +203,7 @@ ROOM_SCHEDULES = "/api/v1/rooms/{roomId}/schedules"
 SCHEDULE = f"{ROOM_SCHEDULES}/{{scheduleId}}"
 SCHEDULES = "/api/v1/schedules"
 SCHEDULE_IMPORTS = "POST /api/v1/schedules/imports"
+SCHEDULE_IMPORT_JOB = "GET /api/v1/schedules/imports/{jobId}"
 
 
 USERS_ME = "/api/v1/users/me"
@@ -515,7 +516,16 @@ ROUTES = {
     ),
     SCHEDULE_IMPORTS: Route(
         ("body",),
-        lambda deps, p: deps.schedule_imports.import_csv(p["body"], _dry_run(p)),
+        lambda deps, p: {
+            "success": True,
+            "data": deps.schedule_imports.submit(
+                p["body"], _dry_run(p), (p.get("auth_user") or {}).get("user_id")
+            ),
+        },
+    ),
+    SCHEDULE_IMPORT_JOB: Route(
+        ("jobId",),
+        lambda deps, p: {"success": True, "data": deps.schedule_imports.get_job(p["jobId"])},
     ),
     f"GET {USERS_ME}": Route(
         (),
@@ -709,7 +719,8 @@ def lambda_handler(event, context):
       - POST   /api/v1/rooms/{roomId}/schedules
       - PUT    /api/v1/rooms/{roomId}/schedules/{scheduleId}
       - DELETE /api/v1/rooms/{roomId}/schedules/{scheduleId}
-      - POST   /api/v1/schedules/imports[?dry_run=true]
+      - POST   /api/v1/schedules/imports[?dry_run=true]   (202, queues a job)
+      - GET    /api/v1/schedules/imports/{jobId}
       - GET    /api/v1/bookmarks
       - POST   /api/v1/bookmarks
       - DELETE /api/v1/bookmarks/{entityId}
@@ -737,13 +748,21 @@ def lambda_handler(event, context):
             if event_key in ROUTES
             else bool(_PUBLIC_WRITE_PATH.search(path))
         )
+        staff = None
         if method in ("POST", "PUT", "DELETE") and not user_route and not public_write:
-            verify_token(event, required_role="STAFF")
+            staff = verify_token(event, required_role="STAFF")
 
         route_key, params = _resolve(event, method, path)
 
         if route_key is None:
             raise RouteNotFound(f"{method} {path}")
+
+        # Import jobs hold staff-only data, so their status read is STAFF too.
+        if route_key == SCHEDULE_IMPORT_JOB:
+            staff = verify_token(event, required_role="STAFF")
+
+        if route_key == SCHEDULE_IMPORTS:
+            params["auth_user"] = staff or {}
 
         if route_key == f"GET {ROOM_SCHEDULES}":
             params["user_role"] = _extract_user_role(event)
@@ -832,13 +851,14 @@ def lambda_handler(event, context):
                 raise InvalidSchedule("Request body must be a JSON object")
             params["body"] = body
 
-        preview = route_key == SCHEDULE_IMPORTS and _dry_run(params)
-
         is_search = route_key in PUBLIC_WRITE_ROUTES
-        return response.ok(
-            route.action(DEPS, params),
-            200 if (is_search or preview or method != "POST") else 201,
-        )
+        if route_key == SCHEDULE_IMPORTS:
+            status = 202
+        elif is_search or method != "POST":
+            status = 200
+        else:
+            status = 201
+        return response.ok(route.action(DEPS, params), status)
 
     except AppError as exc:
         logger.warning("%s: %s", exc.code, exc.message)
@@ -849,3 +869,10 @@ def lambda_handler(event, context):
         logger.exception("Unhandled error while processing %s %s", method, path)
 
         return response.error(AppError())
+
+
+def import_worker(event, context):
+    """Import Worker Lambda entry: run one queued CSV import job (#241)."""
+    job_id = event["import_job_id"]
+    logger.info("Running import job %s", job_id)
+    DEPS.schedule_imports.run_job(job_id)

@@ -191,19 +191,9 @@ resource "aws_lambda_function" "this" {
   memory_size = 256
 
   environment {
-    variables = {
-      BUCKET_NAME         = var.bucket_name
-      BUILDINGS_FILE      = var.buildings_file
-      ASSET_BASE_URL      = var.asset_base_url
-      DYNAMODB_TABLE_NAME = var.dynamodb_table_name
-
-      OPENSEARCH_ENDPOINT = var.opensearch_endpoint
-      OPENSEARCH_INDEX    = var.opensearch_index
-
-      SUPABASE_URL        = var.supabase_url
-      SUPABASE_JWT_SECRET = var.supabase_jwt_secret
-      SUPABASE_ANON_KEY   = var.supabase_anon_key
-    }
+    variables = merge(local.app_env, {
+      IMPORT_WORKER_NAME = aws_lambda_function.import_worker.function_name
+    })
   }
 
   tags = {
@@ -211,6 +201,91 @@ resource "aws_lambda_function" "this" {
     Environment = var.environment
     ManagedBy   = "Terraform"
   }
+}
+
+# Shared by the API Lambda and the Import Worker (same zip, same code).
+locals {
+  app_env = {
+    BUCKET_NAME         = var.bucket_name
+    BUILDINGS_FILE      = var.buildings_file
+    ASSET_BASE_URL      = var.asset_base_url
+    DYNAMODB_TABLE_NAME = var.dynamodb_table_name
+
+    OPENSEARCH_ENDPOINT = var.opensearch_endpoint
+    OPENSEARCH_INDEX    = var.opensearch_index
+
+    SUPABASE_URL        = var.supabase_url
+    SUPABASE_JWT_SECRET = var.supabase_jwt_secret
+    SUPABASE_ANON_KEY   = var.supabase_anon_key
+  }
+}
+
+# ===========================================================================
+# Import Worker Lambda (#241)
+#
+# POST /schedules/imports stores the CSV under imports/ and invokes this
+# function asynchronously, so the import is not bound by API Gateway's 30 s.
+# No reserved concurrency: the account limit is 10, already the minimum
+# unreserved pool. Concurrent imports stay correct via room versions.
+# ===========================================================================
+
+resource "aws_lambda_function" "import_worker" {
+  function_name = "${var.project_name}-import-worker-${var.environment}"
+
+  filename         = data.archive_file.package.output_path
+  source_code_hash = data.archive_file.package.output_base64sha256
+
+  runtime = "python3.12"
+  handler = "handler.import_worker"
+
+  role = aws_iam_role.this.arn
+
+  timeout     = 300
+  memory_size = 256
+
+  environment {
+    variables = local.app_env
+  }
+
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
+  }
+}
+
+# A worker that crashes or times out is retried; the job's lease and its
+# stable schedule ids make a rerun safe.
+resource "aws_lambda_function_event_invoke_config" "import_worker" {
+  function_name                = aws_lambda_function.import_worker.function_name
+  maximum_retry_attempts       = 2
+  maximum_event_age_in_seconds = 3600
+}
+
+resource "aws_iam_policy" "import_jobs" {
+  name = "${var.project_name}-lambda-import-jobs-${var.environment}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject"]
+        Resource = "${var.bucket_arn}/imports/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = aws_lambda_function.import_worker.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "import_jobs" {
+  role       = aws_iam_role.this.name
+  policy_arn = aws_iam_policy.import_jobs.arn
 }
 
 # ===========================================================================

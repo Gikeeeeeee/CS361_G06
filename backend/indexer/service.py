@@ -136,6 +136,11 @@ class IndexerService:
     ) -> None:
         event_name = record.get("eventName")
 
+        # CSV import job bookkeeping (#241) is not searchable content.
+        pk = record.get("dynamodb", {}).get("Keys", {}).get("PK", {}).get("S", "")
+        if pk.startswith("IMPORT_JOB#"):
+            return
+
         if event_name in {"INSERT", "MODIFY"}:
             dynamodb = record.get("dynamodb", {})
             new_image = dynamodb.get("NewImage")

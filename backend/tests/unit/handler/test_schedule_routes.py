@@ -363,37 +363,78 @@ def _import(body=CSV, query=None, base64_encoded=False):
     return event
 
 
+JOB_KEY = "GET /api/v1/schedules/imports/{jobId}"
+
+
+def _job(job_id):
+    return make_apigw_event(
+        method="GET", path=f"/api/v1/schedules/imports/{job_id}", route_key=JOB_KEY,
+        path_parameters={"jobId": job_id},
+    )
+
+
+def _import_and_run(invoke_handler, campus_source, schedule_source, event):
+    """POST (expect 202), run the queued job as the worker would, then GET it."""
+    from services.schedule_import_service import ScheduleImportService
+
+    posted = invoke_handler(event)
+    assert posted["statusCode"] == 202
+    data = json.loads(posted["body"])["data"]
+    assert data["status"] == "PENDING"
+    assert schedule_source.dispatched == [data["job_id"]]
+
+    ScheduleImportService(campus_source, schedule_source).run_job(data["job_id"])
+
+    polled = invoke_handler(_job(data["job_id"]))
+    assert polled["statusCode"] == 200
+    return json.loads(polled["body"])["data"]
+
+
 @pytest.mark.unit
 @pytest.mark.handler
-def test_import_dry_run_reads_the_raw_csv(invoke_handler):
-    result = invoke_handler(_import(query={"dry_run": "true"}))
+def test_import_dry_run_reads_the_raw_csv(invoke_handler, campus_source, schedule_source):
+    job = _import_and_run(
+        invoke_handler, campus_source, schedule_source, _import(query={"dry_run": "true"})
+    )
 
-    assert result["statusCode"] == 200
-    assert json.loads(result["body"])["rows"][0]["room"] == "201"
+    assert job["status"] == "COMPLETED"
+    assert job["dry_run"] is True
+    assert job["result"]["rows"][0]["room"] == "201"
 
 
 @pytest.mark.unit
 @pytest.mark.handler
 @pytest.mark.parametrize("query", [None, {"dry_run": "false"}])
-def test_import_without_dry_run_creates(invoke_handler, query):
+def test_import_without_dry_run_creates(invoke_handler, campus_source, schedule_source, query):
     import base64
 
     event = _import(base64.b64encode(CSV.encode()).decode(), query, base64_encoded=True)
-    result = invoke_handler(event)
+    job = _import_and_run(invoke_handler, campus_source, schedule_source, event)
 
-    assert result["statusCode"] == 201
-    assert json.loads(result["body"]) == {"created": 1}
+    assert job["status"] == "COMPLETED"
+    assert job["result"] == {"created": 1}
+    assert job["error"] is None
 
 
 @pytest.mark.unit
 @pytest.mark.handler
-def test_import_row_errors_carry_details(invoke_handler):
-    result = invoke_handler(_import(CSV.replace("COURSE", "PARTY")))
+def test_import_row_errors_carry_details(invoke_handler, campus_source, schedule_source):
+    job = _import_and_run(
+        invoke_handler, campus_source, schedule_source, _import(CSV.replace("COURSE", "PARTY"))
+    )
 
-    assert result["statusCode"] == 400
-    error = json.loads(result["body"])["error"]
-    assert error["code"] == "VALIDATION_ERROR"
-    assert error["details"][0]["row"] == 2
+    assert job["status"] == "FAILED"
+    assert job["error"]["code"] == "VALIDATION_ERROR"
+    assert job["error"]["details"][0]["row"] == 2
+
+
+@pytest.mark.unit
+@pytest.mark.handler
+def test_unknown_import_job_is_404(invoke_handler):
+    result = invoke_handler(_job("no-such-job"))
+
+    assert result["statusCode"] == 404
+    assert json.loads(result["body"])["error"]["code"] == "IMPORT_JOB_NOT_FOUND"
 
 
 @pytest.mark.unit

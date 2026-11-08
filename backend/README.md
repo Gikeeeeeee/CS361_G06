@@ -68,6 +68,7 @@ Every failure has the same shape:
 | 400 `MISSING_PARAMETER` | a required path parameter is absent |
 | 404 `BUILDING_NOT_FOUND` / `FLOOR_NOT_FOUND` / `ROOM_NOT_FOUND` / `FACILITY_NOT_FOUND` | resource does not exist |
 | 404 `ROUTE_NOT_FOUND` | no route matched |
+| 404 `IMPORT_JOB_NOT_FOUND` | CSV import job id unknown (or expired after 1 day) |
 | 502 `UPSTREAM_ERROR` | S3 unreachable, bucket missing, or stored JSON is invalid |
 | 500 `INTERNAL_ERROR` | anything unexpected |
 
