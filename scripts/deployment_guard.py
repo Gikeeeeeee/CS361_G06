@@ -27,11 +27,31 @@ IDENTITY_KEYS = ("id", "arn", "function_name", "bucket", "key", "api_id", "name"
                  "domain_name", "api_endpoint", "execution_arn", "handler", "runtime", "architectures", "layers")
 
 
-def frontend_boundary():
-    # There is no approved authoritative frontend state/identity in this repository.
-    # Do not turn arbitrary environment variables or a new empty state into ownership.
-    return {"result": "blocked", "frontend_verified": False, "backend_write_authorized": False,
-            "reason": "frontend_authoritative_state_and_live_ownership_unverified"}, 1
+def local_build_replacement(resource, prior):
+    """Recognize only the existing local Lambda packaging helper, not AWS resources."""
+    address = resource["address"]
+    change = resource["change"]
+    if (address != "module.lambda.terraform_data.build" or resource.get("type") != "terraform_data"
+            or resource.get("mode") != "managed" or address not in prior
+            or prior[address].get("provider_name") != "terraform.io/builtin/terraform"
+            or resource.get("provider_name") != "terraform.io/builtin/terraform"
+            or change.get("actions") != ["delete", "create"]
+            or resource.get("previous_address") or change.get("importing")):
+        return False
+    before, after = change.get("before"), change.get("after")
+    if not isinstance(before, dict) or not isinstance(after, dict) or before != prior[address]["values"]:
+        return False
+    uncertain = change.get("after_unknown") or {}
+    hashes = lambda value: isinstance(value, list) and bool(value) and all(
+        isinstance(v, str) and re.fullmatch(r"[0-9a-f]{64}", v) for v in value)
+    return (isinstance(before.get("id"), str) and bool(before["id"])
+            and before.get("input") is None and after.get("input") is None
+            and before.get("output") is None and after.get("output") is None and after.get("id") is None
+            and hashes(before.get("triggers_replace")) and hashes(after.get("triggers_replace"))
+            and before["triggers_replace"] != after["triggers_replace"]
+            and uncertain.get("id") is True and not unknown(uncertain.get("triggers_replace"))
+            and not unknown(uncertain.get("input"))
+            and set(after) <= {"id", "input", "output", "triggers_replace"})
 
 
 def backend_identity(plan, account, workspace, cached_backend, backend_source):
@@ -83,7 +103,7 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
     require(outputs["api_endpoint"]["value"] == prior[ANCHORS[2]]["values"]["api_endpoint"])
     require(outputs["cdn_url"]["value"] == "https://" + prior[ANCHORS[4]]["values"]["domain_name"])
     require(isinstance(plan.get("resource_changes"), list) and bool(plan["resource_changes"]))
-    failures, seen = [], set()
+    failures, local_helpers, seen = [], [], set()
     for resource in plan["resource_changes"]:
         address, change = resource["address"], resource["change"]
         require(address not in seen)
@@ -92,6 +112,9 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
         reason = None
         if resource.get("mode") == "data":
             require(actions in (["read"], ["no-op"]))
+            continue
+        if local_build_replacement(resource, prior):
+            local_helpers.append({"address": address, "classification": "existing_local_packaging_helper_only"})
             continue
         if actions not in (["no-op"], ["update"]):
             reason = "create_delete_replace_or_unsupported_action"
@@ -127,7 +150,8 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
     if plan.get("resource_drift"):
         failures.append({"reason": "unreviewed_refresh_drift"})
     return {"result": "blocked" if failures else "existing_backend_plan_checked",
-            "frontend_verified": False, "failures": failures}, int(bool(failures))
+            "scope": "backend_dry_run", "apply_permitted": False, "frontend_scope": "ci_build_only",
+            "local_build_helper_changes": local_helpers, "failures": failures}, int(bool(failures))
 
 
 class Parser(argparse.ArgumentParser):
@@ -139,22 +163,18 @@ def main(argv=None):
     try:
         parser = Parser(description=__doc__)
         commands = parser.add_subparsers(dest="command", required=True)
-        commands.add_parser("frontend-boundary")
         check = commands.add_parser("backend-plan")
         check.add_argument("--plan", required=True)
         check.add_argument("--backend-metadata", required=True)
         check.add_argument("--backend-source", required=True)
         args = parser.parse_args(argv)
-        if args.command == "frontend-boundary":
-            evidence, code = frontend_boundary()
-        else:
-            evidence, code = inspect_plan(
-                decode(sys.stdin.read() if args.plan == "-" else Path(args.plan).read_text(encoding="utf-8-sig")),
-                os.environ.get("DEPLOY_ACCOUNT_ID"), os.environ.get("DEPLOY_WORKSPACE"),
-                decode(Path(args.backend_metadata).read_text(encoding="utf-8-sig")),
-                Path(args.backend_source).read_text(encoding="utf-8"))
+        evidence, code = inspect_plan(
+            decode(sys.stdin.read() if args.plan == "-" else Path(args.plan).read_text(encoding="utf-8-sig")),
+            os.environ.get("DEPLOY_ACCOUNT_ID"), os.environ.get("DEPLOY_WORKSPACE"),
+            decode(Path(args.backend_metadata).read_text(encoding="utf-8-sig")),
+            Path(args.backend_source).read_text(encoding="utf-8"))
     except Exception:
-        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "frontend_verified": False}, 2
+        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False}, 2
     print(json.dumps(evidence, sort_keys=True))
     return code
 

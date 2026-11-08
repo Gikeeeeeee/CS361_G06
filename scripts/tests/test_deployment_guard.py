@@ -50,7 +50,7 @@ def existing():
 def test_existing_noop_bound_to_state(existing):
     result, code = guard.inspect_plan(*existing)
     assert code == 0 and result["result"] == "existing_backend_plan_checked"
-    assert result["frontend_verified"] is False
+    assert result["apply_permitted"] is False and result["frontend_scope"] == "ci_build_only"
 
 
 def test_existing_lambda_code_update_not_recreation(existing):
@@ -69,7 +69,7 @@ def test_no_resource_create_delete_or_replace(existing, actions):
     assert result["failures"][0]["address"] == guard.ANCHORS[0]
 
 
-def test_local_build_replacement_is_not_exempt(existing):
+def test_unowned_local_build_replacement_is_not_exempt(existing):
     address = "module.lambda.terraform_data.build"
     existing[0]["resource_changes"].append({"address": address, "type": "terraform_data", "mode": "managed",
         "change": {"actions": ["delete", "create"], "before": {"id": "old"}, "after": {"id": None}}})
@@ -121,18 +121,18 @@ def test_non_anchor_private_address_redacted(existing):
 
 
 @pytest.mark.parametrize("guessed", ["", "guessed-bucket", "conflicting-target"])
-def test_frontend_boundary_cannot_be_enabled_by_guessed_configuration(monkeypatch, guessed):
+def test_frontend_target_inputs_do_not_block_or_enable_backend_dry_run(existing, monkeypatch, guessed):
     monkeypatch.setenv("FRONTEND_BUCKET", guessed)
     monkeypatch.setenv("FRONTEND_DISTRIBUTION_ID", guessed)
-    data, code = guard.frontend_boundary()
-    assert code == 1 and data["frontend_verified"] is False
-    assert data["backend_write_authorized"] is False
+    data, code = guard.inspect_plan(*existing)
+    assert code == 0 and data["frontend_scope"] == "ci_build_only"
+    assert data["apply_permitted"] is False
 
 
-def test_frontend_cli_has_no_aws_or_write_path():
+def test_obsolete_frontend_boundary_command_is_removed():
     result = subprocess.run([sys.executable, str(Path(guard.__file__)), "frontend-boundary"], capture_output=True, text=True)
-    assert result.returncode == 1
-    assert json.loads(result.stdout)["reason"] == "frontend_authoritative_state_and_live_ownership_unverified"
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["apply_permitted"] is False
 
 
 def test_missing_evidence_exit_code_redacted(capsys):
@@ -152,3 +152,49 @@ def test_backend_cli_stdin_no_secrets_in_output(existing, tmp_path, monkeypatch,
     assert guard.main(["backend-plan", "--plan", "-", "--backend-metadata", str(metadata), "--backend-source", str(backend)]) == 0
     output = capsys.readouterr().out
     assert all(value not in output for value in (account, "PRIVATE_CACHE_VALUE", "PRIVATE_ENV", "fixture-state"))
+
+
+def add_local_helper(existing):
+    address = "module.lambda.terraform_data.build"
+    before = {"id": "fixture-local-id", "input": None, "output": None, "triggers_replace": ["a" * 64, "b" * 64]}
+    resource = {"address": address, "type": "terraform_data", "mode": "managed", "provider_name": "terraform.io/builtin/terraform"}
+    existing[0]["prior_state"]["values"]["root_module"]["resources"].append(dict(resource, values=copy.deepcopy(before)))
+    change = dict(resource, change={"actions": ["delete", "create"], "before": before,
+        "after": {"id": None, "input": None, "output": None, "triggers_replace": ["a" * 64, "c" * 64]},
+        "after_unknown": {"id": True, "output": True}})
+    existing[0]["resource_changes"].append(change)
+    return change
+
+
+def test_existing_local_packaging_replacement_is_reported_separately(existing):
+    change = add_local_helper(existing)
+    data, code = guard.inspect_plan(*existing)
+    assert code == 0 and data["apply_permitted"] is False
+    assert data["local_build_helper_changes"] == [{"address": change["address"], "classification": "existing_local_packaging_helper_only"}]
+
+
+@pytest.mark.parametrize("fault", ["provider", "input", "before", "unknown_hash", "missing_prior", "not_hash", "unchanged", "known_id", "create_only", "reverse_replace"])
+def test_only_reviewed_local_helper_shape_is_recognized(existing, fault):
+    item = add_local_helper(existing)
+    change = item["change"]
+    if fault == "provider": item["provider_name"] = "registry.terraform.io/hashicorp/aws"
+    if fault == "input": change["after"]["input"] = "PRIVATE_INPUT"
+    if fault == "before": change["before"]["id"] = "wrong"
+    if fault == "unknown_hash": change["after_unknown"]["triggers_replace"] = True
+    if fault == "missing_prior": existing[0]["prior_state"]["values"]["root_module"]["resources"].pop()
+    if fault == "not_hash": change["after"]["triggers_replace"] = ["PRIVATE_INPUT"]
+    if fault == "unchanged": change["after"]["triggers_replace"] = change["before"]["triggers_replace"]
+    if fault == "known_id": change["after"]["id"] = "unexpected"
+    if fault == "create_only": change["actions"] = ["create"]
+    if fault == "reverse_replace": change["actions"] = ["create", "delete"]
+    result, code = guard.inspect_plan(*existing)
+    assert code == 1 and not result["local_build_helper_changes"]
+    assert "PRIVATE_INPUT" not in json.dumps(result)
+
+
+def test_local_helper_never_hides_aws_replacement(existing):
+    add_local_helper(existing)
+    existing[0]["resource_changes"][0]["change"]["actions"] = ["delete", "create"]
+    result, code = guard.inspect_plan(*existing)
+    assert code == 1 and len(result["local_build_helper_changes"]) == 1
+    assert result["failures"][0]["address"] == guard.ANCHORS[0]
