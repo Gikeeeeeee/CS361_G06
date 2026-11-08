@@ -18,201 +18,68 @@ macOS can produce incompatible native binaries.
 
 ---
 
-## 1. Configure AWS Credentials
+## 1. Automation responsibilities
 
-Configure your AWS IAM credentials using the AWS CLI or set them as environment variables:
-
-### Option 1: AWS CLI (Recommended)
-```bash
-aws configure
-```
-
-### Option 2: Environment Variables
-#### macOS / Linux / Git Bash:
-```bash
-export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-export AWS_DEFAULT_REGION="ap-southeast-2"
-```
-
-#### Windows PowerShell:
-```powershell
-$env:AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
-$env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-$env:AWS_DEFAULT_REGION="ap-southeast-2"
-```
-
-### Verify Credentials:
-```bash
-aws sts get-caller-identity
-```
-
----
-
-## 2. Setup & Deploy via Terraform
-
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/Gikeeeeeee/CS361_G06.git
-   cd CS361_G06
-   ```
-
-2. **Go to terraform-backend directory & create `terraform.tfvars`:**
-   ```bash
-   cd terraform/terraform-backend
-   ```
-   * *Linux / macOS / Git Bash:* `cp terraform.tfvars.example terraform.tfvars`
-   * *Windows PowerShell:* `Copy-Item terraform.tfvars.example terraform.tfvars`
-
-3. **Edit `terraform.tfvars`:**
-   Set globally unique names and keep the project name, DynamoDB table, and
-   OpenSearch index consistent:
-   ```hcl
-   aws_region          = "us-east-1"
-   bucket_name         = "cs361-g06-building-data-yourname-123"
-   project_name        = "CS361-G06-yourname"
-   environment         = "dev"
-   dynamodb_table_name = "CS361-G06-yourname-data-dynamodb"
-   opensearch_index    = "university-yourname"
-   ```
-
-   For the existing shared `rickoroxd` environment, use these exact values:
-   ```hcl
-   project_name        = "CS361-G06-rickoroxd"
-   dynamodb_table_name = "CS361-G06-rickoroxd-data-dynamodb"
-   opensearch_index    = "university-rickoroxd"
-   ```
-
-4. **Initialize Terraform:**
-   ```bash
-   terraform init -reconfigure
-   ```
-
-   The backend is stored in the S3 bucket configured in `backend.tf`. Do not
-   initialize this directory with a different bucket or state key.
-
-5. **Plan before applying:**
-   ```bash
-   terraform plan -out=tfplan
-   ```
-
-   Review resource names carefully. An existing deployment should not show
-   replacement of resources merely because `project_name` changed.
-
-6. **Apply the reviewed plan:**
-   ```bash
-   terraform apply tfplan
-   ```
-
-Terraform builds both Lambda ZIP files inside the Lambda Python 3.12 Docker
-image. If Docker is stopped, the build fails before Lambda is updated.
-
-### Updating only the existing Lambdas
-
-For an old application version or a recovery after a failed deployment, keep
-the existing resource names and target only the two Lambda functions:
-
-```bash
-terraform plan \
-  -var='project_name=CS361-G06-rickoroxd' \
-  -var='opensearch_index=university-rickoroxd' \
-  -target='module.lambda.aws_lambda_function.this' \
-  -target='module.lambda.aws_lambda_function.indexer' \
-  -out=/tmp/cs361-lambda.plan
-
-terraform apply /tmp/cs361-lambda.plan
-```
-
-Targeting is for recovery or a narrowly scoped Lambda update. Run a normal
-full plan afterward to review any remaining changes.
-
-### Automatic deploy (GitHub Actions CD)
-
-`.github/workflows/cd.yml` applies the `default` workspace on every push to
-`main`, and only `main`. It needs these repository secrets (team AWS account):
-
-| Secret | Value |
+| Entry point | Responsibility |
 |---|---|
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | team deploy credentials |
-| `AWS_SESSION_TOKEN` | only for temporary credentials; otherwise leave unset |
-| `TF_VARS_FILE` | the full contents of the team's `terraform.tfvars` |
+| `.github/workflows/ci.yml` | Python/automation tests, locked frontend build and artifact integrity, formatting and backend-disabled validation of both Terraform roots. No AWS credentials or deployment. |
+| `.github/workflows/cd.yml` | Sole deployment entry point: existing backend Terraform plan/apply, existing-resource safety guard, post-apply API/SVG smoke verification and sanitized run summary. Main pushes only, default workspace. |
+| `scripts/sandbox_validation.py` | Optional offline evidence/safety preparation, never deployment or resource discovery. It is not a second workflow or a replacement for CD's plan guard. |
+| Frontend live deployment | **Blocked pending authoritative state, hosting identity and actual public build configuration.** No S3 upload, distribution creation or cache invalidation is implemented. |
 
-CD stops before applying if the plan deletes or replaces any AWS resource.
-That usually means wrong state or wrong variables. Review the plan locally
-and apply it by hand if the delete is intended.
+The redundant `frontend-build.yml` manual build workflow is removed; CI already
+builds and verifies the frontend. No separate pre-deployment live smoke workflow
+or manual smoke procedure is required. Older audit sections below record
+historical evidence; they are not permission to deploy by hand.
 
----
+## 2. Existing application CD and configuration boundary
 
-## 3. Test the API
+Only the existing main CD can execute deployment operations. Its trigger,
+`TF_WORKSPACE=default`, concurrency, authentication inputs and backend
+Terraform init/validate/plan/apply mechanism are retained. No new region,
+resource name, target selector, credentials or infrastructure stack is added.
+Existing credential inputs remain `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_SESSION_TOKEN` and `TF_VARS_FILE`; this task neither retrieves nor changes
+their values. Approved deployed configuration, not example defaults, is required.
 
-After deployment finishes, Terraform will output your API endpoints:
+**Current CD is deliberately blocked before AWS authentication:** existing
+frontend authoritative state/bucket/distribution ownership is unverified.
+`deployment_guard.py frontend-boundary` exits 1 and cannot be enabled with
+guessed environment variables or a bypass flag. It does not try to discover
+resources or initialize frontend state. This prevents a partial backend update
+while the requested combined release has no verified frontend target. Resolving
+the blocker requires owner evidence and a separately reviewed implementation,
+not toggling a boolean. CI remains available for verification.
 
-### Query Building Summary:
-```bash
-# Example query for building LC4
-curl https://<api_endpoint>/buildings/LC4
-```
+The backend mechanism remains behind that boundary. Its plan guard rejects
+managed creates, deletes, replacements, imports/moves/forget, inconsistent or
+incomplete evidence and changes to existing identities, IAM or Lambda
+environment settings. It requires the existing state anchors, committed backend
+configuration, effective workspace and account from the existing credential
+action to agree. No automatic state repair or targeted apply is allowed.
+Even the local Lambda build-helper replacement is blocked: no exemption for
+`terraform_data` remains. Code changes that require that helper rebuild need
+separate review before this strict policy could be changed. This is a known
+deployment limitation, not proof that Lambda updates have been exercised.
 
-#### Expected Response:
-```json
-{
-  "id": "lc4",
-  "name": "LC4",
-  "latitude": 14.072606976041664,
-  "longitude": 100.60772614298118,
-  "floors": [
-    {
-      "id": "floor-uuid",
-      "floor_number": 1
-    },
-    {
-      "id": "floor-uuid",
-      "floor_number": 3
-    }
-  ]
-}
-```
+GitHub deployment-environment approval enforcement remains unverified (SEC-03).
+The unchanged main trigger is not a newly implemented human approval gate.
+No deployment should be approved while #284 drift or ownership gaps remain.
 
-### Query Floor Details & SVG Map:
-```bash
-# Example query for floor details (by floorId or floorNumber)
-curl https://<api_endpoint>/buildings/LC4/floors/1
-# or
-curl https://<api_endpoint>/buildings/LC4/floors/floor-uuid
-```
+## 3. Deployment evidence and failures
 
-#### Expected Response:
-```json
-{
-  "id": "floor-uuid",
-  "floor_number": 1,
-  "map": {
-    "type": "svg",
-    "url": "https://<bucket_name>.s3.amazonaws.com/floor-plan/LC4/LC4-floor1-neutral.svg?AWSAccessKeyId=..."
-  },
-  "rooms": [
-    {
-      "id": "room-uuid",
-      "room_number": null,
-      "name": "LAB102",
-      "type": "LAB",
-      "latitude": 14.072882788956523,
-      "longitude": 100.6077629190076
-    }
-  ],
-  "facilities": [
-    {
-      "id": "facility-uuid",
-      "name": "Stair 1",
-      "type": "STAIR",
-      "latitude": 14.072411879255112,
-      "longitude": 100.6077843766784
-    }
-  ]
-}
-```
+Main CD owns post-deployment verification: only after a successful apply does
+it obtain `api_endpoint` and `cdn_url` from that same Terraform root and run
+`scripts/smoke_test.py`. The checker discovers one building/floor pair and
+compares its API/SVG contract and content against the approved checkout baseline.
+CI/offline success is not live deployment evidence; HTTP 200 alone is insufficient.
 
----
+An always-run, metadata-only job summary records UTC time, commit SHA, run URL
+and target/plan/guard/apply/smoke outcomes, including failure/skipped states.
+It does not print endpoints, credentials, plans, tfvars or state, nor perform
+AWS operations, rollback, retry or apply. A smoke failure fails CD but does not
+undo an already completed deployment. Frontend file/version verification cannot
+be claimed until the authoritative frontend deployment path is implemented.
 
 ## 4. Teardown / Cleanup
 
@@ -926,27 +793,18 @@ already-completed deployment. CI's existing Python job also runs
 backend tests; the smoke script itself needs no dependency installation in CD.
 Existing CI triggers, permissions and Terraform matrix are unchanged.
 
-### Local execution and result handling
+### Offline execution and CD result handling
 
-Offline tests, requiring no endpoint or credentials:
+The focused offline command is:
 
-```bash
-python -m pytest -v scripts/tests -p no:cacheprovider
+```text
+python -m pytest -q scripts/tests/test_smoke_test.py -p no:cacheprovider
 ```
 
-For an explicitly approved read-only target, configure the verified outputs as
-`API_BASE_URL` and `ASSET_BASE_URL`, then run:
-
-```bash
-python scripts/smoke_test.py
-# Equivalent explicit configuration; shell variables must be set first:
-python scripts/smoke_test.py --api-base-url "$API_BASE_URL" --asset-base-url "$ASSET_BASE_URL"
-```
-
-Use `--help` for optional discovery-validated selection, `--timeout` (positive,
-finite seconds per request; default 10) and `--assets-dir` for a trusted release's
-asset directory. Base URLs must be HTTPS with no userinfo, query or fragment.
-No retries or live test calls are performed by the offline test suite.
+Live verification belongs to the post-apply main CD step above, not a separate
+pre-deployment workflow or manual endpoint-selection procedure. The existing
+checker and tests are unchanged. A trusted release baseline remains required;
+do not replace it with downloaded content to make a failing check pass.
 
 Exit 0 means the sampled API chain and SVG baseline passed. Exit 1 indicates
 verification failure; exit 2 indicates invalid/missing configuration. Logs name
@@ -1066,13 +924,12 @@ production configuration or AWS credentials. Its artifact is named
 job also runs preparation tests through its existing `scripts/tests` command.
 Existing Terraform CI and backend CD behavior remain unchanged.
 
-`frontend-build.yml` is a separate **manual build-only** workflow using public
-repository variables of the same names; missing configuration fails before
-installation. It retains `frontend-prepared-<sha>` for seven days. No variables
-or secrets were created/changed for this task. Neither workflow has deployment,
-AWS credential setup, S3 writes or CloudFront invalidation steps. Manual dispatch
-availability on GitHub depends on the workflow reaching the default branch;
-no workflow was dispatched here.
+CI is the single automated frontend build/verification path. The former
+manual `frontend-build.yml` duplicated that work and is removed. Reserved CI
+configuration is intentionally not deployable; no new repository Variables or
+Secrets are required for build verification. Real frontend deployment and its
+public build configuration remain pending verification of existing hosting and
+state ownership. No frontend write or invalidation step is enabled in main CD.
 
 ### Integrity, SVG delivery and preparation guards
 
@@ -1123,7 +980,7 @@ Local checks use reserved test configuration only. Commands:
 python scripts/frontend_release.py build --output scratch/issue283-build
 python scripts/frontend_release.py verify --artifact scratch/issue283-build
 python -m pytest -q scripts/tests -p no:cacheprovider
-actionlint -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/cd.yml .github/workflows/frontend-build.yml
+actionlint -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/cd.yml
 git diff --check
 ```
 
@@ -1136,9 +993,10 @@ git diff --check
 | Workflow YAML and actionlint 1.7.12 | Pass for CI, backend CD and frontend build preparation. Optional external ShellCheck/Pyflakes disabled. Structured YAML comparison confirms all pre-existing CI jobs/triggers/permissions are unchanged. |
 | Scope and whitespace | `git diff --check` passes; backend, frontend, Terraform and backend CD match `feature/v5/post-deploy-smoke-tests`. |
 
-The only changed tracked paths are `.github/workflows/ci.yml`, new
-`.github/workflows/frontend-build.yml`, new `scripts/frontend_release.py`, new
-`scripts/tests/test_frontend_release.py`, and this report. Build output and
+The original #283 work added CI build verification, build/integrity tooling,
+offline tests and a manual build workflow. The latter is now removed; build
+and integrity tooling/tests remain unchanged. Historical validation below
+does not establish a frontend deployment. Build output and
 local check helpers remain ignored under `scratch/`. No live API/AWS calls,
 Terraform initialization/plan/apply/destroy/state changes, S3 writes, cache
 invalidations, deployment, commit, push, PR modification or merge were performed.
@@ -1279,52 +1137,24 @@ private plan. All summaries explicitly set `deployment_authorized: false` and
 `live_identity_verified: false`, including no-op results. Do not publish raw
 plan JSON or saved plans: sensitive marking does not redact their contents.
 
-### Future authorized reproducibility sequence (not executed)
+### Optional safety preparation and release evidence
 
-1. Obtain approval for read-only AWS/backend/plan collection, a named sandbox
-   owner and reviewed account/region/resource configuration. Stop if any is
-   missing. Freeze concurrent deployments and record checkout revision,
-   dependency/provider locks, tool/Docker versions and UTC capture times.
-2. Use an isolated clean checkout and fresh data directory. Run formatting and
-   backend-disabled readonly initialization/validation for both roots with no
-   AWS credentials. Offline use requires an approved cached provider mirror;
-   do not silently download or reconfigure a backend during an offline check.
-3. Independently compare backend configuration to the approved identity. Only
-   in the authorized backend working directory, set process-scoped
-   `TF_WORKSPACE=sandbox` **before** backend initialization. Initialize with
-   `-input=false -lockfile=readonly`; an existing incompatible cache must be
-   inspected before any reviewed `-reconfigure`. Never use migration/force-copy
-   flags or create a missing workspace/state. Confirm effective workspace/key,
-   state ownership, caller and provider region with read-only permissions.
-4. Review nonsecret naming inputs and secure configuration provenance, including
-   deployed authentication settings. Capture state lineage/serial privately.
-   Generate a full normal refreshed plan with `-input=false -detailed-exitcode`
-   and a private `-out` file; do not target/exclude resources. For strictly
-   read-only audit collection, `-lock=false` avoids lock writes but requires a
-   quiet deployment window and comparison of state serial before/after. Changed
-   serial invalidates evidence. Terraform exit 2 means a changed plan, not an
-   execution failure; exit 1 is a failed plan. Convert the saved plan to private
-   JSON, bind observations to its hash and run the offline inspection gate.
-5. Stop on drift, incomplete evidence or any proposed action. Resolve ownership
-   and architecture outside this task, then obtain a newly reviewed plan. The
-   gate never approves changes; exceptional reviewed changes need a separate
-   explicit owner approval with exact actions, backup/data impact and artifact
-   compatibility recorded. No suppressions or automatic reconciliation.
-6. **Separate approval is required for apply.** Only after all blockers are
-   resolved may an authorized operator apply the exact reviewed saved plan in
-   the verified environment with normal locking. No apply command is provided
-   or executed by this tooling. Expired/stale plans require a new review.
-7. Following an approved successful deployment, run the existing #282 smoke
-   verifier using `api_endpoint` and `cdn_url` outputs from that verified state.
-   Compare against the release's trusted building-data baseline. Existing
-   backend CD does this only after successful main/default apply; #285 does not
-   change it or repurpose it for sandbox. Do not deploy to trigger a smoke test.
-8. Generate/review a second full plan with identical approved variables and
-   tool versions; explain every residual action, including code/dependency and
-   local-path noise. Record pre/post serial, plan hashes/exit codes, sanitized
-   gate evidence, UTC start/end timestamps, logs/run URLs, artifact/code hashes,
-   smoke results and manual approvals. Repeat-plan convergence plus actual
-   deployment evidence is required; an offline or no-op plan alone is insufficient.
+The sandbox gate stays offline because its approved expected/observed evidence
+is not supplied by current main CD. It is not automatically fed guessed AWS
+metadata, not an approval override and not another deployment entry point.
+Preserve revision/tool/provider/config hashes, timestamps and private evidence
+provenance when an owner separately authorizes read-only collection. Never
+create replacement state, run targeted changes or silently migrate a backend.
+
+All actual writes and post-apply verification belong to main CD. Its current
+default workspace does not support sandbox deployment; neither sandbox support
+nor a manual apply path is introduced here. Resolving drift, choosing a valid
+application baseline and any future existing-sandbox support require a separate
+reviewed change to the same CD, not a new pipeline. After an approved deployment,
+record that CD's run URL/summary, exact artifact, outcome and post-apply results.
+Any repeat-plan/recovery evidence must be separately authorized and cannot
+override the existing-resource or ownership boundary. No reproducibility claim
+is made without actual deployment evidence.
 
 ### Operational recovery (manual approval points)
 
@@ -1675,3 +1505,116 @@ remain blocked on separately authorized evidence. OIDC/remediation deployment
 is not part of acceptance for this audit-only change. No commit, push, PR,
 merge, issue comment, notification or deployment was made for #286. No work on
 another issue was performed.
+
+## 11. Existing application only: main CD validation boundary
+
+This update supersedes earlier manual deployment/live-verification procedures.
+CI remains tests/build/Terraform validation, main CD is the sole deployment
+entry point, and the sandbox gate is optional offline preparation. The separate
+frontend build workflow is removed. No new stack, target IDs, region, role,
+credential input or deployment-selection configuration is introduced.
+
+### Existing resource mapping and authority
+
+| Existing deployment | Repository mapping / authority | Current boundary |
+|---|---|---|
+| Backend Lambda/API | `module.lambda.aws_lambda_function.this`, `.indexer` and `module.api_gateway.aws_apigatewayv2_api.this` in the existing backend S3 state; `backend.tf`, default workspace and approved `TF_VARS_FILE`. | Retain the same Terraform commands and Lambda ZIP mechanism. Planned identities must match existing prior-state values. |
+| Backend data/assets | Backend state owns `module.storage` bucket/CDN/objects, DynamoDB, OpenSearch and workload IAM. Existing outputs `api_endpoint` and `cdn_url` reference that API/CDN. | These outputs are **not frontend hosting targets**. No bucket/distribution is created or selected by this tooling. |
+| Frontend hosting | Frontend source declares `module.s3_website.aws_s3_bucket.this`, `.aws_cloudfront_distribution.this` and `aws_s3_object.frontend_files`. Root outputs expose bucket/ARN/domain/website URL, but authoritative state and existing distribution ID/owner are unverified. | Stop before deployment. A domain or example tfvars is not an authoritative ID/ownership record. No empty frontend state is initialized and no replacement resources are planned. |
+| Frontend files versus floor plans | CI builds `frontend/dist` with its own static files. Backend Terraform owns `building-data/floor-plan` and backend-generated asset URLs. | No frontend sync, SVG overwrite or CloudFront invalidation command exists. Backend-owned prefixes remain excluded from the frontend artifact. |
+
+`scripts/deployment_guard.py frontend-boundary` explicitly returns a blocking
+result and exit 1. It does **not** claim to have verified an unknown target.
+Guessed bucket/distribution environment variables cannot enable it, and there
+is no bypass flag. Main CD calls this before credential configuration, init,
+plan or apply, so neither deployment target can be used for a partial release.
+Resolving this boundary needs the existing frontend owner's authoritative
+state/resource mapping, actual public build configuration, account/region and
+bucket/distribution ownership evidence, plus a reviewed implementation change.
+None was available under this task's no-AWS/no-state-access restrictions.
+
+### Existing backend update guard and retained mechanism
+
+Main CD keeps its main-only trigger, default workspace, concurrency, credential
+inputs and init/validate/plan/apply command strings. Python setup moves before
+validation; credentials/settings and Terraform resources are unchanged. At a
+future authorized run, the backend plan guard consumes plan JSON over stdin,
+the existing action's account output, effective workspace and resolved backend
+metadata. It never makes AWS calls, fetches raw state or repairs state itself.
+It checks the cached backend against committed `backend.tf`, required locking,
+root provider region references, state-scoped ARN account/region consistency,
+existing bucket/environment guard inputs and all required backend state anchors.
+
+The same plan must include every prior managed resource, bind each `before`
+to prior-state values, preserve IDs/names/ARNs/origins/handlers/runtime and keep
+post-apply API/CDN outputs associated with the existing resources. Only no-op
+or in-place updates may pass. All managed creates/deletes/replacements,
+imports/moves/forget and unreviewed drift fail, as do IAM updates, Lambda
+environment changes, partial/errored/deferred plans or missing/conflicting
+evidence. Known #284 candidate addresses are reported directly; arbitrary
+instance keys are hashed to avoid exposing private metadata. No plan/secret
+values are logged or uploaded.
+
+There is deliberately **no local build-helper replacement exemption**. The
+existing Lambda mechanism can require `terraform_data.build` replacement on a
+code/dependency change, which this strict guard will block too. This preserves
+the requested no-create/delete/replace rule without quietly redesigning the
+builder. The backend path is therefore not certified ready for a code release;
+any policy exception or mechanism change needs separate review. An in-place
+code-hash update test proves identity checks, not artifact compatibility or
+absence of an application rollback. #284's six deletes and Lambda/auth drift
+remain unresolved and are not suppressed.
+
+After a successful approved apply, the unchanged API/SVG smoke step uses outputs
+from that root. No new pre-deployment smoke workflow or manual target procedure
+is required. An always-run summary reports UTC, commit, run URL and target/
+plan/safety/apply/smoke outcomes. It runs no AWS/deployment commands and does not
+turn failure/skipped states into success. Only this reporting step uses
+`always()`; write/verification steps retain normal success gating.
+
+### Frontend implementation status and required evidence
+
+Frontend build/integrity verification remains operational in CI using locked
+dependencies and reserved non-deployment fixture configuration. Its outputs are
+not a production-configured release. This task stops frontend CD at validation:
+**no real-config CD build, S3 upload, CloudFront invalidation, delivered-file
+verification or object-version verification is implemented or claimed**.
+
+Before those operations can be added to main CD, establish authoritative
+frontend state and distribution identity without guessing; verify caller,
+region, canonical bucket owner, distribution ARN/account and S3 origin/OAC;
+approve the existing public build configuration; and resolve object ownership.
+Terraform currently declares every frontend object, so an unreviewed direct
+S3 writer could introduce drift. Actual bucket versioning, cache policy,
+release manifest hashes and rollback/recovery constraints also require evidence.
+Do not use backend asset outputs as a substitute, create a new state or grant
+new IAM permissions as a workaround. The existing offline artifact tests and
+mocked ownership guard are preparation, not proof of live ownership.
+
+No runtime metadata lookup or deployment was executed here. CI success cannot
+satisfy these gaps. The full requested combined deployment remains blocked;
+this change is safe, fail-closed preparation, not a completed frontend release.
+
+### Local validation and delivery
+
+| Offline validation | Result |
+|---|---|
+| `python -m pytest -q scripts/tests -p no:cacheprovider` | **185 passed**: 34 existing-deployment guard cases plus the prior 151 automation tests. Covers synthetic existing updates, create/delete/replace rejection, six known deletion addresses, state/account/region/workspace conflicts, missing metadata, guessed frontend targets, private-value redaction and CLI exit codes. |
+| Backend non-live suite | **361 passed, 38 live API tests deselected**; credentials/config lookup disabled by the existing offline helper. |
+| Isolated locked frontend production build and manifest verification | Pass using reserved test configuration; TypeScript/Vite pass, 146 locked dependencies installed. Existing large-chunk advisory remains. No real deployment target/configuration used. |
+| Both Terraform roots using prior provider/module caches | fmt and validate pass on Terraform 1.15.8; backend 14 existing DynamoDB warnings, frontend zero. No init, remote plan or state access. |
+| actionlint 1.7.12 | Pass on CI and main CD; optional external ShellCheck/Pyflakes disabled. |
+| Workflow structure and local summary execution | Existing main trigger/concurrency/workspace, authentication inputs, init/validate/plan/apply/smoke command strings and CI are unchanged. Target boundary precedes credentials; plan guard precedes apply; smoke has success-only ordering after apply. Summary executed offline with synthetic failed/skipped outcomes. |
+| `git diff --check` / scope | Pass. No application, Terraform resource, IAM/credential configuration or existing verifier changes. |
+
+Changed paths: `.github/workflows/cd.yml`, deletion of
+`.github/workflows/frontend-build.yml`, `scripts/deployment_guard.py`,
+`scripts/tests/test_deployment_guard.py`, and this report. Application code, Terraform
+resources/state, IAM, credential configuration, CI and existing smoke/artifact
+scripts are unchanged. Historical security findings and recovery guidance are
+retained; SEC-03's old delete-only/helper-exemption limitation is superseded by
+the stricter guard above, while human approval protection remains unverified.
+No AWS call, plan/apply/destroy, raw-state/secret access, resource/asset write,
+invalidation, branch creation, new PR, merge or deployment occurred. Delivery is
+limited to the user's requested commit/push on `feature/v5/ci-validation` and an
+update to existing Draft PR #288, which must remain Draft.
