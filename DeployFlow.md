@@ -1,5 +1,11 @@
 # Deploy Flow
 
+> **Issue #284 scope:** infrastructure audit only. Application and Terraform
+> feature changes from the async-import reconciliation have been reverted to
+> V5. Earlier findings describe historical snapshots; the final scope-correction
+> section records the current diff, plan and blockers. Do not apply this audit
+> branch to the deployed sandbox.
+
 ## Prerequisites
 1. [Git](https://git-scm.com/)
 2. [AWS CLI v2](https://aws.amazon.com/cli/)
@@ -368,7 +374,7 @@ helper. Six additional destroy actions affect AWS resources absent from V5:
 
 | Address | Consequence of applying this V5 configuration |
 |---|---|
-| `module.api_gateway.aws_apigatewayv2_route.get_schedule_import_job` | Removes import-job status route. |
+| `module.api_gateway.aws_apigatewayv2_route.get_schedule_import_job` | Removes explicit import-job status route; deployed `$default` routing may still serve it (verified in the follow-up below). |
 | `module.lambda.aws_iam_policy.import_jobs` | Deletes import-job access policy. |
 | `module.lambda.aws_iam_role_policy_attachment.import_jobs` | Detaches import-job permissions. |
 | `module.lambda.aws_lambda_function.import_worker` | Deletes the import worker. |
@@ -397,3 +403,316 @@ Frontend planning is intentionally withheld: existing state/backend/workspace
 ownership and provider target region were not established. No `apply`,
 `destroy`, `refresh`, import, state mutation, workspace creation, migration,
 commit, push or deployment was executed.
+
+### Follow-up: six sandbox deletion candidates (#284)
+
+Investigation date: 2026-11-08; the usage window ended at 21:49 Asia/Bangkok.
+This follow-up inspects the sandbox only. The working branch remains
+`feature/v5/terraform-state-audit`; the initial audit is already recorded in
+commit `ad1e03b`. No infrastructure configuration, Git history or state was
+changed during this investigation. All six resources are **confirmed present
+in both sandbox state and AWS**. None is established as obsolete.
+
+#### Root cause and Git evidence
+
+All six definitions first appear in available history in
+[`9a928ae`](https://github.com/Gikeeeeeee/CS361_G06/commit/9a928ae694504f0b40ca039d0e2b3824c30e4e98),
+`refactor: run bulk CSV schedule import as a background job (#241)`.
+The local remote-tracking branch containing it is
+`origin/refactor/async-csv-import-241`. Its parent is `03ffff6`, also the common
+ancestor with V5. `git log V5..origin/refactor/async-csv-import-241` shows that
+single feature commit. `git merge-base --is-ancestor 9a928ae V5` returns 1:
+the async-import commit is not included in V5. The repository is not shallow.
+
+`git log --all -G 'import_worker|import_jobs|get_schedule_import_job|aws_s3_bucket_lifecycle_configuration' -- terraform/terraform-backend`
+finds that introduction commit, with no subsequent removal in available
+history. This is **an unintegrated feature/configuration mismatch**, not an
+intentional resource-removal commit in V5. Available local refs cannot prove
+unrecorded operator intent or the current status of a remote pull request.
+
+Sandbox state serial 37 contains every candidate at the exact address listed
+below. V5 contains none of their resource blocks and no alternate-address
+migration for them. Terraform therefore interprets the existing managed
+objects as resources to destroy to match V5, rather than as replacements due
+to changed names. The earlier full refreshed plan proposed six AWS deletes
+plus the unrelated Terraform build-helper replacement. No new plan was needed
+for this follow-up; state and AWS were inspected directly.
+
+Crucially, this is not only leftover state: deployed worker source files
+`handler.py`, `services/schedule_import_service.py`,
+`repositories/ScheduleRepo.py` and `indexer/service.py` exactly match the
+introduction commit after normalizing line endings, and differ from V5.
+The deployed API and worker ZIP code hashes match each other. Each deployed
+function's code hash also matches its sandbox state record. This verifies the
+relevant async-import implementation is deployed; it does not attribute the
+deployment to a particular person or Git workflow.
+
+#### AWS identities, activity and dependency chain
+
+Every lookup used identifiers read from sandbox state, not literal AWS resource
+names, account IDs or ARNs. The caller account was compared in memory with the
+worker's state ARN. The raw state, Lambda environment values, signed ZIP URL,
+ZIP bytes, object keys, job IDs and account identifiers were not emitted or
+written to the report. Identity mappings below are relational so they remain
+usable without duplicating environment-specific values.
+
+| Terraform address | AWS identity verified from state | Read-only AWS evidence |
+|---|---|---|
+| `module.api_gateway.aws_apigatewayv2_route.get_schedule_import_job` | State `api_id` + route `id` | `get-route`: `GET /api/v1/schedules/imports/{jobId}`, integration targets the state API Lambda. |
+| `module.lambda.aws_iam_policy.import_jobs` | State policy ARN and current default policy version | `get-policy` / `get-policy-version`: S3 Put/Get for this bucket's `imports/*`; InvokeFunction for this worker. |
+| `module.lambda.aws_iam_role_policy_attachment.import_jobs` | State role + policy ARN | `list-attached-role-policies` confirms that pair; `list-entities-for-policy` reports one role, no users/groups. |
+| `module.lambda.aws_lambda_function.import_worker` | State function name / ARN | `get-function-configuration`: Active, `handler.import_worker`, 300-second timeout, shares the API execution role. API `IMPORT_WORKER_NAME` equals this function. |
+| `module.lambda.aws_lambda_function_event_invoke_config.import_worker` | State function-scoped async configuration | `get-function-event-invoke-config`: two retries, maximum event age 3,600 seconds. |
+| `module.storage.aws_s3_bucket_lifecycle_configuration.this` | State asset bucket's lifecycle configuration | `get-bucket-lifecycle-configuration`: one Enabled rule, `imports/` prefix, current expiration after one day and noncurrent-version expiration after one day. |
+
+CloudWatch `AWS/Lambda` FunctionName metrics were queried with one-hour periods
+over November 1 21:49 through November 8 21:49 Asia/Bangkok (14:49 UTC).
+Worker totals: **6 Invocations, 0 Errors, 0 Throttles**, with a nonzero invocation
+datapoint on November 8. These are invocation counts, not counts of successful
+imports. The service catches application failures and records job outcomes,
+so zero Lambda Errors is compatible with failed import jobs. No live function
+was invoked and no CSV request was submitted for this investigation.
+
+Metadata-only S3 inventory found **12 current import objects**: six CSV files
+and six result JSON files, 11,657 bytes total; 12 versions and no delete markers.
+The oldest current object's modification time was November 8 21:10:06
+Asia/Bangkok. The asset bucket has versioning Enabled, unlike the separate
+state bucket. Only the `imports/` prefix matches the inspected lifecycle rule:
+building JSON, SVG floor plans and images outside that prefix are unaffected.
+
+A DynamoDB scan projected only status/expiry/dry-run/attempt metadata for
+`IMPORT_JOB#` items; no item contents or identifiers were printed. It found
+six jobs: **3 COMPLETED, 3 FAILED**, including three dry-run jobs. TTL is Enabled
+on `expires_at`. These counts are point-in-time evidence; neither TTL nor S3
+lifecycle expiry runs at an exact wall-clock deadline, and the inventory may
+change after this audit. No pending/processing job was observed in this scan;
+that does not establish an empty Lambda async queue or make the worker obsolete.
+
+Verified application flow in the deployed source:
+
+1. STAFF `POST /api/v1/schedules/imports` calls `submit()`, validates the file,
+   stores `imports/<job>.csv`, creates a PENDING DynamoDB item, invokes the worker
+   asynchronously (`InvocationType=Event`) and returns HTTP 202 plus job status.
+2. `handler.import_worker` calls `run_job()`. The worker claims a lease, reads
+   the CSV, imports or previews schedules, writes `imports/<job>.result.json`,
+   and records COMPLETED/FAILED. Stable imported-schedule IDs and job leases
+   support retries. Failed non-dry-run work attempts to clean its schedule rows.
+3. STAFF `GET /api/v1/schedules/imports/{jobId}` calls `get_job()`, reads job
+   metadata and, for terminal jobs, reads result/error JSON from S3.
+4. Job items use a one-day expiry and staged CSV/results use one-day S3 cleanup.
+   Imported schedule rows are separate records; they are not the S3 objects
+   matched by the lifecycle rule. Removing the rule does not delete schedules.
+
+Current V5 source instead calls synchronous `import_csv()` and lacks the worker
+entry point and job-status contract. The V5 frontend service/form expects
+immediate `rows`/`created` responses and has no job polling. This is a separate
+client/API compatibility risk; lack of a polling client in V5 does not make
+the deployed backend's worker or stored job data obsolete. The deployed
+frontend version and external API consumers were not established in this audit.
+
+#### Resource-by-resource risk and recommendation
+
+Classifications describe the deployed async-import behavior and retention
+contract; they do not decide whether that architecture should be kept.
+
+| Terraform address | Existence / classification | Dependencies and deletion impact | Usage evidence / recommended action |
+|---|---|---|---|
+| `module.api_gateway.aws_apigatewayv2_route.get_schedule_import_job` | Confirmed / **Unknown** whether the explicit route is indispensable | Purpose: explicit job-status routing to API Lambda. The deployed `$default` route targets the same integration, and the deployed handler falls back to method/path matching. Deleting this route alone need not break polling. Applying V5's handler as well removes the status implementation, which would break that contract. | Existing route and six job records confirmed; no per-route request history queried. Retain until the owner explicitly chooses dedicated routing versus fallback; no evidence supports treating it as obsolete. |
+| `module.lambda.aws_iam_policy.import_jobs` | Confirmed / **Required** for configured async-import grants | Purpose: stage/read job files and invoke worker. API submission needs PutObject and InvokeFunction; worker writes result JSON; status reads use GetObject. Removing its grants can fail submissions/result writes and leave incomplete jobs. Existing broader S3-read policy means GetObject is not exclusively supplied here. | Policy document scopes both resources correctly and is attached to one role used by API/worker; six invocations and stored CSV/results show the workflow has run. Retain policy; no full effective-IAM simulation or proof of absence of alternative grants was performed. |
+| `module.lambda.aws_iam_role_policy_attachment.import_jobs` | Confirmed / **Required** | Purpose: give the shared execution role the import-job grants. Detaching has the same permission-loss risk even if the policy object remains. | Exact state role/policy relationship confirmed live; API and worker share that role. Retain attachment with the policy. |
+| `module.lambda.aws_lambda_function.import_worker` | Confirmed / **Required** | Purpose: process imports beyond the API request deadline. API dispatch points to it. Deletion breaks future async processing; queued/retried jobs could stop and partial schedule work could miss completion/cleanup. Existing completed schedule data is not automatically removed by deleting the function. | Active deployed async source, six recent invocations, and CSV/results/job rows confirmed. Retain; do not redeploy V5's ZIP to this handler because V5 lacks `handler.import_worker`. |
+| `module.lambda.aws_lambda_function_event_invoke_config.import_worker` | Confirmed / **Required** for the configured retry/age policy | Purpose: bound asynchronous retry age to one hour with two error retries. Removing this setting alone does not delete the function or disable async invokes; Lambda defaults still allow two retries and up to six-hour event age, changing the explicit retry/lease timing assumptions. | Live settings confirmed; invocation activity is worker-level, not proof that retries occurred. Retain until retry/lease policy is reviewed. |
+| `module.storage.aws_s3_bucket_lifecycle_configuration.this` | Confirmed / **Required** for the configured retention policy | Purpose: expire staged CSV/results and noncurrent versions after one day. Removing the configuration stops managed cleanup, retains potentially sensitive import files/results and increases storage. It does not itself delete the bucket, current files or DynamoDB schedule rows, nor restore expired objects. Already-scheduled expiration timing is not guaranteed to reverse immediately. | Enabled prefix rule, 12 current objects and versioning confirmed. Retain the cleanup contract unless a replacement retention decision is approved. |
+
+AWS default retry behavior and versioned S3 expiration semantics were checked
+against [Lambda async error handling](https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-error-handling.html),
+[maximum event age](https://aws.amazon.com/about-aws/whats-new/2019/11/aws-lambda-supports-max-retry-attempts-event-age-asynchronous-invocations/)
+and [S3 expiration rules](https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-expire-general-considerations.html).
+
+#### Investigation commands and limits
+
+Git inspection: `git status --short`, `git branch --show-current`,
+`git log --all -G ...`, `git log --all -S get_schedule_import_job`,
+`git branch -a --contains 9a928ae`, `git merge-base`,
+`git merge-base --is-ancestor`, `git rev-parse --is-shallow-repository`,
+`git show 9a928ae` and `git show 9a928ae:backend/<file>`.
+`rg` and source reads covered backend handler/service/repository, Terraform
+modules and frontend import service/form. No checkout, fetch, merge or rewrite
+was performed.
+
+AWS inspection: process-scoped `TF_WORKSPACE=sandbox terraform state pull`,
+STS identity comparison, API Gateway `get-route`, `get-routes`, `get-integration`,
+IAM `get-policy`, `get-policy-version`, `list-attached-role-policies`,
+`list-entities-for-policy`, Lambda `get-function-configuration`, `get-function`,
+`get-function-event-invoke-config`, CloudWatch `get-metric-statistics`,
+S3 `get-bucket-lifecycle-configuration`, `get-bucket-versioning`,
+`list-objects-v2`, `list-object-versions`, DynamoDB `describe-time-to-live`
+and metadata-projected `scan`. All completed successfully for this sandbox
+investigation; no additional permission gap was encountered. The function ZIP
+was downloaded through its temporary read URL and inspected only in memory.
+No CloudWatch logs, CSV contents, job IDs or user records were retrieved.
+The local selected Terraform workspace remained unchanged.
+
+No Terraform configuration was modified, so fmt/validate and a new plan were
+not necessary for this documentation-only follow-up. `git diff --check` is the
+local documentation check. The earlier state-bucket location denial and
+frontend state-ownership gap remain unresolved; the prior authorization to
+record those gaps does not establish that they were verified.
+
+#### Resolution decision and blockers to closing #284
+
+The six deletes are an expected consequence of giving Terraform the older V5
+configuration, but **are not justified as intended decommissioning**. The
+evidence supports retaining the deployed workflow while ownership is decided.
+Do not use targeted applies, imports, state removal or manual resource-name
+changes to conceal the mismatch.
+
+An owner decision is required before reconciliation: should sandbox continue
+to represent the async-import feature, with its code and infrastructure brought
+into the intended integration baseline together, or is a deliberate return to
+synchronous V5 behavior intended? The latter needs a reviewed API/client
+rollback, job/queue drain and retention plan. This investigation does not
+authorize or implement either option.
+
+Closing #284 still requires that decision, alignment of the chosen application
+and Terraform baseline, and a newly reviewed full sandbox plan with all
+deletes/replacements explained. The separate frontend state-ownership gap,
+state-bucket versioning recommendation, denied state-bucket location check and
+incomplete account/region identity guard remain tracked in the original audit.
+No work on #281 was performed.
+
+### Scope correction: infrastructure audit only (#284)
+
+The operator clarified that #284 covers state, workspace isolation, drift and
+reproducibility, without integrating application features. The prior async
+reconciliation was out of scope and has been reverted locally. Its implementation
+and test results are not acceptance evidence for the current branch. The earlier
+investigation above remains evidence of deployed sandbox ownership and use.
+
+The operator explicitly approved restoring the five async Terraform feature
+files to V5 as well. Keeping those definitions tied to this checkout's Lambda
+archive would permit deployment of V5 code to an async worker whose handler is
+absent from V5. Restoring local configuration does not delete AWS resources:
+no apply, state edit, import, migration or resource operation was performed.
+The resulting destructive plan is audit evidence and a deployment blocker.
+
+#### Files restored and audit changes retained
+
+Exactly these application files were restored to their V5 versions:
+
+| Area | Files restored |
+|---|---|
+| Backend application | `backend/README.md`, `backend/errors.py`, `backend/handler.py`, `backend/indexer/service.py`, `backend/models/schedule.py`, `backend/ports/schedule_source.py`, `backend/repositories/ScheduleRepo.py`, `backend/services/schedule_import_service.py`, `backend/services/schedule_service.py` |
+| Backend tests | `backend/tests/conftest.py`, `backend/tests/integration/test_api_contract.py`, `backend/tests/unit/handler/test_auth_guard.py`, `backend/tests/unit/handler/test_schedule_routes.py`, `backend/tests/unit/indexer/test_mapper.py`, `backend/tests/unit/repositories/test_schedule_repository.py`, `backend/tests/unit/services/test_schedule_import_service.py` |
+| Frontend | `frontend/package.json`, `frontend/src/features/admin-add-schedule/services/csvScheduleService.ts`, `frontend/src/features/admin-add-schedule/admin-import-file/CsvImportForm.tsx` |
+
+The reconciliation-only untracked test `frontend/test_csv_import_async.mjs` was
+removed. Pre-existing V5 application functionality and tests were preserved.
+No service-layer feature audit fixes were introduced after the scope correction.
+
+These five Terraform files were restored to V5 with explicit operator approval:
+`modules/api_gateway/main.tf`, `modules/dynamodb/main.tf`,
+`modules/lambda/main.tf`, `modules/lambda/outputs.tf`, and
+`modules/storage/main.tf`, all under `terraform/terraform-backend/`.
+No resource identity was renamed, and no state address was edited.
+
+The complete tracked diff against V5 now contains only three files:
+
+| File | Retained change |
+|---|---|
+| `.github/workflows/ci.yml` | Include V5 PRs, validate both Terraform roots, check recursive formatting, initialize without backend access using existing provider locks. |
+| `terraform/terraform-backend/main.tf` | Raise minimum Terraform to 1.10 for the already-configured S3 lockfile support. |
+| `DeployFlow.md` | Audit architecture, ownership, risks, read-only evidence, scope correction and deployment blockers; matching prerequisite version and removal of automatic destructive teardown guidance. |
+
+`git diff --exit-code V5 -- backend frontend terraform/terraform-backend/modules`
+passes. There is no application or module feature diff against V5 and no newly
+added application file remains. A local ignored backup of the reverted diff
+was retained for traceability; it is not a deployable change or tracked artifact.
+
+#### Validation and current plan
+
+Both Terraform roots pass `fmt -check -recursive` and `validate -no-color`.
+Backend validation still reports the 14 existing DynamoDB deprecation warnings.
+CI YAML parsing, V5 branch coverage, the two-root matrix and validation commands
+pass local assertions; GitHub Actions itself was not run. The restored backend
+non-API suite passes 361 tests with 38 deselected. `git diff --check` passes.
+The restored V5 frontend production build also passes; this replaces the
+locally generated async-feature bundle without changing application source.
+The existing Vite large-chunk advisory remains.
+No live application tests or API invocations were performed.
+
+The previous reconciled plan with zero AWS deletions depended on now-reverted
+feature definitions and is **not the plan for this audit-only branch**. It is
+withdrawn as evidence that this branch can safely deploy to sandbox. The prior
+source-equivalence claim concerned the feature implementation, not V5's restored
+application source.
+
+Fresh sandbox plan results and the remaining acceptance blockers are recorded
+below. No plan from this audit is approved to apply.
+
+The target was verified before planning: process-scoped `TF_WORKSPACE=sandbox`,
+state serial 37, caller account compared in memory with the worker's state ARN,
+provider region and bucket/table/collection/worker identity compared with the
+sandbox inputs, and cached backend settings compared with `backend.tf`. The
+selected local workspace remained `default`. No account IDs, ARNs, credentials
+or raw environment values were emitted.
+
+The plan used `sandbox.tfvars` and the previously approved private temporary
+override preserving deployed Supabase values. API and worker settings were
+checked equal before populating that override; its ACL was restricted to the
+current Windows user, and it was deleted immediately after planning. This
+isolates the V5/configuration mismatch from the already documented local
+Supabase-input mismatch, without modifying existing tfvars or live settings.
+
+Command shape (from repository root):
+
+```powershell
+terraform -chdir=terraform/terraform-backend plan '-var-file=sandbox.tfvars' '-var-file=<temporary-private-live-settings-override>' -input=false -lock=false -detailed-exitcode -no-color '-out=../../scratch/issue284-scope-correction/sandbox.tfplan'
+```
+
+Result: exit 2, **1 add / 20 change / 7 destroy**. Each action and changed field
+was inspected through plan JSON. The plan was refreshed after restoring Git's
+configured working-tree line endings because Terraform hashes file bytes.
+
+| Planned actions | Impact / conclusion |
+|---|---|
+| Six AWS deletes | All six previously investigated resources: `module.api_gateway.aws_apigatewayv2_route.get_schedule_import_job`, `module.lambda.aws_iam_policy.import_jobs`, `module.lambda.aws_iam_role_policy_attachment.import_jobs`, `module.lambda.aws_lambda_function.import_worker`, `module.lambda.aws_lambda_function_event_invoke_config.import_worker`, `module.storage.aws_s3_bucket_lifecycle_configuration.this`. Each reason is `delete_because_no_resource_config`. These are not approved deletions or evidence of obsolescence. |
+| Two Lambda in-place updates | `module.lambda.aws_lambda_function.this` and `.indexer`: package hash/computed modification time. Archive hashes are deferred behind the local build helper. Applying would package restored V5 application source, rolling back the deployed async implementation; this is outside #284 and unsafe for this sandbox. |
+| API Lambda environment change | `module.lambda.aws_lambda_function.this` would remove `IMPORT_WORKER_NAME`. This remains even with the approved Supabase override and would affect async dispatch. No environment change was executed. |
+| Eighteen S3 in-place updates | Building index and two building JSON files change source/ETag/version; five SVGs and ten images change source/version. Earlier read-only comparisons found JSON values equal with line-ending differences and all fifteen SVG/image bodies identical. This check was not repeated as a new content snapshot; a future deployment must reverify the live bodies. Updates could create new versions. No object was uploaded. |
+| Local replacement | `module.lambda.terraform_data.build` accounts for the one add and the seventh destroy. It is a local build helper, not an AWS resource. |
+| Deferred data read | `module.lambda.data.archive_file.package` would be read after the helper. No archive from this plan was built or deployed. |
+
+There are **zero AWS creations or replacements**, but six AWS deletions plus
+the Lambda code/environment changes make the plan **unsafe to apply**. Existing
+managed DynamoDB table/TTL had no proposed action. A zero-deletion claim from
+the withdrawn feature reconciliation does not apply to this branch.
+
+No AWS resource, application runtime, data, identity or state address was
+changed. `-lock=false` avoided remote lock writes for this read-only audit;
+it does not change the backend's configured locking behavior. Sensitive saved
+plans and temporary overrides were deleted after review. Only sanitized evidence
+is retained in the documentation. GitHub CD is unchanged and still deploys
+only `main`; this feature branch was not deployed.
+
+#### Remaining risks and acceptance criteria
+
+| Acceptance area | Status |
+|---|---|
+| Infrastructure-only scope | Satisfied locally: exactly three audit/automation files differ from V5, with no backend/frontend/module feature changes. |
+| Architecture, state isolation and ownership evidence | Documented in this audit and the six-resource investigation. Async feature ownership remains separate from V5's application baseline. |
+| Local formatting, validation and CI checks | Pass, with the existing Terraform deprecation warnings. |
+| Safe reconciliation of sandbox from this branch | **Not satisfied**: six AWS deletions, two code updates and an environment-variable removal are planned. Do not apply. |
+| Existing resources and state preserved during the audit | Satisfied: no apply, destroy, import, state removal/migration, deployment or live mutation. |
+| Frontend Terraform state ownership | Unverified, explicitly left as a blocker at the operator's request. |
+| State bucket versioning | Previously confirmed not enabled; enabling it requires separate shared-infrastructure approval. No change made. |
+| Account/region safeguards | Read-only target checks pass; persistent guards still cover only workspace/bucket/environment, not a configured account allowlist. |
+| Bucket location | Previously denied check subsequently succeeded and matched backend configuration. No policy change was made by this agent. |
+| Deployment inputs and reproducibility | Local Supabase inputs still differ from deployed settings; final Lambda ZIP hashes are deferred, and the earlier isolated build showed unpinned dependency drift. Neither is fixed by an audit-only branch. |
+
+Issue #284's inspection and reporting work is delivered, but its safe-management
+acceptance criteria are **not fully satisfied**. Resolving sandbox drift requires
+an owner-approved infrastructure/application ownership and artifact-management
+decision outside this audit's implementation scope. No feature integration,
+ignore_changes workaround, resource removal or automatic deployment is proposed
+as part of #284. No work on #281 was performed.
