@@ -14,7 +14,7 @@ and receipt-gated post-deployment verification are retained.
 
 | Requirement | Implementation and evidence | Status / limits |
 |---|---|---|
-| Automated CI | [ci.yml](.github/workflows/ci.yml) preserves PR #288's `main`/`V4`/`V5` triggers, Python/automation tests, isolated locked frontend build, manifest/integrity verification, retained artifact and both Terraform roots. Adds lint, SVG regressions, mocked browser tests and SVG asset checks from #294. | [#294 run 42639093191](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42639093191) passed Python and Terraform but failed browser tests; its later build/SVG steps were skipped. Consolidated PR CI evidence is recorded below after pushing. |
+| Automated CI | [ci.yml](.github/workflows/ci.yml) preserves PR #288's `main`/`V4`/`V5` triggers, Python/automation tests, isolated locked frontend build, manifest/integrity verification, retained artifact and both Terraform roots. Adds lint, SVG regressions, mocked browser tests and SVG asset checks from #294. | [Consolidated run 42642406031](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42642406031), implementation commit `5795396`, **success** across all four jobs. It fixes the browser failure in [#294 run 42639093191](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42639093191). |
 | Backend Terraform Validation | CI uses `terraform init -backend=false` then `terraform validate`. The prior CI run and [manual dry run](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42634534227) both passed validate. Local Terraform 1.15.8 validation also passes using the existing provider/module cache. | Configuration validity established; 14 existing DynamoDB deprecation warnings. Validation proves neither live ownership nor deployability. |
 | Manual Backend Dry Run | Main's [backend-dry-run.yml](https://github.com/Gikeeeeeee/CS361_G06/blob/c135c168a41834350b8d3e28bee8a91014f27096/.github/workflows/backend-dry-run.yml), manual dispatch on `main` only. Run 42634534227, attempt 1, head `c135c16`, started 2026-11-09 14:25:29 UTC (21:25:29 Asia/Bangkok). Init/validate/plan succeeded; plan exit 2, **2 add / 21 change / 1 destroy**. PR #288's existing [cd.yml](.github/workflows/cd.yml) remains dry-run only. | Run conclusion **failure**, because Plan Safety blocked it. No apply, state repair, frontend operation or post-deployment check. No additional dry-run pipeline is added to #288. |
 | Safety Guard | Main's [deployment_guard.py](scripts/deployment_guard.py) returned `unsafe_resource_changes`, `PLAN_CHANGES_BLOCKED`, phase `plan_safety`, `failure_count: 4`, `apply_permitted: false` in [job 129219085729](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42634534227/job/129219085729). Current source and guard/diagnostic tests match main. | Refusal verified. Two Lambda artifact findings, one create finding and refresh drift remain unresolved. Obsolete marker/account/ARN requirements are removed; existing action, identity, IAM, Lambda, drift and completeness protections remain. |
@@ -90,6 +90,24 @@ Both Terraform validations used existing local provider/module caches.
 | `python -m pytest -q scripts/tests -p no:cacheprovider` | **285 passed**, including main's guard/diagnostics, asset checker, retained CD workflow, frontend build/integrity, sandbox utility, smoke and receipt-gated post-deployment tests. All network/deployment cases are mocks. |
 | `terraform validate -no-color` in both roots | Backend passed with 14 existing deprecation warnings; frontend passed without warnings. |
 | Workflow syntax / `git diff --check` | Actionlint 1.7.12 passed for edited `ci.yml` and `cd.yml` (optional ShellCheck/Pyflakes integrations disabled); diff whitespace check passed. |
+
+## Consolidated GitHub Actions evidence
+
+[Run 42642406031](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42642406031)
+completed with **success** at implementation commit
+`579539670da5af85808b7892204b77d0a75fe936` on the existing PR #288 branch.
+
+| Job | Confirmed result |
+|---|---|
+| Frontend Validation | Lint and SVG loading regressions passed; **15 browser tests passed** in 18.4 seconds; locked isolated production build, manifest verification, **six SVG asset checks** and verification-artifact retention all succeeded. |
+| Python Tests | **361 backend tests passed**, 38 live API tests deselected; **285 automation tests passed**. |
+| Terraform Validate (terraform-backend) | Formatting, backend-disabled init and validate succeeded. |
+| Terraform Validate (terraform-frontend) | Formatting, backend-disabled init and validate succeeded. |
+
+This evidence identifies the tested implementation commit. The documentation-only
+follow-up records that run without changing executable files. The PR remains a
+draft targeting `V5`; production `CD` is still `disabled_manually`. No workflow
+dispatch, AWS deployment, apply, state change or live post-deployment check ran.
 
 The build uses explicit offline values for API base/version and Supabase
 URL/key, overriding local `.env`; it is validation output, not a deployable
