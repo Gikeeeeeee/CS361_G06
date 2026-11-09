@@ -42,7 +42,7 @@ def existing():
             "configuration": {"provider_config": {"opaque": {"full_name": "registry.terraform.io/hashicorp/aws", "expressions": {"region": {"references": ["var.aws_region"]}}}}},
             "prior_state": {"values": {"root_module": {"resources": prior}}}, "resource_changes": changes,
             "planned_values": {"outputs": {"api_endpoint": {"value": "https://api.example.test"}, "cdn_url": {"value": "https://cdn.example.test"}}}}
-    return plan, account, workspace, cached, source, account
+    return plan, workspace, cached, source
 
 
 def test_existing_noop_bound_to_state(existing):
@@ -51,6 +51,39 @@ def test_existing_noop_bound_to_state(existing):
     result, code = guard.inspect_plan(*existing)
     assert code == 0 and result["result"] == "existing_backend_plan_checked"
     assert result["apply_permitted"] is False and result["frontend_scope"] == "out_of_scope"
+
+
+@pytest.mark.parametrize("action", ["no-op", "delete", "update"])
+def test_external_references_do_not_gate_account_but_plan_safety_still_applies(existing, action):
+    resource = existing[0]["prior_state"]["values"]["root_module"]["resources"][0]
+    # Unchanged references are dependencies, not account/region evidence.
+    resource["values"]["kms_key_arn"] = "arn:aws:kms:external-region:111111111111:key/fixture"
+    resource["values"]["layers"] = ["arn:aws:lambda:external-region:111111111111:layer:fixture:1"]
+    resource["values"]["environment"][0]["variables"]["REFERENCE"] = "arn:aws:sns:external-region:111111111111:fixture"
+    change = existing[0]["resource_changes"][0]["change"]
+    change.update(before=copy.deepcopy(resource["values"]), after=copy.deepcopy(resource["values"]), actions=[action])
+    if action == "update":
+        change["after"]["arn"] = "arn:aws:lambda:fixture-region:000000000000:function:changed"
+    assert guard.inspect_plan(*existing)[1] == (0 if action == "no-op" else 1)
+
+
+@pytest.mark.parametrize("field", ["bucket", "key", "region"])
+def test_backend_target_mismatch_remains_fail_closed(existing, field):
+    existing[2]["backend"]["config"][field] = "unverified-target"
+    with pytest.raises(guard.EvidenceError) as error:
+        guard.inspect_plan(*existing)
+    assert error.value.reason_code == "BACKEND_METADATA_MISMATCH"
+
+
+def test_no_arn_scan_or_account_environment_required(existing, monkeypatch):
+    monkeypatch.delenv("DEPLOY_ACCOUNT_ID", raising=False)
+    monkeypatch.delenv("DEPLOY_EXPECTED_ACCOUNT_ID", raising=False)
+    for resource in existing[0]["prior_state"]["values"]["root_module"]["resources"]:
+        resource["values"].pop("arn")
+    for resource in existing[0]["resource_changes"]:
+        resource["change"]["before"].pop("arn")
+        resource["change"]["after"].pop("arn")
+    assert guard.inspect_plan(*existing)[1] == 0
 
 
 @pytest.mark.parametrize("actions,code", [(["no-op"], 0), (["delete"], 1)])
@@ -114,15 +147,14 @@ def test_six_known_deletions_are_reported_not_suppressed(existing):
     assert {finding["address"] for finding in result["failures"]} == set(guard.ASYNC_RESOURCES)
 
 
-@pytest.mark.parametrize("fault", ["account", "workspace", "region", "bucket", "key", "lock", "empty_state", "missing_anchor", "provider", "endpoint", "cdn", "partial", "deferred"])
+@pytest.mark.parametrize("fault", ["workspace", "region", "bucket", "key", "lock", "empty_state", "missing_anchor", "provider", "endpoint", "cdn", "partial", "deferred"])
 def test_invalid_or_conflicting_identity_fails_closed(existing, fault):
     values = list(existing)
     plan = values[0]
-    if fault == "account": values[1] = "111111111111"
-    if fault == "workspace": values[2] = "sandbox"
-    if fault == "region": plan["variables"]["aws_region"]["value"] = "wrong-region"
-    if fault in ("bucket", "key"): values[3]["backend"]["config"][fault] = "wrong"
-    if fault == "lock": values[3]["backend"]["config"]["use_lockfile"] = False
+    if fault == "workspace": values[1] = "sandbox"
+    if fault == "region": plan["configuration"]["provider_config"]["opaque"]["expressions"]["region"] = {"references": ["var.unverified_region"]}
+    if fault in ("bucket", "key"): values[2]["backend"]["config"][fault] = "wrong"
+    if fault == "lock": values[2]["backend"]["config"]["use_lockfile"] = False
     if fault == "empty_state": plan["prior_state"]["values"]["root_module"]["resources"] = []
     if fault == "missing_anchor": plan["resource_changes"].pop(0)
     if fault == "provider": plan["configuration"]["provider_config"]["opaque"]["expressions"]["region"] = {"constant_value": "guessed"}
@@ -170,17 +202,15 @@ def test_missing_evidence_exit_code_redacted(capsys):
 
 def test_backend_cli_stdin_no_secrets_in_output(existing, tmp_path, monkeypatch, capsys):
     import io
-    plan, account, workspace, cached, source, expected_account = existing
+    plan, workspace, cached, source = existing
     metadata, backend = tmp_path / "metadata.json", tmp_path / "backend.tf"
     metadata.write_text(json.dumps(cached))
     backend.write_text(source)
-    monkeypatch.setenv("DEPLOY_ACCOUNT_ID", account)
-    monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", expected_account)
     monkeypatch.setenv("DEPLOY_WORKSPACE", workspace)
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(plan)))
     assert guard.main(["backend-plan", "--plan", "-", "--backend-metadata", str(metadata), "--backend-source", str(backend)]) == 0
     output = capsys.readouterr().out
-    assert all(value not in output for value in (account, "PRIVATE_CACHE_VALUE", "PRIVATE_ENV", "fixture-state"))
+    assert all(value not in output for value in ("000000000000", "PRIVATE_CACHE_VALUE", "PRIVATE_ENV", "fixture-state"))
 
 
 def add_local_helper(existing):
