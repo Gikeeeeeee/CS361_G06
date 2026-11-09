@@ -214,3 +214,89 @@ To terminate all created AWS resources:
 cd terraform/terraform-backend
 terraform destroy -auto-approve
 ```
+
+---
+
+## 5. V5 Deployment Automation & Safe Verification Runbook
+
+### 5.1 V5 Preconditions & Environment Prerequisites
+ก่อนเริ่มกระบวนการปล่อยระบบ (Deploy) หรือตรวจสอบระบบใน V5 ต้องจัดเตรียมสภาพแวดล้อมดังนี้:
+1. **Node.js (>= 18.x) & npm:** สำหรับ build และทดสอบระบบ Frontend และรัน SVG verification
+2. **Python (>= 3.10):** สำหรับรันชุดสคริปต์ความปลอดภัยและการทดสอบ (`scripts/deployment_guard.py`, `scripts/smoke_test.py`, `scripts/frontend_release.py`, `scripts/sandbox_validation.py`)
+3. **Terraform (>= 1.5.0):** รองรับทั้ง 2 Stacks (`terraform/terraform-backend` และ `terraform/frontend`)
+4. **AWS Credentials:** มีสิทธิ์ IAM ที่เหมาะสมตาม Least Privilege สำหรับ S3, CloudFront, Lambda, API Gateway, DynamoDB
+5. **Terraform Remote State:** กำหนดค่า S3 bucket และ DynamoDB table สำหรับล็อค State เพื่อป้องกัน race condition
+
+### 5.2 CI/CD Pipeline Architecture & Policies
+1. **Automated CI Validation (`.github/workflows/ci.yml`):**
+   - ทำงานทุกครั้งที่มีการเปิด Pull Request (PR) หรือ Push ไปยัง Feature branch
+   - ตรวจสอบ Frontend: `npm run lint`, `npm run test`
+   - ตรวจสอบ Backend: `flake8`, `pytest`
+   - ตรวจสอบ Terraform: รัน `terraform fmt -check` และ `terraform validate` ทั้ง 2 Stacks (`terraform/terraform-backend` และ `terraform/frontend`)
+2. **Main-only Continuous Deployment (`.github/workflows/cd.yml`):**
+   - อนุญาตให้ปล่อยระบบขึ้น Cloud ได้จาก branch `main` เท่านั้น
+   - มีระบบความปลอดภัย (Deployment Guard) ตรวจสอบความถูกต้องและป้องกันการทำลายข้อมูลเดิม
+3. **Backend Safe Dry-Run (`.github/workflows/backend-dry-run.yml`):**
+   - รองรับการทริกเกอร์แบบ Manual (`workflow_dispatch`) เพื่อรัน `terraform plan` และตรวจสอบ Resource Changes ก่อนการ Apply จริง
+
+### 5.3 Reproducible Commands (คำสั่งที่สามารถรันตามได้จริงทุกขั้นตอน)
+
+#### ขั้นตอนที่ 1: ตรวจสอบความถูกต้องระดับ Local ก่อนสร้าง PR (Local Validation)
+```bash
+# 1.1 ตรวจสอบ Frontend Code & Test
+cd frontend
+npm ci
+npm run lint
+npm run test
+cd ..
+
+# 1.2 ตรวจสอบความถูกต้องของ Terraform ทั้งสอง Stack
+terraform -chdir=terraform/terraform-backend init -backend=false
+terraform -chdir=terraform/terraform-backend validate
+
+terraform -chdir=terraform/frontend init -backend=false
+terraform -chdir=terraform/frontend validate
+```
+
+#### ขั้นตอนที่ 2: ตรวจสอบและเตรียมปล่อยระบบ Frontend (Frontend Release & SVG Verification)
+```bash
+# ตรวจสอบความถูกต้องของไฟล์ SVG และ assets ก่อนการ Build/Deploy
+python scripts/frontend_release.py --verify-only
+
+# Build และทดสอบความเข้ากันได้ของ Asset แผนผังอาคาร
+npm --prefix frontend run build
+```
+
+#### ขั้นตอนที่ 3: ตรวจสอบความปลอดภัย Backend ด้วย Dry-Run (Deployment Guard)
+```bash
+# รัน Deployment Guard เพื่อตรวจสอบว่าไม่มีการลบหรือแทนที่ Production Resource สำคัญ
+python scripts/deployment_guard.py --stack backend --dry-run
+```
+
+#### ขั้นตอนที่ 4: การทดสอบในสภาพแวดล้อมจำลอง (Sandbox Validation & Reproducibility)
+```bash
+# สลับไปใช้ Sandbox Workspace เพื่อทดสอบการ Apply โดยไม่กระทบ Production State
+cd terraform/terraform-backend
+terraform workspace select sandbox || terraform workspace new sandbox
+terraform plan -out=sandbox.tfplan
+# ทำการ Apply ใน Sandbox เมื่อผ่านการตรวจสอบ
+# terraform apply sandbox.tfplan
+cd ../..
+```
+
+#### ขั้นตอนที่ 5: ทดสอบการทำงานของระบบหลังปล่อย (Post-Deployment Smoke Tests)
+```bash
+# รันชุดทดสอบ Smoke Test อัตโนมัติเพื่อตรวจสอบ Endpoint อาคาร, ชั้น, และแผนผัง SVG
+python scripts/smoke_test.py --base-url https://<api_endpoint> --verify-svg
+```
+
+### 5.4 Safety Policies & Boundaries (Tested vs Untested)
+- **ส่วนที่ผ่านการทดสอบจริงแล้ว (Tested):**
+  - Unit Tests & Linting ทั้ง Frontend และ Backend
+  - การตรวจสอบ Syntax และ Configuration ของ Terraform ทั้ง 2 Stacks
+  - การทำงานของสคริปต์ Deployment Guard และ Backend Dry-run
+  - การตรวจสอบความถูกต้องของไฟล์ SVG แผนผังอาคาร
+  - การจำลองการ Deploy บน Sandbox Workspace
+- **ส่วนที่ยังไม่ได้ทำหรืออยู่นอกขอบเขต (Untested / Limitations):**
+  - การทำ Automatic Production Apply สำหรับ Backend Stack (ยังคงต้องใช้ Manual Approval และผ่านการตรวจสอบ Plan อย่างละเอียดเพื่อความปลอดภัยต่อข้อมูลจริง)
+  - ยังไม่รองรับการ Rollback อัตโนมัติในระดับ Infrastructure กรณีการ Deploy ไม่สมบูรณ์
