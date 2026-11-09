@@ -34,6 +34,7 @@ jobs:
     # Always use the team state; Terraform also validates workspace/bucket identity.
     env:
       TF_WORKSPACE: default
+      DEPLOY_EXPECTED_ACCOUNT_ID: ${{ secrets.EXPECTED_AWS_ACCOUNT_ID }}
 
     defaults:
       run:
@@ -52,6 +53,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Validate expected AWS account configuration
+        run: python ../../scripts/deployment_guard.py expected-account
 
       # Cold-checkout archive preparation is local only, before AWS credentials.
       # Reuse the existing Linux packager; no fake ZIP or cached fallback is added.

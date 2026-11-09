@@ -31,26 +31,53 @@ def existing():
             values.update(function_name=f"fixture-{index}", source_code_hash="old", environment=[{"variables": {"KEY": "PRIVATE_ENV"}}])
         if kind == "aws_apigatewayv2_api": values["api_endpoint"] = "https://api.example.test"
         if kind == "aws_cloudfront_distribution": values["domain_name"] = "cdn.example.test"
+        if kind == "aws_s3_bucket":
+            values.update(id="fixture-assets", bucket="fixture-assets", tags={"Environment": "fixture-environment"})
         resource = {"address": address, "type": kind, "mode": "managed", "provider_name": "registry.terraform.io/hashicorp/aws", "values": values}
         prior.append(resource)
         changes.append({k: resource[k] for k in ("address", "type", "mode")})
         changes[-1]["change"] = {"actions": ["no-op"], "before": copy.deepcopy(values), "after": copy.deepcopy(values), "after_unknown": {}}
-    values = {"id": "fixture-identity", "input": {"workspace": workspace, "bucket_name": "fixture-assets", "environment": "fixture-environment"}}
-    prior.append({"address": "terraform_data.deployment_identity", "mode": "managed", "type": "terraform_data", "values": values})
-    changes.append({"address": "terraform_data.deployment_identity", "type": "terraform_data", "mode": "managed",
-                    "change": {"actions": ["no-op"], "before": values, "after": copy.deepcopy(values)}})
     plan = {"format_version": "1.2", "complete": True, "errored": False,
             "variables": {k: {"value": v} for k, v in {"aws_region": "fixture-region", "bucket_name": "fixture-assets", "environment": "fixture-environment"}.items()},
             "configuration": {"provider_config": {"opaque": {"full_name": "registry.terraform.io/hashicorp/aws", "expressions": {"region": {"references": ["var.aws_region"]}}}}},
             "prior_state": {"values": {"root_module": {"resources": prior}}}, "resource_changes": changes,
             "planned_values": {"outputs": {"api_endpoint": {"value": "https://api.example.test"}, "cdn_url": {"value": "https://cdn.example.test"}}}}
-    return plan, account, workspace, cached, source
+    return plan, account, workspace, cached, source, account
 
 
 def test_existing_noop_bound_to_state(existing):
+    assert all(r["address"] != "terraform_data.deployment_identity"
+               for r in existing[0]["prior_state"]["values"]["root_module"]["resources"])
     result, code = guard.inspect_plan(*existing)
     assert code == 0 and result["result"] == "existing_backend_plan_checked"
     assert result["apply_permitted"] is False and result["frontend_scope"] == "out_of_scope"
+
+
+@pytest.mark.parametrize("actions,code", [(["no-op"], 0), (["delete"], 1)])
+def test_legacy_marker_is_optional_but_not_exempt_from_safety(existing, actions, code):
+    marker = {"address": "terraform_data.deployment_identity", "type": "terraform_data",
+              "mode": "managed", "provider_name": "terraform.io/builtin/terraform",
+              "values": {"id": "fixture-marker", "input": {"legacy": True}}}
+    existing[0]["prior_state"]["values"]["root_module"]["resources"].append(marker)
+    existing[0]["resource_changes"].append({"address": marker["address"], "type": marker["type"],
+        "mode": "managed", "change": {"actions": actions, "before": marker["values"],
+        "after": marker["values"] if actions == ["no-op"] else None, "after_unknown": {}}})
+    assert guard.inspect_plan(*existing)[1] == code
+
+
+def test_existing_bucket_without_environment_tag_needs_no_new_metadata(existing):
+    existing[0]["prior_state"]["values"]["root_module"]["resources"][3]["values"].pop("tags")
+    change = existing[0]["resource_changes"][3]["change"]
+    change["before"].pop("tags")
+    change["after"].pop("tags")
+    assert guard.inspect_plan(*existing)[1] == 0
+
+
+def test_bucket_variable_must_match_owned_bucket(existing):
+    existing[0]["variables"]["bucket_name"]["value"] = "different-bucket"
+    with pytest.raises(guard.EvidenceError) as error:
+        guard.inspect_plan(*existing)
+    assert error.value.reason_code == "REGION_OR_VARIABLE_MISMATCH"
 
 
 def test_existing_lambda_code_update_still_requires_artifact_review(existing):
@@ -143,11 +170,12 @@ def test_missing_evidence_exit_code_redacted(capsys):
 
 def test_backend_cli_stdin_no_secrets_in_output(existing, tmp_path, monkeypatch, capsys):
     import io
-    plan, account, workspace, cached, source = existing
+    plan, account, workspace, cached, source, expected_account = existing
     metadata, backend = tmp_path / "metadata.json", tmp_path / "backend.tf"
     metadata.write_text(json.dumps(cached))
     backend.write_text(source)
     monkeypatch.setenv("DEPLOY_ACCOUNT_ID", account)
+    monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", expected_account)
     monkeypatch.setenv("DEPLOY_WORKSPACE", workspace)
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(plan)))
     assert guard.main(["backend-plan", "--plan", "-", "--backend-metadata", str(metadata), "--backend-source", str(backend)]) == 0

@@ -1,6 +1,7 @@
 # Manual backend Terraform dry run
 
-This branch is based on `origin/main` at `03ffff6`. It is intended for a separate
+The original manual workflow was based on main at `03ffff6`; the marker-free
+fix below is based on latest fetched `origin/main` at `867dad9`. It is intended for a separate
 review targeting main, not a merge of PR #288. No workflow was executed and no
 AWS/state operation was performed while preparing it.
 
@@ -32,8 +33,8 @@ Sanitized summary/cleanup never upload plans, state, credentials or tfvars.
 
 ## Production integration boundary
 
-Existing `.github/workflows/cd.yml`, CI, application code and Terraform sources
-are byte-equivalent to the base after Git line-ending normalization. Pushing
+Existing `.github/workflows/cd.yml`, CI and application code remain unchanged.
+The marker-free fix removes only the unused Terraform identity declaration. Pushing
 this feature branch does not trigger production CD. No new PR is opened here.
 
 **Do not merge or run this branch automatically.** GitHub must see the new
@@ -78,7 +79,7 @@ The CLI retains exit 2 as failure and adds static `reason_code` and `phase`:
 | Backend source/metadata | `BACKEND_METADATA_INVALID`, `BACKEND_METADATA_MISMATCH`, `BACKEND_LOCKING_MISMATCH`, `BACKEND_CONFIGURATION_UNSUPPORTED` |
 | Workspace | `WORKSPACE_MISMATCH` |
 | Region/variables | `VARIABLE_EVIDENCE_INVALID`, `REGION_OR_VARIABLE_MISMATCH`, `PRIOR_STATE_REGION_MISMATCH` |
-| Prior-state ownership | `PRIOR_STATE_RESOURCES_MISSING`, `DEPLOYMENT_IDENTITY_EVIDENCE_MISSING`, `PRIOR_RESOURCE_IDENTITY_INVALID`, `PRIOR_STATE_PLAN_COVERAGE_MISSING` |
+| Prior-state ownership | `PRIOR_STATE_RESOURCES_MISSING`, `PRIOR_RESOURCE_IDENTITY_INVALID`, `PRIOR_STATE_PLAN_COVERAGE_MISSING` |
 | JSON shape | `UNEXPECTED_TERRAFORM_JSON_SCHEMA` |
 | Reading/parsing/validation | `PLAN_INPUT_UNAVAILABLE`, `PLAN_JSON_INVALID`, `PLAN_ERRORED`, `PLAN_INCOMPLETE`, `PLAN_DEFERRED`, `PLAN_CHECKS_UNRESOLVED`, `PLAN_VALIDATION_ERROR` |
 
@@ -100,3 +101,61 @@ The exact remaining evidence needed is the sanitized `reason_code` and `phase`
 from a separately approved run of this fix, together with its workflow revision.
 Do not provide raw plans, state, credentials, environment dumps, ARNs or resource
 IDs. No run is dispatched or AWS access performed to collect this evidence here.
+
+## Existing production state: marker-free validation
+
+The reported `DEPLOYMENT_IDENTITY_EVIDENCE_MISSING` came from requiring a
+custom bookkeeping resource in prior state, not from missing AWS ownership.
+The operator confirmed that this marker exists in no production or sandbox
+state. Its declaration and obsolete standalone Terraform test are removed;
+no state removal, migration or bootstrap is necessary or performed. The
+declaration originated in #272, before V5. If that absence confirmation becomes
+invalid, stop: removal would propose a local marker deletion, which the guard
+still rejects. No legacy object is exempted from plan safety.
+
+Configure the repository Actions secret `EXPECTED_AWS_ACCOUNT_ID` with the
+existing intended account ID through the team's approved secret process.
+The workflow fails before credentials when it is absent or malformed; the
+guard compares the actual caller against it and checks existing resource
+ARN ownership. Neither value is printed. No secret was created or read here.
+Backend S3 type, exact bucket/key/region, locking, default workspace, provider
+region and resource anchors remain mandatory. The asset-bucket variable must
+match the existing bucket identity; its Environment tag, when present, must
+match the environment variable. No new metadata is required in old state.
+
+Public categories distinguish `target_identity_validation_failure`,
+`plan_validation_failure`, `unsafe_resource_changes` and `validated_plan`.
+Exit 2 remains a failure. Creates/deletes/replacements, unreviewed drift,
+Lambda code/environment changes and S3/CloudFront identity changes remain
+blocked. Only the already-owned local packaging helper retains its narrow
+existing exception; this does not approve Lambda artifacts.
+
+Frontend scope: this main-based checkout has no frontend remote backend or
+established independent state (operator-confirmed); source configuration alone
+does not establish live ownership. Frontend S3/CloudFront configuration is
+separate from backend floor-plan objects and remains unchanged. No frontend
+infrastructure pipeline is added. Main's existing CI does not yet include the
+expanded frontend checks from draft #288. Production `cd.yml` is unchanged.
+The repository's live API/browser scripts were not run: they access deployed
+services. The corridor Playwright suite intercepts APIs and aborts external
+requests. The production build here uses explicit offline fixture settings,
+not private `.env` values, and is not a deployment artifact.
+
+Validation: 106 focused Python tests pass across deployment guard, diagnostics
+and manual-workflow tests; actionlint passes; backend Terraform fmt and validate
+pass using an existing local provider/module cache, without init or state
+access (14 existing DynamoDB deprecation warnings). Frontend lint passes with
+existing warnings, production build passes with the existing chunk-size
+advisory, and all six repository SVG files parse with SVG roots. All 15 mocked
+corridor browser tests pass using the existing installed Chromium through
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. The initial default-browser attempt
+failed because Playwright's expected browser was absent; the sandboxed retry
+stalled during cleanup. The final offline run outside the sandbox passed.
+`git diff --check` passes.
+
+The marker requirement no longer prevents full Plan Safety inspection, provided
+the expected-account secret and all existing ownership evidence are available.
+A fresh authorized remote plan is still needed to establish actual results:
+six async-import deletions, Lambda rollback/environment drift and deferred
+packaging hashes remain #284 blockers where proposed. No AWS calls, plans,
+workflow execution, deployment or remote-state operations occurred here.

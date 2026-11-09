@@ -31,6 +31,12 @@ def mapping(value, reason_code="UNEXPECTED_TERRAFORM_JSON_SCHEMA", phase="plan_v
     return value
 
 
+def expected_account_evidence(expected):
+    require(expected is not None and expected != "", "EXPECTED_AWS_ACCOUNT_EVIDENCE_MISSING", "account")
+    require(isinstance(expected, str) and re.fullmatch(r"\d{12}", expected),
+            "EXPECTED_AWS_ACCOUNT_EVIDENCE_INVALID", "account")
+
+
 ANCHORS = (
     "module.lambda.aws_lambda_function.this",
     "module.lambda.aws_lambda_function.indexer",
@@ -72,9 +78,11 @@ def local_build_replacement(resource, prior):
             and set(after) <= {"id", "input", "output", "triggers_replace"})
 
 
-def backend_identity(plan, account, workspace, cached_backend, backend_source):
+def backend_identity(plan, account, workspace, cached_backend, backend_source, expected_account=None):
+    expected_account_evidence(expected_account)
     require(account is not None and account != "", "AWS_ACCOUNT_EVIDENCE_MISSING", "account")
     require(isinstance(account, str) and re.fullmatch(r"\d{12}", account), "AWS_ACCOUNT_EVIDENCE_INVALID", "account")
+    require(account == expected_account, "AWS_ACCOUNT_MISMATCH", "account")
     require(workspace == "default", "WORKSPACE_MISMATCH", "workspace")
     require(isinstance(backend_source, str) and re.findall(r'backend\s+"([^"]+)"', backend_source) == ["s3"],
             "BACKEND_CONFIGURATION_UNSUPPORTED", "backend")
@@ -115,13 +123,15 @@ def backend_identity(plan, account, workspace, cached_backend, backend_source):
     prior = {r["address"]: r for r in resources}
     require(len(prior) == len(resources), "UNEXPECTED_TERRAFORM_JSON_SCHEMA", "prior_state")
     require(all(address in prior for address in ANCHORS), "PRIOR_STATE_RESOURCES_MISSING", "prior_state")
-    identity_resource = prior.get("terraform_data.deployment_identity")
-    require(isinstance(identity_resource, dict), "DEPLOYMENT_IDENTITY_EVIDENCE_MISSING", "prior_state")
-    identity_values = mapping(identity_resource.get("values"), "DEPLOYMENT_IDENTITY_EVIDENCE_INVALID", "prior_state")
-    identity = mapping(identity_values.get("input"), "DEPLOYMENT_IDENTITY_EVIDENCE_INVALID", "prior_state")
-    require(identity.get("workspace") == workspace, "WORKSPACE_MISMATCH", "workspace")
-    require(identity.get("bucket_name") == values["bucket_name"] and identity.get("environment") == values["environment"],
+    # Production ownership comes from real resource identities, not an optional
+    # local Terraform bookkeeping object that older state may never contain.
+    bucket = mapping(prior[ANCHORS[3]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+    require(bucket.get("id") == values["bucket_name"] and bucket.get("bucket") == values["bucket_name"],
             "REGION_OR_VARIABLE_MISMATCH", "variables")
+    tags = bucket.get("tags") or {}
+    require(isinstance(tags, dict))
+    if "Environment" in tags:
+        require(tags["Environment"] == values["environment"], "REGION_OR_VARIABLE_MISMATCH", "variables")
     scoped = 0
     for resource in prior.values():
         if resource.get("mode") != "managed" or resource.get("provider_name") != "registry.terraform.io/hashicorp/aws":
@@ -140,7 +150,7 @@ def backend_identity(plan, account, workspace, cached_backend, backend_source):
     return prior
 
 
-def inspect_plan(plan, account, workspace, cached_backend, backend_source):
+def inspect_plan(plan, account, workspace, cached_backend, backend_source, expected_account=None):
     mapping(plan)
     require(isinstance(plan.get("format_version"), str) and re.fullmatch(r"1\.\d+", plan["format_version"]))
     require(type(plan.get("complete")) is bool and type(plan.get("errored")) is bool)
@@ -151,7 +161,7 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
     checks = plan.get("checks", [])
     require(isinstance(checks, list) and all(isinstance(c, dict) for c in checks))
     require(all(c.get("status") == "pass" for c in checks), "PLAN_CHECKS_UNRESOLVED", "plan_validation")
-    prior = backend_identity(plan, account, workspace, cached_backend, backend_source)
+    prior = backend_identity(plan, account, workspace, cached_backend, backend_source, expected_account)
     outputs = mapping(mapping(plan.get("planned_values")).get("outputs"))
     api_values = mapping(prior[ANCHORS[2]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
     cdn_values = mapping(prior[ANCHORS[4]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
@@ -235,7 +245,8 @@ class Parser(argparse.ArgumentParser):
 
 def public_evidence(evidence, code):
     """Allow only static classifications/counts, never identifiers or plan values."""
-    return {"result": evidence["result"], "scope": "backend_dry_run", "apply_permitted": False,
+    return {"result": evidence["result"], "category": "unsafe_resource_changes" if code else "validated_plan",
+            "scope": "backend_dry_run", "apply_permitted": False,
             "frontend_scope": "out_of_scope", "reason_code": "PLAN_CHANGES_BLOCKED" if code else "PLAN_INSPECTION_PASSED",
             "phase": "plan_safety", "failure_count": len(evidence["failures"]),
             "failures": [{"reason": f["reason"], "risks": f.get("risks", [])} for f in evidence["failures"]],
@@ -259,11 +270,16 @@ def main(argv=None):
     try:
         parser = Parser(description=__doc__)
         commands = parser.add_subparsers(dest="command", required=True)
+        commands.add_parser("expected-account")
         check = commands.add_parser("backend-plan")
         check.add_argument("--plan", required=True)
         check.add_argument("--backend-metadata", required=True)
         check.add_argument("--backend-source", required=True)
         args = parser.parse_args(argv)
+        if args.command == "expected-account":
+            expected_account_evidence(os.environ.get("DEPLOY_EXPECTED_ACCOUNT_ID"))
+            print(json.dumps({"result": "expected_account_configured", "apply_permitted": False}))
+            return 0
         phase = "plan_parse"
         plan = read_json_input(args.plan, phase)
         phase = "backend"
@@ -276,7 +292,7 @@ def main(argv=None):
         evidence, code = inspect_plan(
             plan,
             os.environ.get("DEPLOY_ACCOUNT_ID"), os.environ.get("DEPLOY_WORKSPACE"),
-            cached, source)
+            cached, source, os.environ.get("DEPLOY_EXPECTED_ACCOUNT_ID"))
         evidence = public_evidence(evidence, code)
     except EvidenceError as error:
         evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
@@ -287,6 +303,11 @@ def main(argv=None):
     except Exception:
         evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
                           "reason_code": "PLAN_VALIDATION_ERROR", "phase": phase}, 2
+    if code == 2:
+        target_phases = {"account", "workspace", "backend", "variables", "prior_state"}
+        evidence["category"] = ("target_identity_validation_failure" if evidence["phase"] in target_phases
+                                and evidence["reason_code"] != "PRIOR_STATE_PLAN_COVERAGE_MISSING"
+                                else "plan_validation_failure")
     print(json.dumps(evidence, sort_keys=True))
     return code
 
