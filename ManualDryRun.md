@@ -1,5 +1,25 @@
 # Manual backend Terraform dry run
 
+## Current V5 evidence
+
+See [V5FinalVerification.md](V5FinalVerification.md) for the current matrix,
+frontend checks, infrastructure ownership review and production limitations.
+[Run 42634534227](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42634534227)
+executed on `main` at `c135c168a41834350b8d3e28bee8a91014f27096` on
+2026-11-09 at 14:25 UTC (21:25 Asia/Bangkok). Init, validate and plan passed;
+plan exit 2 reported **2 add, 21 change, 1 destroy**. Plan Safety returned
+`PLAN_CHANGES_BLOCKED`, phase `plan_safety`, with **four findings**:
+two unverified Lambda artifacts, one unsupported create action and unreviewed
+refresh drift. The existing local packaging-helper replacement was classified
+separately. No apply or frontend deployment ran; the run retained no artifacts.
+
+The sections below are historical implementation records. Statements such as
+"no workflow was executed", frontend CI gaps and earlier test counts refer to
+those revisions, not the final-verification branch. Production `CD` was observed
+as `disabled_manually` during the final review and remains unchanged.
+
+## Historical implementation record
+
 The original manual workflow was based on main at `03ffff6`; the marker-free
 fix below is based on latest fetched `origin/main` at `867dad9`. It is intended for a separate
 review targeting main, not a merge of PR #288. No workflow was executed and no

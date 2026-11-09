@@ -1,5 +1,34 @@
 # Deploy Flow
 
+## V5 verification status
+
+The current evidence and requirement matrix are in
+[V5FinalVerification.md](V5FinalVerification.md). The verified V5 path is PR CI
+plus the manual backend **dry run**, not production deployment.
+
+- [CI](.github/workflows/ci.yml) runs on PRs targeting `main` or `V4`: backend
+  tests excluding live API tests, focused guard/asset-checker tests, backend
+  Terraform validation with `init -backend=false`, and frontend lint, SVG loading
+  regressions, mocked corridor tests, production build and SVG integrity checks.
+- [Manual Backend Terraform Dry Run](.github/workflows/backend-dry-run.yml)
+  runs only by dispatch on `main`. It builds the existing Linux Lambda package
+  locally, then initializes the existing backend, validates, plans with
+  `-lock=false`, and inspects the plan with the Deployment Guard. It never applies,
+  uploads frontend files, invalidates CloudFront or modifies Terraform state.
+- [Run 42634534227](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42634534227)
+  validated and planned successfully at `c135c16`, then correctly blocked four
+  safety findings. This is evidence of a working refusal, not deployment readiness.
+- The frontend website belongs in `terraform/terraform-frontend` under
+  `module.s3_website`; building JSON/SVG/images and their CDN belong in the backend
+  stack under `module.storage`. Live frontend state ownership is unverified.
+  No additional infrastructure pipeline is introduced.
+- GitHub reported the original `CD` workflow as `disabled_manually` during this
+  review. Its source still contains a main-push apply job. Do not enable it or
+  treat this verification PR as deployment approval.
+
+The deployment/recovery examples below are manual reference material. No apply,
+targeted recovery, state migration or teardown is part of V5 final verification.
+
 ## Prerequisites
 1. [Git](https://git-scm.com/)
 2. [AWS CLI v2](https://aws.amazon.com/cli/)
@@ -122,8 +151,9 @@ full plan afterward to review any remaining changes.
 
 ### Automatic deploy (GitHub Actions CD)
 
-`.github/workflows/cd.yml` applies the `default` workspace on every push to
-`main`, and only `main`. It needs these repository secrets (team AWS account):
+GitHub currently reports `.github/workflows/cd.yml` as `disabled_manually`.
+Its unchanged source would apply the `default` workspace on pushes to `main`
+if re-enabled. It references these repository secrets (team AWS account):
 
 | Secret | Value |
 |---|---|
@@ -131,9 +161,10 @@ full plan afterward to review any remaining changes.
 | `AWS_SESSION_TOKEN` | only for temporary credentials; otherwise leave unset |
 | `TF_VARS_FILE` | the full contents of the team's `terraform.tfvars` |
 
-CD stops before applying if the plan deletes or replaces any AWS resource.
-That usually means wrong state or wrong variables. Review the plan locally
-and apply it by hand if the delete is intended.
+The legacy CD guard checks AWS deletes/replacements only. It is distinct from
+the stronger Deployment Guard in the manual dry run and does not establish
+Lambda compatibility, drift review or approval of new AWS resources. Keep the
+original CD disabled; resolving the documented blockers requires separate review.
 
 ---
 

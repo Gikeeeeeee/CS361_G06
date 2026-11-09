@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test:svg": "node test_svg_loading.mjs",
     "test:auth": "node test_auth_integration.mjs",
     "test:bookmarks": "node test_bookmarks_integration.mjs",
     "test:checkpoints": "node test_checkpoints_dynamic.mjs",

@@ -10,6 +10,46 @@ on:
       - V4
 
 jobs:
+  frontend:
+    name: Frontend Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Offline fixtures only; this build is never uploaded or deployed.
+      VITE_API_BASE_URL: http://127.0.0.1:4173
+      VITE_API_VERSION: v1
+      VITE_SUPABASE_URL: https://example.invalid
+      VITE_SUPABASE_ANON_KEY: offline-fixture
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.17.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: SVG loading regressions
+        run: npm run test:svg
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+      - name: Mocked corridor browser tests
+        run: npm run test:corridors
+      - name: Production build
+        run: npm run build
+      - name: Verify SVG assets and build copies
+        working-directory: ${{ github.workspace }}
+        run: python3 scripts/verify_svg_assets.py --build-dir frontend/dist
+
   # --------------------------------------------------
   # Python Tests
   # --------------------------------------------------
@@ -43,6 +83,9 @@ jobs:
         run: |
           cd backend
           pytest -v -m "not api"
+
+      - name: Deployment guard and SVG checker regressions
+        run: python -m pytest -q scripts/tests -p no:cacheprovider
 
   # --------------------------------------------------
   # Terraform Validation
