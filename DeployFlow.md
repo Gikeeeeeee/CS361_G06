@@ -1,5 +1,36 @@
 # Deploy Flow
 
+## Current consolidation for PR #288
+
+The current requirement matrix and run analysis are in
+[V5FinalVerification.md](V5FinalVerification.md). This consolidation integrates
+main's guard at `c135c16` and the frontend verification/evidence from PR #294
+(`ac6783d`) into the existing `feature/v5/ci-validation` branch. Earlier dated
+sections below retain their historical findings; their marker/account requirements
+and older test counts do not describe the current backend guard.
+
+The existing CI keeps its `main`/`V4`/`V5` PR triggers, locked isolated build,
+manifest/integrity verification, retained verification artifact, automation
+tests and validation of both Terraform roots. The frontend job now also runs
+lint, SVG loading regressions, mocked corridor tests and SVG asset/build-copy
+checks. [Run 42639093191](https://github.com/Gikeeeeeee/CS361_G06/actions/runs/42639093191)
+failed because its `VITE_API_VERSION=v1` fixture omitted the full `/api/v1`
+path expected by `apiClient`. The same failure was reproduced locally without
+changing tests; the consolidated CI sets the correct path for Playwright.
+
+PR #288's dry-run CD implementation and receipt-gated post-deployment verifier
+are preserved. The only CD adjustment removes an unused account output from the
+guard invocation. No custom identity marker or account/ARN scan is required by
+the backend guard. Its source and tests match current main; existing backend,
+workspace, resource identity, Lambda artifact/environment, IAM, action, drift
+and completeness protections remain. The obsolete marker declaration/test are
+removed as on main; no Terraform state operation is performed.
+
+The original production CD remains disabled. This feature-branch update neither
+dispatches a dry run nor performs deployment, state changes, live verification,
+frontend uploads or CloudFront invalidation. The existing verifier remains
+preparation for a separately authorized successful deployment.
+
 > **Issue #284 scope:** infrastructure audit only. Application and Terraform
 > feature changes from the async-import reconciliation have been reverted to
 > V5. Earlier findings describe historical snapshots; the final scope-correction
@@ -29,7 +60,7 @@ unchanged; `terraform.tfvars` alone is not state/ownership evidence.
 
 | Entry point | Current scope |
 |---|---|
-| `.github/workflows/ci.yml` | Python/automation tests, locked frontend production-mode build and artifact integrity checks, formatting and backend-disabled validation of both roots. No deployment credentials. |
+| `.github/workflows/ci.yml` | Python/automation tests, frontend lint/SVG/mocked browser tests, locked production-mode build, artifact/SVG integrity, formatting and backend-disabled validation of both roots. No deployment credentials. |
 | `.github/workflows/cd.yml` | **Backend dry run only**: existing remote backend/default workspace, init, validate, lock-free plan, existing-resource guard and sanitized summary. Main-only trigger unchanged. No apply/destroy or live smoke request. |
 | `scripts/sandbox_validation.py` | Optional offline safety/evidence preparation, not deployment or resource discovery. |
 | Frontend infrastructure | **Not covered by this dry run**: no frontend init/plan/apply/state, S3 upload, CloudFront invalidation or delivered-object/version checks. |
@@ -52,8 +83,10 @@ Terraform 1.15.8, configures existing credentials, writes backend variables from
 `TF_VARS_FILE` with private permissions, and runs init/validate/plan in
 `terraform/terraform-backend`. Init uses the committed backend/readonly provider
 lock; there is no backend override, state repair or migration. The guard compares
-resolved metadata to `backend.tf`, binds account/region/workspace/naming inputs
-to existing prior-state resources and rejects empty/missing/conflicting state.
+resolved metadata to `backend.tf`, binds backend bucket/key/region, workspace,
+provider region and asset-bucket variables to existing prior-state resources,
+and rejects empty/missing/conflicting state. It does not require a custom marker,
+account environment variable or recursive ARN ownership scan.
 No frontend state is selected or inferred from its bucket name.
 
 Planning uses `-input=false -lock=false -detailed-exitcode -out=tfplan` to avoid

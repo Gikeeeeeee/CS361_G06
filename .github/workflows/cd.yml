@@ -131,7 +131,7 @@ jobs:
       # --------------------------------------------------
       # Refuse Destructive Plans
       # --------------------------------------------------
-      # Bind the plan to the existing state, caller and configured region.
+      # Bind the plan to the existing state, workspace and configured region.
       # Creates, deletes, replacements, identity/IAM/environment changes and
       # ambiguous evidence are refused. The existing local packaging helper is
       # classified separately; it is not an AWS infrastructure replacement.
@@ -139,8 +139,6 @@ jobs:
       - name: Refuse destructive plan
         id: plan_safety
         shell: bash
-        env:
-          DEPLOY_ACCOUNT_ID: ${{ steps.aws_credentials.outputs.aws-account-id }}
         run: |
           DEPLOY_WORKSPACE="$(terraform workspace show)"
           export DEPLOY_WORKSPACE

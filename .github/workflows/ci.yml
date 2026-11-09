@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   frontend:
-    name: Frontend Build (verification only)
+    name: Frontend Validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -28,6 +28,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Install frontend test dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: SVG loading regressions
+        working-directory: frontend
+        run: npm run test:svg
+      - name: Install test browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Mocked corridor browser tests
+        working-directory: frontend
+        env:
+          # apiClient concatenates this full path with its API base URL.
+          VITE_API_VERSION: /api/v1
+        run: npm run test:corridors
       # Reserved .invalid domains: these artifacts cannot target a deployment.
       # PR checks never consume production configuration or AWS credentials.
       - name: Build isolated frontend with locked dependencies
@@ -38,6 +56,8 @@ jobs:
         run: python scripts/frontend_release.py build --output scratch/frontend-ci
       - name: Verify artifact integrity
         run: python scripts/frontend_release.py verify --artifact scratch/frontend-ci
+      - name: Verify SVG assets and built copies
+        run: python scripts/verify_svg_assets.py --build-dir scratch/frontend-ci/dist
       - name: Retain verification artifact
         uses: actions/upload-artifact@v4
         with:

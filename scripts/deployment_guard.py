@@ -8,9 +8,27 @@ import re
 import sys
 
 if __package__:
-    from .sandbox_validation import ASYNC_RESOURCES, arns, children, decode, require, unknown
+    from .sandbox_validation import ASYNC_RESOURCES, InvalidEvidence, children, decode, unknown
 else:
-    from sandbox_validation import ASYNC_RESOURCES, arns, children, decode, require, unknown
+    from sandbox_validation import ASYNC_RESOURCES, InvalidEvidence, children, decode, unknown
+
+
+class EvidenceError(InvalidEvidence):
+    """Static diagnostic codes only: never attach input values or exceptions."""
+    def __init__(self, reason_code, phase):
+        self.reason_code = reason_code
+        self.phase = phase
+        super().__init__("Deployment evidence rejected; values suppressed")
+
+
+def require(condition, reason_code="UNEXPECTED_TERRAFORM_JSON_SCHEMA", phase="plan_validation"):
+    if not condition:
+        raise EvidenceError(reason_code, phase)
+
+
+def mapping(value, reason_code="UNEXPECTED_TERRAFORM_JSON_SCHEMA", phase="plan_validation"):
+    require(isinstance(value, dict), reason_code, phase)
+    return value
 
 
 ANCHORS = (
@@ -54,61 +72,95 @@ def local_build_replacement(resource, prior):
             and set(after) <= {"id", "input", "output", "triggers_replace"})
 
 
-def backend_identity(plan, account, workspace, cached_backend, backend_source):
-    require(workspace == "default" and re.fullmatch(r"\d{12}", account or ""))
-    require(re.findall(r'backend\s+"([^"]+)"', backend_source) == ["s3"])
-    actual = cached_backend["backend"]
-    require(actual["type"] == "s3")
+def backend_identity(plan, workspace, cached_backend, backend_source):
+    require(workspace == "default", "WORKSPACE_MISMATCH", "workspace")
+    require(isinstance(backend_source, str) and re.findall(r'backend\s+"([^"]+)"', backend_source) == ["s3"],
+            "BACKEND_CONFIGURATION_UNSUPPORTED", "backend")
+    cached_backend = mapping(cached_backend, "BACKEND_METADATA_INVALID", "backend")
+    actual = mapping(cached_backend.get("backend"), "BACKEND_METADATA_INVALID", "backend")
+    config = mapping(actual.get("config"), "BACKEND_METADATA_INVALID", "backend")
+    require(actual.get("type") == "s3", "BACKEND_METADATA_MISMATCH", "backend")
     for key in ("bucket", "key", "region"):
         values = re.findall(r'^\s*' + key + r'\s*=\s*"([^"\n]+)"\s*$', backend_source, re.MULTILINE)
-        require(len(values) == 1 and actual["config"][key] == values[0])
-    require(re.search(r'^\s*use_lockfile\s*=\s*true\s*$', backend_source, re.MULTILINE))
-    require(actual["config"]["use_lockfile"] is True)
-    variables = plan["variables"]
-    region = variables["aws_region"]["value"]
-    require(isinstance(region, str) and bool(region))
-    providers = [p for p in plan["configuration"]["provider_config"].values()
-                 if p.get("full_name") == "registry.terraform.io/hashicorp/aws"]
-    require(len(providers) == 1 and not providers[0].get("alias") and not providers[0].get("module_address"))
-    require(providers[0]["expressions"]["region"].get("references") == ["var.aws_region"])
-    prior = {r["address"]: r for r in children(plan["prior_state"]["values"]["root_module"])}
-    require(all(address in prior for address in ANCHORS))
-    identity = prior["terraform_data.deployment_identity"]["values"]["input"]
-    require(identity["workspace"] == workspace)
-    require(identity["bucket_name"] == variables["bucket_name"]["value"])
-    require(identity["environment"] == variables["environment"]["value"])
-    scoped = 0
+        require(len(values) == 1, "BACKEND_CONFIGURATION_UNSUPPORTED", "backend")
+        require(config.get(key) == values[0], "BACKEND_METADATA_MISMATCH", "backend")
+    require(re.search(r'^\s*use_lockfile\s*=\s*true\s*$', backend_source, re.MULTILINE)
+            and config.get("use_lockfile") is True, "BACKEND_LOCKING_MISMATCH", "backend")
+    variables = mapping(plan.get("variables"), "VARIABLE_EVIDENCE_INVALID", "variables")
+    values = {}
+    for key in ("aws_region", "bucket_name", "environment"):
+        value = mapping(variables.get(key), "VARIABLE_EVIDENCE_INVALID", "variables").get("value")
+        require(isinstance(value, str) and bool(value), "VARIABLE_EVIDENCE_INVALID", "variables")
+        values[key] = value
+    configuration = mapping(plan.get("configuration"))
+    provider_map = mapping(configuration.get("provider_config"))
+    require(all(isinstance(p, dict) for p in provider_map.values()))
+    providers = [p for p in provider_map.values() if p.get("full_name") == "registry.terraform.io/hashicorp/aws"]
+    require(len(providers) == 1 and not providers[0].get("alias") and not providers[0].get("module_address"),
+            "PROVIDER_CONFIGURATION_MISMATCH", "variables")
+    expression = mapping(mapping(providers[0].get("expressions")).get("region"))
+    require(expression.get("references") == ["var.aws_region"], "REGION_OR_VARIABLE_MISMATCH", "variables")
+    state = mapping(plan.get("prior_state"), "PRIOR_STATE_RESOURCES_MISSING", "prior_state")
+    state_values = mapping(state.get("values"), "PRIOR_STATE_RESOURCES_MISSING", "prior_state")
+    module = mapping(state_values.get("root_module"), "PRIOR_STATE_RESOURCES_MISSING", "prior_state")
+    try:
+        resources = list(children(module))
+    except InvalidEvidence:
+        raise EvidenceError("UNEXPECTED_TERRAFORM_JSON_SCHEMA", "prior_state") from None
+    require(all(isinstance(r, dict) and isinstance(r.get("address"), str) for r in resources),
+            "UNEXPECTED_TERRAFORM_JSON_SCHEMA", "prior_state")
+    prior = {r["address"]: r for r in resources}
+    require(len(prior) == len(resources), "UNEXPECTED_TERRAFORM_JSON_SCHEMA", "prior_state")
+    require(all(address in prior for address in ANCHORS), "PRIOR_STATE_RESOURCES_MISSING", "prior_state")
+    # Production ownership comes from real resource identities, not an optional
+    # local Terraform bookkeeping object that older state may never contain.
+    bucket = mapping(prior[ANCHORS[3]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+    require(bucket.get("id") == values["bucket_name"] and bucket.get("bucket") == values["bucket_name"],
+            "REGION_OR_VARIABLE_MISMATCH", "variables")
+    tags = bucket.get("tags") or {}
+    require(isinstance(tags, dict))
+    if "Environment" in tags:
+        require(tags["Environment"] == values["environment"], "REGION_OR_VARIABLE_MISMATCH", "variables")
     for resource in prior.values():
         if resource.get("mode") != "managed" or resource.get("provider_name") != "registry.terraform.io/hashicorp/aws":
             continue
-        require(isinstance(resource.get("values", {}).get("id"), str) and bool(resource["values"]["id"]))
-        for arn in arns(resource["values"]):
-            require(len(arn) == 6)
-            if arn[2:5] == ["iam", "", "aws"] and arn[5].startswith("policy/"):
-                continue
-            require(not arn[4] or arn[4] == account)
-            require(not arn[3] or arn[3] == region)
-            scoped += bool(arn[4] and arn[3])
-    require(scoped > 0)
+        resource_values = mapping(resource.get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+        require(isinstance(resource_values.get("id"), str) and bool(resource_values["id"]),
+                "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
     return prior
 
 
-def inspect_plan(plan, account, workspace, cached_backend, backend_source):
-    require(re.fullmatch(r"1\.\d+", plan["format_version"]))
-    require(plan.get("complete") is True and plan.get("errored") is False)
-    require(not plan.get("deferred_changes") and not plan.get("action_invocations") and not plan.get("deferred_action_invocations"))
-    require(all(c.get("status") == "pass" for c in plan.get("checks", [])))
-    prior = backend_identity(plan, account, workspace, cached_backend, backend_source)
-    outputs = plan["planned_values"]["outputs"]
-    require(outputs["api_endpoint"]["value"] == prior[ANCHORS[2]]["values"]["api_endpoint"])
-    require(outputs["cdn_url"]["value"] == "https://" + prior[ANCHORS[4]]["values"]["domain_name"])
-    require(isinstance(plan.get("resource_changes"), list) and bool(plan["resource_changes"]))
+def inspect_plan(plan, workspace, cached_backend, backend_source):
+    mapping(plan)
+    require(isinstance(plan.get("format_version"), str) and re.fullmatch(r"1\.\d+", plan["format_version"]))
+    require(type(plan.get("complete")) is bool and type(plan.get("errored")) is bool)
+    require(plan["errored"] is False, "PLAN_ERRORED", "plan_validation")
+    require(plan["complete"] is True, "PLAN_INCOMPLETE", "plan_validation")
+    require(not plan.get("deferred_changes") and not plan.get("action_invocations") and not plan.get("deferred_action_invocations"),
+            "PLAN_DEFERRED", "plan_validation")
+    checks = plan.get("checks", [])
+    require(isinstance(checks, list) and all(isinstance(c, dict) for c in checks))
+    require(all(c.get("status") == "pass" for c in checks), "PLAN_CHECKS_UNRESOLVED", "plan_validation")
+    prior = backend_identity(plan, workspace, cached_backend, backend_source)
+    outputs = mapping(mapping(plan.get("planned_values")).get("outputs"))
+    api_values = mapping(prior[ANCHORS[2]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+    cdn_values = mapping(prior[ANCHORS[4]].get("values"), "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+    require(isinstance(api_values.get("api_endpoint"), str) and isinstance(cdn_values.get("domain_name"), str),
+            "PRIOR_RESOURCE_IDENTITY_INVALID", "prior_state")
+    require(mapping(outputs.get("api_endpoint")).get("value") == api_values["api_endpoint"]
+            and mapping(outputs.get("cdn_url")).get("value") == "https://" + cdn_values["domain_name"],
+            "PLAN_OUTPUT_IDENTITY_MISMATCH", "plan_validation")
+    require(isinstance(plan.get("resource_changes"), list) and bool(plan["resource_changes"]),
+            "PLAN_RESOURCE_CHANGES_INVALID", "plan_validation")
     failures, local_helpers, seen = [], [], set()
     for resource in plan["resource_changes"]:
-        address, change = resource["address"], resource["change"]
-        require(address not in seen)
+        mapping(resource)
+        address, change = resource.get("address"), mapping(resource.get("change"))
+        require(isinstance(address, str) and bool(address))
+        require(address not in seen, "DUPLICATE_RESOURCE_CHANGES", "plan_validation")
         seen.add(address)
-        actions = change["actions"]
+        actions = change.get("actions")
+        require(isinstance(actions, list) and all(isinstance(a, str) for a in actions))
         reason = None
         risks = []
         if resource.get("mode") == "data":
@@ -156,8 +208,9 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
                 finding["address"] = address  # Known source addresses only, never for_each keys.
             failures.append(finding)
     # A partial/targeted change list cannot establish the existing deployment's identity.
-    require(all(address in seen for address in ANCHORS))
-    require(all(address in seen for address, resource in prior.items() if resource.get("mode") == "managed"))
+    require(all(address in seen for address in ANCHORS)
+            and all(address in seen for address, resource in prior.items() if resource.get("mode") == "managed"),
+            "PRIOR_STATE_PLAN_COVERAGE_MISSING", "prior_state")
     if plan.get("resource_drift"):
         failures.append({"reason": "unreviewed_refresh_drift"})
     return {"result": "blocked" if failures else "existing_backend_plan_checked",
@@ -167,10 +220,33 @@ def inspect_plan(plan, account, workspace, cached_backend, backend_source):
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
-        raise ValueError("Invalid arguments")
+        raise EvidenceError("CLI_ARGUMENTS_INVALID", "arguments")
+
+
+def public_evidence(evidence, code):
+    """Allow only static classifications/counts, never identifiers or plan values."""
+    return {"result": evidence["result"], "category": "unsafe_resource_changes" if code else "validated_plan",
+            "scope": "backend_dry_run", "apply_permitted": False,
+            "frontend_scope": "out_of_scope", "reason_code": "PLAN_CHANGES_BLOCKED" if code else "PLAN_INSPECTION_PASSED",
+            "phase": "plan_safety", "failure_count": len(evidence["failures"]),
+            "failures": [{"reason": f["reason"], "risks": f.get("risks", [])} for f in evidence["failures"]],
+            "local_build_helper_changes": [{"classification": "existing_local_packaging_helper_only"}
+                                           for _ in evidence["local_build_helper_changes"]]}
+
+
+def read_json_input(path, phase):
+    try:
+        text = sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError):
+        raise EvidenceError("PLAN_INPUT_UNAVAILABLE" if phase == "plan_parse" else "BACKEND_METADATA_UNAVAILABLE", phase) from None
+    try:
+        return decode(text)
+    except (ValueError, TypeError, RecursionError):
+        raise EvidenceError("PLAN_JSON_INVALID" if phase == "plan_parse" else "BACKEND_METADATA_JSON_INVALID", phase) from None
 
 
 def main(argv=None):
+    phase = "arguments"
     try:
         parser = Parser(description=__doc__)
         commands = parser.add_subparsers(dest="command", required=True)
@@ -179,13 +255,33 @@ def main(argv=None):
         check.add_argument("--backend-metadata", required=True)
         check.add_argument("--backend-source", required=True)
         args = parser.parse_args(argv)
+        phase = "plan_parse"
+        plan = read_json_input(args.plan, phase)
+        phase = "backend"
+        cached = read_json_input(args.backend_metadata, phase)
+        try:
+            source = Path(args.backend_source).read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            raise EvidenceError("BACKEND_SOURCE_UNAVAILABLE", phase) from None
+        phase = "plan_validation"
         evidence, code = inspect_plan(
-            decode(sys.stdin.read() if args.plan == "-" else Path(args.plan).read_text(encoding="utf-8-sig")),
-            os.environ.get("DEPLOY_ACCOUNT_ID"), os.environ.get("DEPLOY_WORKSPACE"),
-            decode(Path(args.backend_metadata).read_text(encoding="utf-8-sig")),
-            Path(args.backend_source).read_text(encoding="utf-8"))
+            plan,
+            os.environ.get("DEPLOY_WORKSPACE"), cached, source)
+        evidence = public_evidence(evidence, code)
+    except EvidenceError as error:
+        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
+                          "reason_code": error.reason_code, "phase": error.phase}, 2
+    except (KeyError, TypeError, AttributeError, InvalidEvidence):
+        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
+                          "reason_code": "UNEXPECTED_TERRAFORM_JSON_SCHEMA", "phase": phase}, 2
     except Exception:
-        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False}, 2
+        evidence, code = {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
+                          "reason_code": "PLAN_VALIDATION_ERROR", "phase": phase}, 2
+    if code == 2:
+        target_phases = {"workspace", "backend", "variables", "prior_state"}
+        evidence["category"] = ("target_identity_validation_failure" if evidence["phase"] in target_phases
+                                and evidence["reason_code"] != "PRIOR_STATE_PLAN_COVERAGE_MISSING"
+                                else "plan_validation_failure")
     print(json.dumps(evidence, sort_keys=True))
     return code
 
