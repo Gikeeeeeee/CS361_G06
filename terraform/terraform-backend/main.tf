@@ -1,6 +1,7 @@
 
 terraform {
-  required_version = ">= 1.5.0"
+  # S3 native state locking (backend.tf) requires Terraform 1.10 or later.
+  required_version = ">= 1.10.0"
 
   required_providers {
     aws = {

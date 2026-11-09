@@ -1,5 +1,39 @@
 # React + TypeScript + Vite
 
+## V5 offline verification
+
+Use Node 22.17.0 and the committed frontend lockfile:
+
+```sh
+npm ci
+npm run lint
+npm run test:svg
+npx playwright install --with-deps chromium
+npm run test:corridors
+npm run build
+cd ..
+python scripts/verify_svg_assets.py --build-dir frontend/dist
+```
+
+CI preserves PR #288's isolated locked build and artifact manifest verification
+through `scripts/frontend_release.py`, then checks SVG copies in that artifact.
+It supplies fixture `VITE_*` values; see [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+For a local verification build, override `.env` with those same fixture values
+so the output is not confused with a deployable build. The corridor suite mocks
+APIs and aborts external requests. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can point
+to an existing Chromium executable. `VITE_API_VERSION` must be the full
+`/api/v1` path, as expected by `apiClient`; the CI browser step sets it explicitly.
+The SVG checker parses all committed public
+and floor-plan SVGs, checks case-sensitive JSON floor-plan references, detects
+unreferenced plans and missing literal public SVG URLs, and compares fresh built
+SVG copies with source files.
+
+There is no generic `npm test` script. The existing `test:auth`, `test:bookmarks`,
+`test:checkpoints` and `test:us4` commands include live-service requests and are
+excluded from offline CI. They require separate authorization and a suitable test
+environment. No assets are uploaded by these checks. See the
+[V5 evidence matrix](../V5FinalVerification.md) for results and limitations.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
