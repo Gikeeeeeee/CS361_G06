@@ -24,7 +24,9 @@ checks reject missing/conflicting evidence, AWS creates/deletes/replacements,
 known async-import deletes and Lambda environment/artifact changes. The local
 packaging helper is classified separately under narrow ownership/hash checks.
 Guard runtime dependencies are stdlib-only `deployment_guard.py` and
-`sandbox_validation.py`, copied exactly from PR #288 at `e4ffe1d`. Pytest is needed only for offline
+`sandbox_validation.py`, initially copied from PR #288 at `e4ffe1d`. The diagnostic
+fix below changes only guard diagnostics/schema checks, not deployment permission.
+Pytest is needed only for offline
 tests, not to execute the workflow. No frontend or post-deployment checks run.
 Sanitized summary/cleanup never upload plans, state, credentials or tfvars.
 
@@ -52,9 +54,49 @@ git diff --check
 
 Focused tests: **56 passed**. Actionlint 1.7.12 passes (optional external
 ShellCheck/Pyflakes disabled); `git diff --check` passes. Existing production
-CD/CI, application and Terraform match `origin/main`. Copied runtime guards
-match the validated PR #288 implementation. No real remote plan or manual run
+CD/CI, application and Terraform match the base. These are the original #289
+results; the diagnostic fix's focused results are recorded below. No real remote plan or manual run
 is proven by local fixtures. Effective IAM/read access, state ownership at run
 time, current drift and Lambda package compatibility require authorized AWS
 evidence. No actual apply/destroy, S3 write, invalidation, notification or state
 repair is provided or permitted.
+
+## Diagnostic fix for guard exit 2
+
+The observed `invalid_or_conflicting_target_evidence` cannot identify the runtime
+failure: the previous guard caught every exception with the same result, hiding
+invariant failures, missing fields, parse errors and unexpected exceptions.
+Workflow inspection confirms JSON stdin, account-output and workspace wiring,
+but does not prove the runtime values or which validation failed. No specific
+account/state/region incompatibility is assumed or relaxed.
+
+The CLI retains exit 2 as failure and adds static `reason_code` and `phase`:
+
+| Boundary | Example reason codes |
+|---|---|
+| Account evidence | `AWS_ACCOUNT_EVIDENCE_MISSING`, `AWS_ACCOUNT_EVIDENCE_INVALID`, `PRIOR_STATE_ACCOUNT_MISMATCH` |
+| Backend source/metadata | `BACKEND_METADATA_INVALID`, `BACKEND_METADATA_MISMATCH`, `BACKEND_LOCKING_MISMATCH`, `BACKEND_CONFIGURATION_UNSUPPORTED` |
+| Workspace | `WORKSPACE_MISMATCH` |
+| Region/variables | `VARIABLE_EVIDENCE_INVALID`, `REGION_OR_VARIABLE_MISMATCH`, `PRIOR_STATE_REGION_MISMATCH` |
+| Prior-state ownership | `PRIOR_STATE_RESOURCES_MISSING`, `DEPLOYMENT_IDENTITY_EVIDENCE_MISSING`, `PRIOR_RESOURCE_IDENTITY_INVALID`, `PRIOR_STATE_PLAN_COVERAGE_MISSING` |
+| JSON shape | `UNEXPECTED_TERRAFORM_JSON_SCHEMA` |
+| Reading/parsing/validation | `PLAN_INPUT_UNAVAILABLE`, `PLAN_JSON_INVALID`, `PLAN_ERRORED`, `PLAN_INCOMPLETE`, `PLAN_DEFERRED`, `PLAN_CHECKS_UNRESOLVED`, `PLAN_VALIDATION_ERROR` |
+
+Public output is limited to static classifications/counts. Even blocked policy
+findings no longer print resource addresses/fingerprints. No exception text,
+environment values/names, ARNs, identifiers, paths, state/plan values or raw
+JSON are emitted. Successful/blocked checks still return 0/1 respectively;
+invalid or conflicting evidence always returns 2 with `apply_permitted: false`.
+Lambda artifact/environment, local-helper ownership and all drift protections
+are preserved. No workflow or Terraform source is changed.
+
+Validation: **92 focused tests passed** (`test_deployment_guard.py` and new
+`test_deployment_guard_diagnostics.py`), including each diagnostic boundary,
+synthetic malformed/missing inputs, redaction, policy failure and actual CLI
+exit 2 through stdin. `git diff --check` passes. Actionlint is unnecessary
+because workflows are unchanged; no full suite, build or Terraform command ran.
+
+The exact remaining evidence needed is the sanitized `reason_code` and `phase`
+from a separately approved run of this fix, together with its workflow revision.
+Do not provide raw plans, state, credentials, environment dumps, ARNs or resource
+IDs. No run is dispatched or AWS access performed to collect this evidence here.
