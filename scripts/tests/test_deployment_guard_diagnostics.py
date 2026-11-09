@@ -13,34 +13,15 @@ from scripts.tests.test_deployment_guard import existing
 
 
 def inputs(tmp_path, existing, monkeypatch):
-    plan, account, workspace, cached, source, expected_account = existing
-    monkeypatch.setenv("DEPLOY_ACCOUNT_ID", account)
+    plan, workspace, cached, source = existing
     monkeypatch.setenv("DEPLOY_WORKSPACE", workspace)
-    monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", expected_account)
     for name, value in (("plan.json", json.dumps(plan)), ("metadata.json", json.dumps(cached)), ("backend.tf", source)):
         (tmp_path / name).write_text(value)
     return ["backend-plan", "--plan", str(tmp_path / "plan.json"),
             "--backend-metadata", str(tmp_path / "metadata.json"), "--backend-source", str(tmp_path / "backend.tf")]
 
 
-@pytest.mark.parametrize("value,code", [(None, 2), ("PRIVATE_EXPECTED", 2), ("000000000000", 0)])
-def test_expected_account_preflight_is_fail_closed_and_redacted(monkeypatch, capsys, value, code):
-    if value is None:
-        monkeypatch.delenv("DEPLOY_EXPECTED_ACCOUNT_ID", raising=False)
-    else:
-        monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", value)
-    assert guard.main(["expected-account"]) == code
-    output = capsys.readouterr().out
-    assert "PRIVATE" not in output and "000000000000" not in output
-    assert json.loads(output)["apply_permitted"] is False
-
-
 @pytest.mark.parametrize("fault,expected,phase", [
-    ("missing_account", "AWS_ACCOUNT_EVIDENCE_MISSING", "account"),
-    ("invalid_account", "AWS_ACCOUNT_EVIDENCE_INVALID", "account"),
-    ("missing_expected", "EXPECTED_AWS_ACCOUNT_EVIDENCE_MISSING", "account"),
-    ("invalid_expected", "EXPECTED_AWS_ACCOUNT_EVIDENCE_INVALID", "account"),
-    ("wrong_expected", "AWS_ACCOUNT_MISMATCH", "account"),
     ("workspace", "WORKSPACE_MISMATCH", "workspace"),
     ("bucket", "BACKEND_METADATA_MISMATCH", "backend"),
     ("metadata_schema", "BACKEND_METADATA_INVALID", "backend"),
@@ -48,8 +29,7 @@ def test_expected_account_preflight_is_fail_closed_and_redacted(monkeypatch, cap
     ("backend_source", "BACKEND_CONFIGURATION_UNSUPPORTED", "backend"),
     ("missing_variable", "VARIABLE_EVIDENCE_INVALID", "variables"),
     ("variable", "REGION_OR_VARIABLE_MISMATCH", "variables"),
-    ("region", "PRIOR_STATE_REGION_MISMATCH", "variables"),
-    ("state_account", "PRIOR_STATE_ACCOUNT_MISMATCH", "account"),
+    ("region", "REGION_OR_VARIABLE_MISMATCH", "variables"),
     ("provider", "PROVIDER_CONFIGURATION_MISMATCH", "variables"),
     ("missing_prior_state", "PRIOR_STATE_RESOURCES_MISSING", "prior_state"),
     ("missing_anchor", "PRIOR_STATE_RESOURCES_MISSING", "prior_state"),
@@ -67,15 +47,14 @@ def test_expected_account_preflight_is_fail_closed_and_redacted(monkeypatch, cap
     ("checks", "PLAN_CHECKS_UNRESOLVED", "plan_validation"),
 ])
 def test_exit_two_has_precise_static_reason(tmp_path, existing, monkeypatch, capsys, fault, expected, phase):
-    plan, _, _, cached, _, _ = existing
+    plan, _, cached, _ = existing
     resources = plan["prior_state"]["values"]["root_module"]["resources"]
     if fault == "bucket": cached["backend"]["config"]["bucket"] = "PRIVATE_WRONG_BUCKET"
     if fault == "metadata_schema": cached["backend"] = []
     if fault == "locking": cached["backend"]["config"]["use_lockfile"] = False
     if fault == "missing_variable": plan["variables"].pop("environment")
     if fault == "variable": plan["variables"]["environment"]["value"] = "PRIVATE_ENVIRONMENT"
-    if fault == "region": plan["variables"]["aws_region"]["value"] = "PRIVATE_REGION"
-    if fault == "state_account": resources[0]["values"]["arn"] = "arn:aws:lambda:fixture-region:111111111111:function:PRIVATE_FUNCTION"
+    if fault == "region": plan["configuration"]["provider_config"]["opaque"]["expressions"]["region"] = {"constant_value": "PRIVATE_REGION"}
     if fault == "provider": plan["configuration"]["provider_config"]["extra"] = copy.deepcopy(plan["configuration"]["provider_config"]["opaque"])
     if fault == "missing_prior_state": plan.pop("prior_state")
     if fault == "missing_anchor": resources.pop(0)
@@ -92,11 +71,6 @@ def test_exit_two_has_precise_static_reason(tmp_path, existing, monkeypatch, cap
     if fault == "deferred": plan["deferred_changes"] = [{"private": "PRIVATE_PAYLOAD"}]
     if fault == "checks": plan["checks"] = [{"status": "unknown", "private": "PRIVATE_PAYLOAD"}]
     args = inputs(tmp_path, existing, monkeypatch)
-    if fault == "missing_account": monkeypatch.delenv("DEPLOY_ACCOUNT_ID")
-    if fault == "invalid_account": monkeypatch.setenv("DEPLOY_ACCOUNT_ID", "PRIVATE_ACCOUNT")
-    if fault == "missing_expected": monkeypatch.delenv("DEPLOY_EXPECTED_ACCOUNT_ID")
-    if fault == "invalid_expected": monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", "PRIVATE_EXPECTED")
-    if fault == "wrong_expected": monkeypatch.setenv("DEPLOY_EXPECTED_ACCOUNT_ID", "111111111111")
     if fault == "workspace": monkeypatch.setenv("DEPLOY_WORKSPACE", "PRIVATE_WORKSPACE")
     if fault == "backend_source": (tmp_path / "backend.tf").write_text('backend "local" {}')
     assert guard.main(args) == 2
@@ -104,10 +78,10 @@ def test_exit_two_has_precise_static_reason(tmp_path, existing, monkeypatch, cap
     result = json.loads(output.out)
     assert result == {"result": "invalid_or_conflicting_target_evidence", "apply_permitted": False,
                       "reason_code": expected, "phase": phase,
-                      "category": "target_identity_validation_failure" if phase in {"account", "workspace", "backend", "variables", "prior_state"}
+                      "category": "target_identity_validation_failure" if phase in {"workspace", "backend", "variables", "prior_state"}
                       and expected != "PRIOR_STATE_PLAN_COVERAGE_MISSING" else "plan_validation_failure"}
     assert "PRIVATE_" not in output.out + output.err
-    assert "arn:" not in output.out + output.err and existing[1] not in output.out
+    assert "arn:" not in output.out + output.err and "000000000000" not in output.out
     assert not output.err
 
 
@@ -157,16 +131,16 @@ def test_blocked_and_passed_evidence_contain_no_resource_identifiers(tmp_path, e
     output = capsys.readouterr().out
     parsed = json.loads(output)
     assert parsed["reason_code"] == "PLAN_CHANGES_BLOCKED" and parsed["failure_count"] == 1
-    for identifier in (guard.ANCHORS[0], "address", "arn:", existing[1], "PRIVATE_ENV"):
+    for identifier in (guard.ANCHORS[0], "address", "arn:", "000000000000", "PRIVATE_ENV"):
         assert identifier not in output
 
 
 def test_stdin_and_actual_process_keep_exit_two_failure(tmp_path, existing, monkeypatch):
     args = inputs(tmp_path, existing, monkeypatch)
-    monkeypatch.setenv("DEPLOY_ACCOUNT_ID", "PRIVATE_ACCOUNT")
+    monkeypatch.setenv("DEPLOY_WORKSPACE", "PRIVATE_WORKSPACE")
     args[args.index("--plan") + 1] = "-"
     result = subprocess.run([sys.executable, str(Path(guard.__file__)), *args], input=json.dumps(existing[0]),
                             env=os.environ.copy(), capture_output=True, text=True)
     assert result.returncode == 2
-    assert json.loads(result.stdout)["reason_code"] == "AWS_ACCOUNT_EVIDENCE_INVALID"
-    assert "PRIVATE_ACCOUNT" not in result.stdout + result.stderr
+    assert json.loads(result.stdout)["reason_code"] == "WORKSPACE_MISMATCH"
+    assert "PRIVATE_WORKSPACE" not in result.stdout + result.stderr

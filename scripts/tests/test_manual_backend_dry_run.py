@@ -37,10 +37,12 @@ def test_packaging_precedes_credentials_and_guard_follows_plan():
     assert "--backend-source backend.tf" in workflow and "terraform workspace show" in workflow
 
 
-def test_expected_account_is_secret_and_checked_before_credentials():
+def test_no_custom_account_preflight_or_secret_dependency():
     workflow = WORKFLOW.read_text()
-    assert "DEPLOY_EXPECTED_ACCOUNT_ID: ${{ secrets.EXPECTED_AWS_ACCOUNT_ID }}" in workflow
-    assert workflow.index("deployment_guard.py expected-account") < workflow.index("aws-actions/configure-aws-credentials")
+    assert "EXPECTED_AWS_ACCOUNT_ID" not in workflow
+    assert "DEPLOY_ACCOUNT_ID" not in workflow
+    assert "deployment_guard.py expected-account" not in workflow
+    assert "aws-actions/configure-aws-credentials@v4" in workflow
 
 
 def test_original_production_cd_is_unchanged():

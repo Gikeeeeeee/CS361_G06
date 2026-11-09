@@ -20,7 +20,7 @@ until compatible deployment evidence exists; it is not automatically accepted.
 
 Only init/validate/plan and inspection are possible. Plan uses `-lock=false` to
 avoid lock writes; exit 0/2 proceed to the guard, other exits fail. Snapshots can
-become stale and are never approved for apply. Existing-state/account/region
+become stale and are never approved for apply. Existing-state/backend/provider-region
 checks reject missing/conflicting evidence, AWS creates/deletes/replacements,
 known async-import deletes and Lambda environment/artifact changes. The local
 packaging helper is classified separately under narrow ownership/hash checks.
@@ -67,18 +67,17 @@ repair is provided or permitted.
 The observed `invalid_or_conflicting_target_evidence` cannot identify the runtime
 failure: the previous guard caught every exception with the same result, hiding
 invariant failures, missing fields, parse errors and unexpected exceptions.
-Workflow inspection confirms JSON stdin, account-output and workspace wiring,
+Workflow inspection confirms JSON stdin and workspace wiring,
 but does not prove the runtime values or which validation failed. No specific
-account/state/region incompatibility is assumed or relaxed.
+state/region incompatibility is assumed or relaxed.
 
 The CLI retains exit 2 as failure and adds static `reason_code` and `phase`:
 
 | Boundary | Example reason codes |
 |---|---|
-| Account evidence | `AWS_ACCOUNT_EVIDENCE_MISSING`, `AWS_ACCOUNT_EVIDENCE_INVALID`, `PRIOR_STATE_ACCOUNT_MISMATCH` |
 | Backend source/metadata | `BACKEND_METADATA_INVALID`, `BACKEND_METADATA_MISMATCH`, `BACKEND_LOCKING_MISMATCH`, `BACKEND_CONFIGURATION_UNSUPPORTED` |
 | Workspace | `WORKSPACE_MISMATCH` |
-| Region/variables | `VARIABLE_EVIDENCE_INVALID`, `REGION_OR_VARIABLE_MISMATCH`, `PRIOR_STATE_REGION_MISMATCH` |
+| Region/variables | `VARIABLE_EVIDENCE_INVALID`, `REGION_OR_VARIABLE_MISMATCH` |
 | Prior-state ownership | `PRIOR_STATE_RESOURCES_MISSING`, `PRIOR_RESOURCE_IDENTITY_INVALID`, `PRIOR_STATE_PLAN_COVERAGE_MISSING` |
 | JSON shape | `UNEXPECTED_TERRAFORM_JSON_SCHEMA` |
 | Reading/parsing/validation | `PLAN_INPUT_UNAVAILABLE`, `PLAN_JSON_INVALID`, `PLAN_ERRORED`, `PLAN_INCOMPLETE`, `PLAN_DEFERRED`, `PLAN_CHECKS_UNRESOLVED`, `PLAN_VALIDATION_ERROR` |
@@ -113,11 +112,11 @@ declaration originated in #272, before V5. If that absence confirmation becomes
 invalid, stop: removal would propose a local marker deletion, which the guard
 still rejects. No legacy object is exempted from plan safety.
 
-Configure the repository Actions secret `EXPECTED_AWS_ACCOUNT_ID` with the
-existing intended account ID through the team's approved secret process.
-The workflow fails before credentials when it is absent or malformed; the
-guard compares the actual caller against it and checks existing resource
-ARN ownership. Neither value is printed. No secret was created or read here.
+The simplified Backend Dry Run uses the existing IAM-user credential action
+unchanged. It requires no `EXPECTED_AWS_ACCOUNT_ID` secret, account environment
+variables or account preflight. The guard does not compare account IDs or scan
+ARNs for account/region ownership; unchanged resource references can legitimately
+contain external ARNs. No replacement scanning or identity framework is added.
 Backend S3 type, exact bucket/key/region, locking, default workspace, provider
 region and resource anchors remain mandatory. The asset-bucket variable must
 match the existing bucket identity; its Environment tag, when present, must
@@ -153,9 +152,44 @@ failed because Playwright's expected browser was absent; the sandboxed retry
 stalled during cleanup. The final offline run outside the sandbox passed.
 `git diff --check` passes.
 
-The marker requirement no longer prevents full Plan Safety inspection, provided
-the expected-account secret and all existing ownership evidence are available.
+The marker/account requirements no longer prevent full Plan Safety inspection,
+provided all existing backend, workspace and prior-state evidence is available.
 A fresh authorized remote plan is still needed to establish actual results:
 six async-import deletions, Lambda rollback/environment drift and deferred
 packaging hashes remain #284 blockers where proposed. No AWS calls, plans,
 workflow execution, deployment or remote-state operations occurred here.
+
+## Simplified Backend Dry Run guard
+
+This fix is based on latest fetched main `2d0ffe9`. The earlier validation
+counts above describe earlier revisions. Recursive ARN inspection could reject
+unchanged external/reference ARNs as ownership evidence. That behavior is
+reproduced with synthetic KMS, layer and environment references; the exact
+field behind the reported live failure was not retrieved or established.
+
+Target selection now relies on the existing authenticated credential action,
+exact S3 backend bucket/key/region and lock configuration, default workspace,
+provider region expression bound to `var.aws_region`, required variables,
+asset-bucket variable/state identity and required prior-state resources. This
+does not independently attest the AWS account or derive region from state ARNs.
+Existing ARN/ID changes still fail the in-place identity comparison against
+prior state. Missing/inconsistent evidence remains exit 2; unsafe changes remain
+exit 1. Schema/completeness, state coverage, drift, unexpected creates,
+deletes/replacements, IAM changes, Lambda code/environment and S3/CloudFront
+identity protections are unchanged. SVG asset resources remain subject to the
+same plan checks; no asset or application code is modified.
+
+Only the Backend Dry Run guard, its workflow, focused tests and this document
+change. The original production `cd.yml` and optional sandbox utility are
+unchanged. No AWS request, Terraform command, state access or workflow dispatch
+was performed. The workflow is ready for another separately authorized attempt
+after review/integration on main; a safe live-plan result is not established
+offline. Known #284 drift and Lambda/package blockers can still reject the plan.
+
+Validation for this revision: **103 focused Python tests passed** across
+`test_deployment_guard.py`, `test_deployment_guard_diagnostics.py` and
+`test_manual_backend_dry_run.py`; actionlint and `git diff --check` pass.
+Regressions cover unchanged external ARN references, absence of account/ARN
+evidence, all three backend target fields, workspace/provider-region errors,
+state coverage, unsafe actions and unchanged Lambda/identity protections.
+No frontend or unrelated test suite was rerun.
