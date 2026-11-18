@@ -32,3 +32,5 @@ tfplan
 terraform/terraform-backend/modules/lambda/build/
 
 /scratch
+# load test credentials
+loadtest/users.csv
